@@ -108,3 +108,7 @@ func (t *OutboundTransformer) AggregateStreamChunks(ctx context.Context, request
 
 var _ transformer.Outbound = (*OutboundTransformer)(nil)
 var _ transformer.VideoTaskOutbound = (*OutboundTransformer)(nil)
+
+func (t *OutboundTransformer) NewStreamAggregation(req *httpclient.Request) transformer.StreamAggregation {
+	return transformer.NewStreamAggregation(t.Outbound, req)
+}

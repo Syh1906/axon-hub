@@ -40,14 +40,15 @@ func optimizeRequestTransport(outbound *PersistentOutboundTransformer) pipeline.
 				request.ProtocolVaryHeaders = append(request.ProtocolVaryHeaders, op.Path)
 			}
 		}
+		payload := state.RequestService.PayloadService
+		request.PeerDictionary = payload.PeerRequest(ctx)
+		request.NoZstdEndpoints = payload.DisabledZstdEndpoints()
 		switch llm.APIFormat(request.APIFormat) {
 		case llm.APIFormatOpenAIChatCompletion, llm.APIFormatOpenAIResponse, llm.APIFormatOpenAIResponseWebSocket, llm.APIFormatOpenAIResponseCompact, llm.APIFormatAnthropicMessage, llm.APIFormatGeminiContents:
 		default:
 			return request, nil
 		}
 		outbound.applyAddressDeadline(ctx, request)
-		payload := state.RequestService.PayloadService
-		request.NoZstdEndpoints = payload.DisabledZstdEndpoints()
 		request.LearnZstd = transport.AutomaticCompression && payload.LearnRequestZstd() && len(overrides) == 0
 		if request.APIFormat == string(llm.APIFormatOpenAIResponse) || request.APIFormat == string(llm.APIFormatOpenAIResponseWebSocket) {
 			request.ZstdEndpoints = payload.ResponsesZstdEndpoints()

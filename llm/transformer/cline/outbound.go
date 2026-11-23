@@ -202,3 +202,7 @@ func clineChunkTransform(ctx context.Context, chunk *httpclient.StreamEvent) (*o
 func (t *OutboundTransformer) AggregateStreamChunks(ctx context.Context, req *httpclient.Request, chunks []*httpclient.StreamEvent) ([]byte, llm.ResponseMeta, error) {
 	return openai.AggregateStreamChunks(ctx, chunks, clineChunkTransform)
 }
+
+func (t *OutboundTransformer) NewStreamAggregation(_ *httpclient.Request) transformer.StreamAggregation {
+	return openai.NewChatStreamAggregation(clineChunkTransform)
+}

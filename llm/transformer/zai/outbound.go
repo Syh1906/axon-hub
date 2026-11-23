@@ -356,3 +356,7 @@ func (t *OutboundTransformer) TransformResponse(
 	// For regular chat completions, delegate to the wrapped OpenAI transformer
 	return t.Outbound.TransformResponse(ctx, httpResp)
 }
+
+func (t *OutboundTransformer) NewStreamAggregation(req *httpclient.Request) transformer.StreamAggregation {
+	return transformer.NewStreamAggregation(t.Outbound, req)
+}

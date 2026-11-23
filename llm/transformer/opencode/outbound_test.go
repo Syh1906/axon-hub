@@ -209,6 +209,7 @@ func TestWithSessionHeader_PreservesCustomizedOutboundCapabilities(t *testing.T)
 	require.NoError(t, err)
 
 	wrapped := WithSessionHeader(base)
+	require.NotNil(t, transformer.NewStreamAggregation(wrapped, &httpclient.Request{APIFormat: string(llm.APIFormatOpenAIResponse)}))
 	require.Implements(t, (*pipeline.ChannelCustomizedExecutor)(nil), wrapped)
 	require.Implements(t, (*transformer.TransportRequestFinalizer)(nil), wrapped)
 	require.Implements(t, (*stoppableOutbound)(nil), wrapped)

@@ -1,5 +1,11 @@
 # Fork 维护台账
 
+## 原生对话转发的内存开销与站间字典压缩（rc1-fork.22）
+
+- 原生 Responses 透传复用未改动的请求和事件；模型映射、提示保护和协作历史修复仍需验证原始输入完整。同步上游时复核[透传实现](../internal/server/orchestrator/pass_through.go)与[大正文基准](../internal/server/orchestrator/responses_request_chain_test.go)。
+- 流式文本落账按实际适配器选择增量聚合。同步时核对 Chat、旧 Completions、Responses、Messages、Gemini、Ollama、AI SDK 及订阅／中转适配器的分片转换、缓存用量、尾段计费和取消；开启原始分片存档或调试转储时保留原始流，特别核对[Claude Code 工具名前缀处理](../llm/transformer/anthropic/claudecode/outbound_test.go)和 [OpenCode 会话包装](../llm/transformer/opencode/outbound_test.go)。[入口](../internal/server/orchestrator/stream_history.go) · [交付与结算](../internal/server/orchestrator/stream_delivery_accounting_baseline_test.go)
+- HTTP 大正文、未知长度／压缩正文、WS 排队和预热共用实例字节额度。原始帧与内部 JSON 只交接给需要它们的消费者。同步连接池时核对[拨号上下文](../llm/httpclient/dial_context.go)，拨号结束应释放请求正文和追踪回调。双站字典压缩按认证身份、明确的 HTTPS 端点和对端回执启用。只有对端在推理前拒绝旧字典才补发，且实际发送的正文须用于上传和计费档位判定。维护时核对[配置与隔离范围](zh/guides/storage-maintenance.md)、[双网关与正文释放](../internal/server/api/responses_body_memory_test.go)和[字典失效处理](../llm/httpclient/peer_dictionary_test.go)。
+
 ## rc1-fork.21 精简正式发布与双站验收（2026-11-22）
 
 - [正式版](https://github.com/Syh1906/axon-hub/releases/tag/v1.0.0-rc1-fork.21) 对应源码 `3ff8bd2bd28dd18f66af9da5249f37a01d6f1263`。[Test](https://github.com/Syh1906/axon-hub/actions/runs/45027739259)、Build、Lint、Govulncheck 均通过。[发布工作流](https://github.com/Syh1906/axon-hub/actions/runs/45028470945) 验证了 PostgreSQL 启动，发布 Linux amd64、arm64 镜像及 `release.json`。两站固定到同一镜像摘要 `sha256:def1169a34c561b75d5f9115a61687c0e8b73faa38f3f9e4ca1dc6a271204aa0`。

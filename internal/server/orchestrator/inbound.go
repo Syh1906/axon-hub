@@ -39,14 +39,14 @@ const (
 //
 //nolint:containedctx // Checked.
 type InboundPersistentStream struct {
-	ctx             context.Context
-	stream          streams.Stream[*httpclient.StreamEvent]
-	request         *ent.Request
-	requestExec     *ent.RequestExecution
-	requestService  *biz.RequestService
-	transformer     transformer.Inbound
-	perf            *biz.PerformanceRecord
-	responseChunks  []*httpclient.StreamEvent
+	ctx            context.Context
+	stream         streams.Stream[*httpclient.StreamEvent]
+	request        *ent.Request
+	requestExec    *ent.RequestExecution
+	requestService *biz.RequestService
+	transformer    transformer.Inbound
+	perf           *biz.PerformanceRecord
+	streamHistory
 	terminalState   streamTerminalState
 	outcome         streamOutcome
 	closed          bool
@@ -78,7 +78,7 @@ func NewInboundPersistentStream(
 		requestService:  requestService,
 		transformer:     transformer,
 		perf:            perf,
-		responseChunks:  make([]*httpclient.StreamEvent, 0),
+		streamHistory:   newStreamHistory(state, transformer),
 		closed:          false,
 		closeDone:       make(chan struct{}),
 		state:           state,
@@ -87,6 +87,13 @@ func NewInboundPersistentStream(
 	}
 
 	return s
+}
+
+func (ts *InboundPersistentStream) aggregate(ctx context.Context) ([]byte, llm.ResponseMeta, error) {
+	if ts.incremental != nil {
+		return ts.incremental.Result()
+	}
+	return ts.transformer.AggregateStreamChunks(ctx, ts.responseChunks)
 }
 
 func (ts *InboundPersistentStream) Next() bool {
@@ -100,9 +107,7 @@ func (ts *InboundPersistentStream) ExpectedStreamChoices() int {
 func (ts *InboundPersistentStream) Current() *httpclient.StreamEvent {
 	event := ts.stream.Current()
 	if event != nil {
-		// For raw binary audio chunks (TTS stream_format=audio), persist only a size
-		// summary to avoid buffering the full audio payload in memory.
-		ts.responseChunks = append(ts.responseChunks, httpclient.SummarizeBinaryChunk(event))
+		ts.add(ts.ctx, event)
 		ts.state.observeStreamTerminal(event)
 		if ts.terminalState == streamTerminalNone {
 			if event.CleanEOFCompletionEvidence {
@@ -314,6 +319,7 @@ func (ts *InboundPersistentStream) Close() error {
 	ts.closed = true
 	ts.closeMu.Unlock()
 	defer close(ts.closeDone)
+	defer ts.releaseHistory()
 	if !ts.state.publishesRequest() {
 		// Losing speculative attempts still close their execution/accounting
 		// stream, but may not replace the logical request's winning outcome.
@@ -357,7 +363,7 @@ func (ts *InboundPersistentStream) Close() error {
 		publishRequestFailed(context.WithoutCancel(ctx), ts.state, ts.outcome.deliveryDecision().cause)
 	}()
 
-	log.Debug(ctx, "Closing persistent stream", log.Int("chunk_count", len(ts.responseChunks)), log.Bool("request_completed", ts.state.StreamCompleted))
+	log.Debug(ctx, "Closing persistent stream", log.Int("chunk_count", ts.count), log.Bool("request_completed", ts.state.StreamCompleted))
 
 	streamErr := ts.Err()
 	ctxErr := ctx.Err()
@@ -387,8 +393,8 @@ func (ts *InboundPersistentStream) Close() error {
 	var responseBody []byte
 	var meta llm.ResponseMeta
 	var aggErr error
-	if len(ts.responseChunks) > 0 && !ts.outcome.hasFinalEvidence() {
-		responseBody, meta, aggErr = ts.transformer.AggregateStreamChunks(context.WithoutCancel(ctx), ts.responseChunks)
+	if ts.count > 0 && !ts.outcome.hasFinalEvidence() {
+		responseBody, meta, aggErr = ts.aggregate(context.WithoutCancel(ctx))
 		aggregatedCompleted := isCompletedAggregated(meta)
 		if ts.request != nil && ts.request.Format == llm.APIFormatOpenAIChatCompletion.String() &&
 			(streamErr != nil || ctxErr != nil) {
@@ -471,7 +477,7 @@ func (ts *InboundPersistentStream) persistResponseChunks(ctx context.Context) {
 	persistCtx := context.WithoutCancel(ctx)
 
 	// Aggregate stream chunks first, then delegate to _persistResponse
-	responseBody, meta, err := ts.transformer.AggregateStreamChunks(persistCtx, ts.responseChunks)
+	responseBody, meta, err := ts.aggregate(persistCtx)
 	if err != nil {
 		log.Warn(persistCtx, "Failed to aggregate chunks for main request", log.Cause(err))
 		dumper.DumpStreamEvents(persistCtx, ts.responseChunks, "response_chunks.json")
@@ -553,7 +559,7 @@ func (p *PersistentInboundTransformer) TransformStream(ctx context.Context, stre
 		p.state.Request,
 		p.state.RequestExec,
 		p.state.RequestService,
-		p, // Use the PersistentInboundTransformer as the transformer
+		p.wrapped,
 		p.state.Perf,
 		p.state,
 	)

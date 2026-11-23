@@ -41,7 +41,9 @@ func TestResponsesPersistedFramePreservesExactRawBytes(t *testing.T) {
 	frame := []byte("{ \"type\":\"response.create\", \"model\":\"gpt-5\", \"input\":\"raw\", \"stream\":false }")
 	session := &responsesWebSocketSession{}
 	// When
-	request, _, err := session.prepareRequest(httptest.NewRequest(http.MethodGet, "/v1/responses", nil), frame)
+	parsed, parseErr := parseResponsesFrame(frame)
+	require.Nil(t, parseErr)
+	request, _, err := session.prepareFrame(httptest.NewRequest(http.MethodGet, "/v1/responses", nil), parsed)
 	// Then
 	require.Nil(t, err)
 	require.Equal(t, frame, request.JSONBody)

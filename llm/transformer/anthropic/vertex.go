@@ -1,6 +1,7 @@
 package anthropic
 
 import (
+	"github.com/looplj/axonhub/llm/httpclient"
 	"github.com/looplj/axonhub/llm/pipeline"
 	"github.com/looplj/axonhub/llm/transformer"
 	"github.com/looplj/axonhub/llm/vertex"
@@ -20,3 +21,7 @@ func (t *VertexTransformer) CustomizeExecutor(defaultExecutor pipeline.Executor)
 
 // Ensure VertexTransformer implements the ChannelCustomizedExecutor interface.
 var _ pipeline.ChannelCustomizedExecutor = (*VertexTransformer)(nil)
+
+func (t *VertexTransformer) NewStreamAggregation(req *httpclient.Request) transformer.StreamAggregation {
+	return transformer.NewStreamAggregation(t.Outbound, req)
+}

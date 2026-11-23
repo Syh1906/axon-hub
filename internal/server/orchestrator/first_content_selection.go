@@ -308,39 +308,49 @@ func reportedCacheTokens(format llm.APIFormat, chunks []*httpclient.StreamEvent)
 		if format == llm.APIFormatAnthropicMessage {
 			index = offset
 		}
-		e := chunks[index]
-		var v gjson.Result
-		switch format {
-		case llm.APIFormatOpenAIResponse:
-			kind := gjson.GetBytes(e.Data, "type").String()
-			if kind != "response.completed" && kind != "response.done" {
-				continue
-			}
-			v = gjson.GetBytes(e.Data, "response.usage.input_tokens_details.cached_tokens")
-		case llm.APIFormatOpenAIChatCompletion:
-			usage := gjson.GetBytes(e.Data, "usage")
-			v = usage.Get("prompt_tokens_details.cached_tokens")
-			if !v.Exists() {
-				v = usage.Get("cached_tokens")
-			}
-		case llm.APIFormatAnthropicMessage:
-			usage := gjson.GetBytes(e.Data, "usage")
-			if !usage.Exists() && gjson.GetBytes(e.Data, "type").String() == "message_start" {
-				usage = gjson.GetBytes(e.Data, "message.usage")
-			}
-			v = usage.Get("cache_read_input_tokens")
-			if !v.Exists() {
-				v = usage.Get("cached_tokens")
-			}
-		case llm.APIFormatGeminiContents:
-			v = gjson.GetBytes(e.Data, "usageMetadata.cachedContentTokenCount")
-		}
+		v := cacheTokenField(format, chunks[index])
 		if v.Exists() {
-			n, err := strconv.ParseInt(v.Raw, 10, 64)
-			return n, v.Type == gjson.Number && err == nil && n >= 0
+			return parseCacheTokenCount(v)
 		}
 	}
 	return 0, false
+}
+
+func parseCacheTokenCount(v gjson.Result) (int64, bool) {
+	n, err := strconv.ParseInt(v.Raw, 10, 64)
+	return n, v.Type == gjson.Number && err == nil && n >= 0
+}
+
+// Keep absence distinct from a present invalid count: the latest reported
+// field wins even when it invalidates an earlier observation.
+func cacheTokenField(format llm.APIFormat, e *httpclient.StreamEvent) gjson.Result {
+	var v gjson.Result
+	switch format {
+	case llm.APIFormatOpenAIResponse:
+		kind := gjson.GetBytes(e.Data, "type").String()
+		if kind != "response.completed" && kind != "response.done" {
+			return gjson.Result{}
+		}
+		v = gjson.GetBytes(e.Data, "response.usage.input_tokens_details.cached_tokens")
+	case llm.APIFormatOpenAIChatCompletion:
+		usage := gjson.GetBytes(e.Data, "usage")
+		v = usage.Get("prompt_tokens_details.cached_tokens")
+		if !v.Exists() {
+			v = usage.Get("cached_tokens")
+		}
+	case llm.APIFormatAnthropicMessage:
+		usage := gjson.GetBytes(e.Data, "usage")
+		if !usage.Exists() && gjson.GetBytes(e.Data, "type").String() == "message_start" {
+			usage = gjson.GetBytes(e.Data, "message.usage")
+		}
+		v = usage.Get("cache_read_input_tokens")
+		if !v.Exists() {
+			v = usage.Get("cached_tokens")
+		}
+	case llm.APIFormatGeminiContents:
+		v = gjson.GetBytes(e.Data, "usageMetadata.cachedContentTokenCount")
+	}
+	return v
 }
 
 func (s *PersistenceState) observeFirstContentChoice(ctx context.Context, exec *ent.RequestExecution) {

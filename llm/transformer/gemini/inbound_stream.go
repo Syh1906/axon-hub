@@ -11,6 +11,7 @@ import (
 	"github.com/looplj/axonhub/llm/httpclient"
 	"github.com/looplj/axonhub/llm/internal/pkg/xjson"
 	"github.com/looplj/axonhub/llm/streams"
+	"github.com/looplj/axonhub/llm/transformer"
 )
 
 // TransformStream transforms the unified stream response format to Gemini HTTP response stream.
@@ -364,4 +365,8 @@ func (t *InboundTransformer) AggregateStreamChunks(
 	chunks []*httpclient.StreamEvent,
 ) ([]byte, llm.ResponseMeta, error) {
 	return AggregateStreamChunks(ctx, chunks)
+}
+
+func (t *InboundTransformer) NewStreamAggregation(_ *httpclient.Request) transformer.StreamAggregation {
+	return NewStreamAggregation()
 }

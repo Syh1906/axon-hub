@@ -95,3 +95,7 @@ func (t *OutboundTransformer) TransformRequest(
 
 	return httpReq, nil
 }
+
+func (t *OutboundTransformer) NewStreamAggregation(req *httpclient.Request) transformer.StreamAggregation {
+	return transformer.NewStreamAggregation(t.Outbound, req)
+}

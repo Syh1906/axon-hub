@@ -16,8 +16,9 @@ import (
 // the aggregator expands its dense content-part storage.
 const maxAggregatedContentParts = 1024
 
-// streamAggregator holds the state for aggregating stream chunks.
-type streamAggregator struct {
+// StreamAggregation holds the state for aggregating stream chunks.
+type StreamAggregation struct {
+	hasChunks bool
 	// Response metadata
 	responseID         string
 	model              string
@@ -148,15 +149,16 @@ func ensureSummaryPart(item *aggregatedItem, summaryIndex int) *aggregatedSummar
 	return part
 }
 
-func newStreamAggregator() *streamAggregator {
-	return &streamAggregator{
+// NewStreamAggregation starts one Responses stream in the in-progress state.
+func NewStreamAggregation() *StreamAggregation {
+	return &StreamAggregation{
 		outputItems:     make(map[int][]*aggregatedItem),
 		outputItemsByID: make(map[string]*aggregatedItem),
 		status:          "in_progress",
 	}
 }
 
-func (a *streamAggregator) lastItemByOutputIndex(outputIndex int) *aggregatedItem {
+func (a *StreamAggregation) lastItemByOutputIndex(outputIndex int) *aggregatedItem {
 	items := a.outputItems[outputIndex]
 	if len(items) == 0 {
 		return nil
@@ -165,7 +167,7 @@ func (a *streamAggregator) lastItemByOutputIndex(outputIndex int) *aggregatedIte
 	return items[len(items)-1]
 }
 
-func (a *streamAggregator) getItemForEvent(outputIndex int, itemID *string) *aggregatedItem {
+func (a *StreamAggregation) getItemForEvent(outputIndex int, itemID *string) *aggregatedItem {
 	if itemID != nil && *itemID != "" {
 		if item, ok := a.outputItemsByID[*itemID]; ok {
 			return item
@@ -198,33 +200,29 @@ func applyDoneText(dst *strings.Builder, doneText string) {
 
 // AggregateStreamChunks aggregates OpenAI Responses API streaming chunks into a complete Response.
 // This is a shared implementation used by both InboundTransformer and OutboundTransformer.
-//
-//nolint:maintidx,gocognit // Aggregation logic is inherently complex.
-func AggregateStreamChunks(_ context.Context, chunks []*httpclient.StreamEvent) ([]byte, llm.ResponseMeta, error) {
-	if len(chunks) == 0 {
-		return nil, llm.ResponseMeta{}, errors.New("empty stream chunks")
-	}
-
-	agg := newStreamAggregator()
-
+func AggregateStreamChunks(ctx context.Context, chunks []*httpclient.StreamEvent) ([]byte, llm.ResponseMeta, error) {
+	agg := NewStreamAggregation()
 	for _, chunk := range chunks {
-		if chunk == nil || len(chunk.Data) == 0 {
-			continue
-		}
+		agg.Add(ctx, chunk)
+	}
+	return agg.Result()
+}
 
-		// Skip [DONE] marker
-		if string(chunk.Data) == "[DONE]" {
-			continue
-		}
-
-		var ev StreamEvent
-		if err := json.Unmarshal(chunk.Data, &ev); err != nil {
-			continue
-		}
-
+func (agg *StreamAggregation) Add(_ context.Context, chunk *httpclient.StreamEvent) {
+	agg.hasChunks = true
+	if chunk == nil || len(chunk.Data) == 0 || string(chunk.Data) == "[DONE]" {
+		return
+	}
+	var ev StreamEvent
+	if json.Unmarshal(chunk.Data, &ev) == nil {
 		agg.processEvent(&ev)
 	}
+}
 
+func (agg *StreamAggregation) Result() ([]byte, llm.ResponseMeta, error) {
+	if !agg.hasChunks {
+		return nil, llm.ResponseMeta{}, errors.New("empty stream chunks")
+	}
 	resp := agg.buildResponse()
 
 	body, err := json.Marshal(resp)
@@ -251,7 +249,7 @@ func AggregateStreamChunks(_ context.Context, chunks []*httpclient.StreamEvent) 
 }
 
 //nolint:gocognit,maintidx // Event processing is inherently complex.
-func (a *streamAggregator) processEvent(ev *StreamEvent) {
+func (a *StreamAggregation) processEvent(ev *StreamEvent) {
 	//nolint:exhaustive //Only process events we care about.
 	switch ev.Type {
 	case StreamEventTypeResponseCreated, StreamEventTypeResponseInProgress:
@@ -645,7 +643,7 @@ func (a *streamAggregator) processEvent(ev *StreamEvent) {
 	}
 }
 
-func (a *streamAggregator) applyResponseSnapshot(response *Response) {
+func (a *StreamAggregation) applyResponseSnapshot(response *Response) {
 	if response == nil {
 		return
 	}
@@ -679,7 +677,7 @@ func (a *streamAggregator) applyResponseSnapshot(response *Response) {
 
 // buildResponse builds the final Response object from aggregated state.
 // This is used by responsesInboundStream to build the response.completed event.
-func (a *streamAggregator) buildResponse() *Response {
+func (a *StreamAggregation) buildResponse() *Response {
 	// Build output items
 	output := make([]Item, 0, len(a.outputItems))
 

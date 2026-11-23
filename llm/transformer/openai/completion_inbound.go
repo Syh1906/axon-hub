@@ -286,3 +286,7 @@ func (t *CompletionInboundTransformer) TransformError(ctx context.Context, rawEr
 		Body:       xjson.MustMarshal(&OpenAIError{Detail: llm.ErrorDetail{Message: rawErr.Error(), Type: "internal_server_error"}}),
 	}
 }
+
+func (t *CompletionInboundTransformer) NewStreamAggregation(_ *httpclient.Request) transformer.StreamAggregation {
+	return newCompletionAggregation()
+}

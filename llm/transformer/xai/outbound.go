@@ -199,3 +199,7 @@ func (t *OutboundTransformer) TransformStream(
 
 	return llmStream, nil
 }
+
+func (t *OutboundTransformer) NewStreamAggregation(req *httpclient.Request) transformer.StreamAggregation {
+	return transformer.NewStreamAggregation(t.Outbound, req)
+}

@@ -102,3 +102,7 @@ func (e *fakeExecutor) DoStream(ctx context.Context, request *httpclient.Request
 	// Return a slice stream with the parsed events
 	return streams.SliceStream(events), nil
 }
+
+func (t *FakeTransformer) NewStreamAggregation(req *httpclient.Request) transformer.StreamAggregation {
+	return transformer.NewStreamAggregation(t.Outbound, req)
+}

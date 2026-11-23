@@ -236,3 +236,7 @@ func (t *CompletionOutboundTransformer) TransformError(
 }
 
 var _ transformer.Outbound = (*CompletionOutboundTransformer)(nil)
+
+func (t *CompletionOutboundTransformer) NewStreamAggregation(_ *httpclient.Request) transformer.StreamAggregation {
+	return newCompletionAggregation()
+}

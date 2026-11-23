@@ -1,6 +1,7 @@
 package orchestrator
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"strings"
@@ -28,6 +29,9 @@ type responsesAffinityProvider interface {
 type responsesPreviousIDContextKey struct{}
 
 func responsePreviousID(body []byte) string {
+	if !bytes.Contains(body, []byte("previous_response_id")) && !bytes.Contains(body, []byte(`\u`)) {
+		return ""
+	}
 	return gjson.GetBytes(body, "previous_response_id").String()
 }
 

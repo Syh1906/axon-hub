@@ -25,87 +25,94 @@ func AggregateStreamChunks(
 	ctx context.Context,
 	chunks []*httpclient.StreamEvent,
 ) ([]byte, llm.ResponseMeta, error) {
-	if len(chunks) == 0 {
-		data, err := json.Marshal(&GenerateContentResponse{})
-		return data, llm.ResponseMeta{}, err
+	a := NewStreamAggregation()
+	for _, ev := range chunks {
+		a.Add(ctx, ev)
+	}
+	return a.Result()
+}
+
+type GeminiAggregation struct {
+	seen                     bool
+	usage                    *UsageMetadata
+	responseID, modelVersion string
+	candidateAggs            map[int64]*candidateAggregator
+}
+
+func NewStreamAggregation() *GeminiAggregation {
+	return &GeminiAggregation{candidateAggs: make(map[int64]*candidateAggregator)}
+}
+func (a *GeminiAggregation) Add(ctx context.Context, chunk *httpclient.StreamEvent) {
+
+	// Skip empty or [DONE] events
+	if chunk == nil || len(chunk.Data) == 0 || string(chunk.Data) == "[DONE]" {
+		return
 	}
 
-	var (
-		lastResp      *GenerateContentResponse
-		usage         *UsageMetadata
-		responseID    string
-		modelVersion  string
-		candidateAggs = make(map[int64]*candidateAggregator)
-	)
+	var geminiResp GenerateContentResponse
+	if err := json.Unmarshal(chunk.Data, &geminiResp); err != nil {
+		return
+	}
 
-	for _, chunk := range chunks {
-		// Skip empty or [DONE] events
-		if chunk == nil || len(chunk.Data) == 0 || string(chunk.Data) == "[DONE]" {
+	// Capture response ID and model version
+	if a.responseID == "" && geminiResp.ResponseID != "" {
+		a.responseID = geminiResp.ResponseID
+	}
+
+	if a.modelVersion == "" && geminiResp.ModelVersion != "" {
+		a.modelVersion = geminiResp.ModelVersion
+	}
+
+	// Process each candidate
+	for _, candidate := range geminiResp.Candidates {
+		if candidate == nil {
 			continue
 		}
 
-		var geminiResp GenerateContentResponse
-		if err := json.Unmarshal(chunk.Data, &geminiResp); err != nil {
-			continue // Skip invalid chunks
-		}
+		candidateIndex := candidate.Index
 
-		// Capture response ID and model version
-		if responseID == "" && geminiResp.ResponseID != "" {
-			responseID = geminiResp.ResponseID
-		}
-
-		if modelVersion == "" && geminiResp.ModelVersion != "" {
-			modelVersion = geminiResp.ModelVersion
-		}
-
-		// Process each candidate
-		for _, candidate := range geminiResp.Candidates {
-			if candidate == nil {
-				continue
-			}
-
-			candidateIndex := candidate.Index
-
-			// Initialize candidate aggregator if it doesn't exist
-			if _, ok := candidateAggs[candidateIndex]; !ok {
-				candidateAggs[candidateIndex] = &candidateAggregator{
-					index: candidateIndex,
-				}
-			}
-
-			agg := candidateAggs[candidateIndex]
-
-			// Process content parts
-			if candidate.Content != nil {
-				agg.appendParts(candidate.Content.Parts)
-			}
-
-			// Capture finish reason
-			if candidate.FinishReason != "" {
-				agg.finishReason = candidate.FinishReason
-			}
-
-			// Capture grounding metadata (use the last one if multiple chunks have it)
-			if candidate.GroundingMetadata != nil {
-				agg.groundingMetadata = candidate.GroundingMetadata
+		// Initialize candidate aggregator if it doesn't exist
+		if _, ok := a.candidateAggs[candidateIndex]; !ok {
+			a.candidateAggs[candidateIndex] = &candidateAggregator{
+				index: candidateIndex,
 			}
 		}
 
-		// Extract usage information if present
-		if geminiResp.UsageMetadata != nil {
-			usage = geminiResp.UsageMetadata
+		agg := a.candidateAggs[candidateIndex]
+
+		// Process content parts
+		if candidate.Content != nil {
+			agg.appendParts(candidate.Content.Parts)
 		}
 
-		lastResp = &geminiResp
+		// Capture finish reason
+		if candidate.FinishReason != "" {
+			agg.finishReason = candidate.FinishReason
+		}
+
+		// Capture grounding metadata (use the last one if multiple chunks have it)
+		if candidate.GroundingMetadata != nil {
+			agg.groundingMetadata = candidate.GroundingMetadata
+		}
 	}
 
+	// Extract usage information if present
+	if geminiResp.UsageMetadata != nil {
+		a.usage = geminiResp.UsageMetadata
+	}
+
+	a.seen = true
+}
+
+func (a *GeminiAggregation) Result() ([]byte, llm.ResponseMeta, error) {
+
 	// Build the final response in Gemini format
-	if lastResp == nil {
+	if !a.seen {
 		data, err := json.Marshal(&GenerateContentResponse{})
 		return data, llm.ResponseMeta{}, err
 	}
 
-	return buildGeminiResponse(candidateAggs, responseID, modelVersion, usage)
+	return buildGeminiResponse(a.candidateAggs, a.responseID, a.modelVersion, a.usage)
 }
 
 // buildGeminiResponse builds a Gemini format response from aggregated data.

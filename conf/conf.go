@@ -175,6 +175,9 @@ func unmarshal(v *viper.Viper) (Config, error) {
 	}
 
 	config.DisableSSLVerify = config.APIServer.DisableSSLVerify
+	if n := config.RequestPayload.MaxInflightBodyMiB; n < 0 || int64(n) > 1<<30 {
+		return Config{}, fmt.Errorf("request_payload.max_inflight_body_mib outside supported range")
+	}
 	switch config.RequestPayload.CompactionCooldownMode {
 	case "observe", "enforce", "off":
 	default:
@@ -369,6 +372,9 @@ func setDefaults(v *viper.Viper) {
 
 	// Cache defaults
 	v.SetDefault("cache.mode", "memory")
+	v.SetDefault("request_payload.max_inflight_body_mib", 256)
+	v.SetDefault("request_payload.accept_peer_dictionary", false)
+	v.SetDefault("request_payload.peer_dictionary_endpoints", []string{})
 	v.SetDefault("request_payload.directory", "data/request-payloads")
 	v.SetDefault("request_payload.cached_images_only_channels", []int{})
 	v.SetDefault("request_payload.responses_zstd_endpoints", []string{})

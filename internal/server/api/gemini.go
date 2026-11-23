@@ -42,6 +42,7 @@ type GeminiHandlersParams struct {
 
 type GeminiHandlers struct {
 	cacheConfig            GeminiCacheConfig
+	bodyBudget             *httpclient.BodyBudget
 	selector               *orchestrator.DefaultSelector
 	client                 *httpclient.HttpClient
 	ChannelService         *biz.ChannelService
@@ -50,8 +51,13 @@ type GeminiHandlers struct {
 }
 
 func NewGeminiHandlers(params GeminiHandlersParams) *GeminiHandlers {
+	var bodyBudget *httpclient.BodyBudget
+	if params.RequestService != nil && params.RequestService.PayloadService != nil {
+		bodyBudget = params.RequestService.PayloadService.BodyBudget
+	}
 	return &GeminiHandlers{
-		selector: params.DefaultSelector, client: params.HttpClient,
+		bodyBudget: bodyBudget,
+		selector:   params.DefaultSelector, client: params.HttpClient,
 		ChatCompletionHandlers: NewChatCompletionHandlers(
 			orchestrator.NewChatCompletionOrchestrator(
 				params.ChannelService,

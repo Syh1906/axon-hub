@@ -27,6 +27,7 @@ import (
 	"github.com/looplj/axonhub/internal/scopes"
 	"github.com/looplj/axonhub/internal/server/biz/upstream"
 	"github.com/looplj/axonhub/internal/server/orchestrator"
+	"github.com/looplj/axonhub/llm/httpclient"
 	"github.com/looplj/axonhub/llm/transformer/gemini"
 )
 
@@ -155,7 +156,19 @@ func (h *GeminiHandlers) CacheResource(c *gin.Context) {
 	var payload map[string]json.RawMessage
 	var requestedExpiry time.Time
 	if method == "POST" || method == "PATCH" {
-		data, err := io.ReadAll(c.Request.Body)
+		// These authorized resource writes can contain the full cached prompt.
+		// Charge the existing reader without imposing an inference payload limit.
+		lease, err := h.bodyBudget.Admit(ctx, c.Request.ContentLength)
+		if err != nil {
+			cacheError(c, http.StatusServiceUnavailable, err.Error())
+			return
+		}
+		defer lease.Release()
+		data, err := io.ReadAll(lease.Reader(c.Request.Body, 0))
+		if errors.Is(err, httpclient.ErrBodyBudget) {
+			cacheError(c, http.StatusServiceUnavailable, err.Error())
+			return
+		}
 		if err != nil || json.Unmarshal(data, &payload) != nil || payload == nil {
 			cacheError(c, 400, "Expected a JSON object")
 			return

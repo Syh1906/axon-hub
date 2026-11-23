@@ -193,3 +193,7 @@ func (t *OutboundTransformer) TransformResponse(ctx context.Context, resp *httpc
 	}
 	return &llm.Response{ID: id, Object: "image.generation", Created: created, Model: model, RequestType: llm.RequestTypeImage, APIFormat: llm.APIFormatOpenAIImageGeneration, Image: &llm.ImageResponse{Created: created, Data: data}}, nil
 }
+
+func (t *OutboundTransformer) NewStreamAggregation(req *httpclient.Request) transformer.StreamAggregation {
+	return transformer.NewStreamAggregation(t.Outbound, req)
+}

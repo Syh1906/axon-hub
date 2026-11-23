@@ -158,6 +158,7 @@ func SetupRoutes(server *Server, handlers Handlers, client *ent.Client, services
 			"/playground/chat",
 			middleware.WithTimeout(server.Config.LLMRequestTimeout),
 			middleware.WithSource(request.SourcePlayground),
+			services.inferenceBody(),
 			middleware.WithResponseHeaders(services.RequestService),
 			handlers.Playground.ChatCompletion,
 		)
@@ -346,8 +347,17 @@ func registerGeminiRoutes(server *Server, handlers *api.GeminiHandlers, services
 	}
 }
 
+func (services Services) inferenceBody() gin.HandlerFunc {
+	var payload *biz.RequestPayloadService
+	if services.RequestService != nil {
+		payload = services.RequestService.PayloadService
+	}
+	return middleware.WithInferenceBody(payload)
+}
+
 func requestTracking(server *Server, services Services) []gin.HandlerFunc {
 	return []gin.HandlerFunc{
+		services.inferenceBody(),
 		middleware.WithResponseHeaders(services.RequestService),
 		middleware.WithThread(server.Config.Trace, services.ThreadService),
 		middleware.WithTrace(server.Config.Trace, services.TraceService),

@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"net/http/httptrace"
 	"strings"
 	"sync"
 	"testing"
@@ -16,6 +17,48 @@ import (
 
 	"github.com/stretchr/testify/require"
 )
+
+func TestDialContextScopesValuesToSocketCreation(t *testing.T) {
+	type key struct{}
+	trace := &httptrace.ClientTrace{GetConn: func(string) {}}
+	base := httptrace.WithClientTrace(context.WithValue(t.Context(), key{}, "route"), trace)
+	deadline := time.Now().Add(time.Minute)
+	base, stop := context.WithDeadline(base, deadline)
+	defer stop()
+	for _, cancelDuringDial := range []bool{false, true} {
+		caller, cancel := context.WithCancelCause(base)
+		cause := fmt.Errorf("dial canceled by caller")
+		var observed context.Context
+		var done <-chan struct{}
+		probe := func(dialCtx context.Context, _, _ string) (net.Conn, error) {
+			observed, done = dialCtx, dialCtx.Done()
+			require.Equal(t, "route", dialCtx.Value(key{}))
+			require.Same(t, trace, httptrace.ContextClientTrace(dialCtx))
+			got, ok := dialCtx.Deadline()
+			require.True(t, ok)
+			require.Equal(t, deadline, got)
+			require.NoError(t, dialCtx.Err())
+			if cancelDuringDial {
+				cancel(cause)
+				require.ErrorIs(t, context.Cause(dialCtx), cause)
+			}
+			return nil, dialCtx.Err()
+		}
+		_, err := dialWithScopedValues(caller, probe, "tcp", "fixture")
+		if cancelDuringDial {
+			require.ErrorIs(t, err, context.Canceled)
+			require.ErrorIs(t, context.Cause(observed), cause)
+		} else {
+			require.NoError(t, err)
+			require.NoError(t, caller.Err())
+			require.ErrorIs(t, context.Cause(observed), context.Canceled)
+		}
+		require.Equal(t, done, observed.Done())
+		require.Nil(t, observed.Value(key{}))
+		require.Nil(t, httptrace.ContextClientTrace(observed))
+		cancel(nil)
+	}
+}
 
 func poolTestAsync(f func() error) <-chan error {
 	done := make(chan error, 1)

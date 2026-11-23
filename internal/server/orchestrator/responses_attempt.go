@@ -39,7 +39,10 @@ type responsesContinuation struct {
 }
 
 func newResponsesContinuation(store *responsesSessionStore, body []byte) *responsesContinuation {
-	return &responsesContinuation{store: store, original: body, previous: gjson.GetBytes(body, "previous_response_id").String(), capture: &responsesCompletion{}}
+	return responsesContinuationWithID(store, body, responsePreviousID(body))
+}
+func responsesContinuationWithID(store *responsesSessionStore, body []byte, previous string) *responsesContinuation {
+	return &responsesContinuation{store: store, original: body, previous: previous, capture: &responsesCompletion{}}
 }
 
 type responsesAttemptTarget struct {

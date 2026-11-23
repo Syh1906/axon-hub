@@ -487,3 +487,7 @@ func containsNativeWebSearchTool(tools []Tool) bool {
 
 	return false
 }
+
+func (t *OutboundTransformer) NewStreamAggregation(_ *httpclient.Request) transformer.StreamAggregation {
+	return newMessageAggregation(t.config.Type)
+}

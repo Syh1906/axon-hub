@@ -525,71 +525,89 @@ func (t *OutboundTransformer) TransformError(ctx context.Context, err *httpclien
 }
 
 func (t *OutboundTransformer) AggregateStreamChunks(ctx context.Context, _ *httpclient.Request, chunks []*httpclient.StreamEvent) ([]byte, llm.ResponseMeta, error) {
-	if len(chunks) == 0 {
+	a := new(chatAggregation)
+	for _, ev := range chunks {
+		a.Add(ctx, ev)
+	}
+	return a.Result()
+}
+
+type chatAggregation struct {
+	hasChunks                  bool
+	err                        error
+	fullContent, fullThinking  strings.Builder
+	model, finishReason        string
+	promptEvalCount, evalCount int64
+	allToolCalls               []ollamaToolCall
+}
+
+func (a *chatAggregation) Add(ctx context.Context, chunk *httpclient.StreamEvent) {
+	if a.err != nil {
+		return
+	}
+	a.hasChunks = true
+	var ollamaResp ChatResponse
+	if err := json.Unmarshal(chunk.Data, &ollamaResp); err != nil {
+		a.err = fmt.Errorf("failed to unmarshal ollama chunk: %w", err)
+		return
+	}
+
+	if ollamaResp.Model != "" {
+		a.model = ollamaResp.Model
+	}
+
+	if ollamaResp.Message != nil {
+		a.fullContent.WriteString(ollamaResp.Message.Content)
+		a.fullThinking.WriteString(ollamaResp.Message.Thinking)
+
+		if len(ollamaResp.Message.ToolCalls) > 0 {
+			a.allToolCalls = append(a.allToolCalls, ollamaResp.Message.ToolCalls...)
+		}
+	}
+
+	if ollamaResp.PromptEvalCount > 0 {
+		a.promptEvalCount = ollamaResp.PromptEvalCount
+	}
+
+	if ollamaResp.EvalCount > 0 {
+		a.evalCount = ollamaResp.EvalCount
+	}
+
+	if ollamaResp.Done && ollamaResp.DoneReason != "" {
+		a.finishReason = ollamaResp.DoneReason
+	}
+}
+
+func (a *chatAggregation) Result() ([]byte, llm.ResponseMeta, error) {
+	if !a.hasChunks {
 		return nil, llm.ResponseMeta{}, fmt.Errorf("no chunks to aggregate")
 	}
-
-	var fullContent strings.Builder
-	var fullThinking strings.Builder
-	var model string
-	var promptEvalCount, evalCount int64
-	var finishReason string
-	var allToolCalls []ollamaToolCall
-
-	for _, chunk := range chunks {
-		var ollamaResp ChatResponse
-		if err := json.Unmarshal(chunk.Data, &ollamaResp); err != nil {
-			return nil, llm.ResponseMeta{}, fmt.Errorf("failed to unmarshal ollama chunk: %w", err)
-		}
-
-		if ollamaResp.Model != "" {
-			model = ollamaResp.Model
-		}
-
-		if ollamaResp.Message != nil {
-			fullContent.WriteString(ollamaResp.Message.Content)
-			fullThinking.WriteString(ollamaResp.Message.Thinking)
-
-			if len(ollamaResp.Message.ToolCalls) > 0 {
-				allToolCalls = append(allToolCalls, ollamaResp.Message.ToolCalls...)
-			}
-		}
-
-		if ollamaResp.PromptEvalCount > 0 {
-			promptEvalCount = ollamaResp.PromptEvalCount
-		}
-
-		if ollamaResp.EvalCount > 0 {
-			evalCount = ollamaResp.EvalCount
-		}
-
-		if ollamaResp.Done && ollamaResp.DoneReason != "" {
-			finishReason = ollamaResp.DoneReason
-		}
+	if a.err != nil {
+		return nil, llm.ResponseMeta{}, a.err
 	}
 
-	if finishReason == "" {
-		finishReason = "stop"
+	if a.finishReason == "" {
+		a.finishReason = "stop"
 	}
 
-	contentStr := fullContent.String()
+	contentStr := a.fullContent.String()
 
 	var reasoningContent *string
-	if thinkingStr := fullThinking.String(); thinkingStr != "" {
+	if thinkingStr := a.fullThinking.String(); thinkingStr != "" {
 		reasoningContent = &thinkingStr
 	}
 
 	var toolCalls []llm.ToolCall
-	if len(allToolCalls) > 0 {
-		toolCalls = make([]llm.ToolCall, 0, len(allToolCalls))
-		for i, tc := range allToolCalls {
+	if len(a.allToolCalls) > 0 {
+		toolCalls = make([]llm.ToolCall, 0, len(a.allToolCalls))
+		for i, tc := range a.allToolCalls {
 			args, _ := json.Marshal(tc.Function.Arguments)
 			if string(args) == "null" {
 				args = []byte("{}")
 			}
 
 			toolCalls = append(toolCalls, llm.ToolCall{
-				ID:   fmt.Sprintf("ollama-%s-%d", model, i),
+				ID:   fmt.Sprintf("ollama-%s-%d", a.model, i),
 				Type: "function",
 				Function: llm.FunctionCall{
 					Name:      tc.Function.Name,
@@ -601,14 +619,14 @@ func (t *OutboundTransformer) AggregateStreamChunks(ctx context.Context, _ *http
 	}
 
 	if len(toolCalls) > 0 {
-		finishReason = "tool_calls"
+		a.finishReason = "tool_calls"
 	}
 
 	aggregatedResp := &llm.Response{
-		ID:      fmt.Sprintf("ollama-%s", model),
+		ID:      fmt.Sprintf("ollama-%s", a.model),
 		Object:  "chat.completion",
 		Created: 0,
-		Model:   model,
+		Model:   a.model,
 		Choices: []llm.Choice{
 			{
 				Index: 0,
@@ -620,13 +638,13 @@ func (t *OutboundTransformer) AggregateStreamChunks(ctx context.Context, _ *http
 					ReasoningContent: reasoningContent,
 					ToolCalls:        toolCalls,
 				},
-				FinishReason: &finishReason,
+				FinishReason: &a.finishReason,
 			},
 		},
 		Usage: &llm.Usage{
-			PromptTokens:     promptEvalCount,
-			CompletionTokens: evalCount,
-			TotalTokens:      promptEvalCount + evalCount,
+			PromptTokens:     a.promptEvalCount,
+			CompletionTokens: a.evalCount,
+			TotalTokens:      a.promptEvalCount + a.evalCount,
 		},
 	}
 
@@ -636,11 +654,15 @@ func (t *OutboundTransformer) AggregateStreamChunks(ctx context.Context, _ *http
 	}
 
 	return body, llm.ResponseMeta{
-		ID: fmt.Sprintf("ollama-%s", model),
+		ID: fmt.Sprintf("ollama-%s", a.model),
 		Usage: &llm.Usage{
-			PromptTokens:     promptEvalCount,
-			CompletionTokens: evalCount,
-			TotalTokens:      promptEvalCount + evalCount,
+			PromptTokens:     a.promptEvalCount,
+			CompletionTokens: a.evalCount,
+			TotalTokens:      a.promptEvalCount + a.evalCount,
 		},
 	}, nil
+}
+
+func (t *OutboundTransformer) NewStreamAggregation(_ *httpclient.Request) transformer.StreamAggregation {
+	return new(chatAggregation)
 }

@@ -20,6 +20,7 @@ import (
 	"github.com/looplj/axonhub/internal/contexts"
 	"github.com/looplj/axonhub/internal/ent"
 	"github.com/looplj/axonhub/internal/server/lifecycle"
+	"github.com/looplj/axonhub/internal/server/middleware"
 	"github.com/looplj/axonhub/llm/transformer/shared"
 )
 
@@ -47,6 +48,17 @@ func responsesIntegrationServer(t *testing.T, handler http.Handler) *httptest.Se
 
 func responsesIntegrationGateway(t *testing.T, client *ent.Client, handlers *OpenAIHandlers, project *ent.Project, managers ...*lifecycle.Manager) *httptest.Server {
 	t.Helper()
+	router := responsesFixtureRouter(client, project, managers...)
+	router.Use(middleware.WithInferenceBody(handlers.ResponseCompletionHandlers.ChatCompletionOrchestrator.RequestService.PayloadService))
+	router.POST("/v1/responses", handlers.CreateResponse)
+	router.POST("/v1/chat/completions", handlers.ChatCompletion)
+	router.GET("/v1/responses", handlers.CreateResponseWebSocket(5*time.Second))
+	router.POST("/v1/images/generations", handlers.CreateImage)
+	router.POST("/v1/images/edits", handlers.CreateImageEdit)
+	return responsesIntegrationServer(t, router)
+}
+
+func responsesFixtureRouter(client *ent.Client, project *ent.Project, managers ...*lifecycle.Manager) *gin.Engine {
 	router := gin.New()
 	router.Use(func(c *gin.Context) {
 		ctx := authz.WithTestBypass(ent.NewContext(c.Request.Context(), client))
@@ -58,12 +70,7 @@ func responsesIntegrationGateway(t *testing.T, client *ent.Client, handlers *Ope
 		c.Request = c.Request.WithContext(contexts.WithProjectID(ctx, project.ID))
 		c.Next()
 	})
-	router.POST("/v1/responses", handlers.CreateResponse)
-	router.POST("/v1/chat/completions", handlers.ChatCompletion)
-	router.GET("/v1/responses", handlers.CreateResponseWebSocket(5*time.Second))
-	router.POST("/v1/images/generations", handlers.CreateImage)
-	router.POST("/v1/images/edits", handlers.CreateImageEdit)
-	return responsesIntegrationServer(t, router)
+	return router
 }
 
 func responsesIntegrationPost(t *testing.T, server *httptest.Server, path, body string, deadlines ...time.Duration) (int, []byte) {

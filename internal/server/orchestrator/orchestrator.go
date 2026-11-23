@@ -232,6 +232,7 @@ func (processor *ChatCompletionOrchestrator) processWithTitleHedgeDelay(ctx cont
 	lifecycleOwner, executionCtx := newStreamLifecycle(ctx)
 	ctx = biz.WithRequestBodyInspection(executionCtx)
 	var preparedResponsesBody []byte
+	var previousID string
 	var continuation *responsesContinuation
 	defer func() {
 		if continuation != nil {
@@ -325,7 +326,8 @@ func (processor *ChatCompletionOrchestrator) processWithTitleHedgeDelay(ctx cont
 		if err != nil {
 			return ChatCompletionResult{}, err
 		}
-		ctx = context.WithValue(ctx, responsesPreviousIDContextKey{}, responsePreviousID(request.Body))
+		previousID = responsePreviousID(request.Body)
+		ctx = context.WithValue(ctx, responsesPreviousIDContextKey{}, previousID)
 	}
 	hooks, err := processor.Plugins.RequestHooks(ctx)
 	if err != nil {
@@ -360,10 +362,13 @@ func (processor *ChatCompletionOrchestrator) processWithTitleHedgeDelay(ctx cont
 				}
 				ctx = shared.WithResponsesRestoreError(ctx, restoreErr)
 			}
+			if previousID != "" && len(preparedResponsesBody) > 0 && &preparedResponsesBody[0] != &request.Body[0] {
+				previousID = responsePreviousID(preparedResponsesBody)
+			}
 			request.Body = preparedResponsesBody
 			ctx = shared.WithSessionID(ctx, sessionID)
 		}
-		continuation = newResponsesContinuation(processor.responsesSessions, request.Body)
+		continuation = responsesContinuationWithID(processor.responsesSessions, request.Body, previousID)
 		state.ResponsesContinuation = continuation
 	}
 

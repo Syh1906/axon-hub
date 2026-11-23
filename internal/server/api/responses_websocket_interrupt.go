@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"maps"
 	"slices"
 	"sync"
 
@@ -32,25 +33,19 @@ type responsesWebSocketResponse struct {
 	terminal   bool
 }
 
-func (d *responsesWebSocketDispatcher) handleInterrupt(message []byte) (bool, error) {
-	var envelope struct {
-		Type string `json:"type"`
-	}
-	if json.Unmarshal(message, &envelope) != nil || envelope.Type != "response.interrupt" {
-		return false, nil
-	}
+func (d *responsesWebSocketDispatcher) handleInterrupt(message []byte) error {
 	var interrupt struct {
 		ResponseID          string `json:"response_id"`
 		DiscardPartialItems bool   `json:"discard_partial_items"`
 	}
 	if json.Unmarshal(message, &interrupt) != nil || interrupt.ResponseID == "" {
-		return true, writeResponsesWebSocketError(d.writer, invalidResponsesWebSocketRequest("response.interrupt requires a response_id and an optional boolean discard_partial_items", "response_id"), "")
+		return writeResponsesWebSocketError(d.writer, invalidResponsesWebSocketRequest("response.interrupt requires a response_id and an optional boolean discard_partial_items", "response_id"), "")
 	}
 	d.responsesMu.Lock()
 	response := d.responses[interrupt.ResponseID]
 	d.responsesMu.Unlock()
 	if response == nil {
-		return true, writeResponsesWebSocketError(d.writer, responsesWebSocketRequestError("The response is not available on this WebSocket connection", "response_id", "response_not_found"), "")
+		return writeResponsesWebSocketError(d.writer, responsesWebSocketRequestError("The response is not available on this WebSocket connection", "response_id", "response_not_found"), "")
 	}
 
 	response.mu.Lock()
@@ -64,14 +59,14 @@ func (d *responsesWebSocketDispatcher) handleInterrupt(message []byte) (bool, er
 	response.sequence++
 	if err != nil || response.terminal {
 		// 完成与中断交错时仍确认，不重放已经完成的请求。
-		return true, err
+		return err
 	}
 	response.requested = true
 	response.discard = response.discard || interrupt.DiscardPartialItems
 	if response.canInterrupt() {
 		response.cancel()
 	}
-	return true, nil
+	return nil
 }
 
 func (r *responsesWebSocketResponse) canInterrupt() bool {
@@ -159,7 +154,8 @@ func (r *responsesWebSocketResponse) writeInterruption(ctx context.Context, writ
 	for _, index := range indices {
 		output = append(output, r.output[index])
 	}
-	response := cloneResponsesWebSocketPayload(r.response)
+	response := make(map[string]json.RawMessage, len(r.response)+3)
+	maps.Copy(response, r.response)
 	response["status"] = json.RawMessage(`"incomplete"`)
 	response["incomplete_details"] = json.RawMessage(`{"reason":"interrupted"}`)
 	response["output"], _ = json.Marshal(output)

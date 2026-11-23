@@ -392,3 +392,7 @@ func (t *OutboundTransformer) TransformResponse(ctx context.Context, httpResp *h
 		},
 	}, nil
 }
+
+func (t *OutboundTransformer) NewStreamAggregation(req *httpclient.Request) transformer.StreamAggregation {
+	return transformer.NewStreamAggregation(t.Outbound, req)
+}

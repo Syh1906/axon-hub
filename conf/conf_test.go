@@ -362,3 +362,24 @@ func TestSafeguardsEscalationYAML(t *testing.T) {
 		t.Fatal("YAML escalation toggle ignored")
 	}
 }
+
+func TestGatewayMemoryConfiguration(t *testing.T) {
+	cfg, _, err := loadConfig(writeTestConfig(t, ""))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.RequestPayload.MaxInflightBodyMiB != 256 || cfg.RequestPayload.AcceptPeerDictionary || len(cfg.RequestPayload.PeerDictionaryEndpoints) != 0 {
+		t.Fatal("unexpected gateway memory defaults")
+	}
+	cfg, _, err = loadConfig(writeTestConfig(t, "request_payload:\n  max_inflight_body_mib: 0\n  accept_peer_dictionary: true\n  peer_dictionary_endpoints: [https://gateway.example/v1/responses]\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.RequestPayload.MaxInflightBodyMiB != 0 || !cfg.RequestPayload.AcceptPeerDictionary || len(cfg.RequestPayload.PeerDictionaryEndpoints) != 1 {
+		t.Fatal("gateway memory overrides not loaded")
+	}
+	_, _, err = loadConfig(writeTestConfig(t, "request_payload:\n  max_inflight_body_mib: -1\n"))
+	if err == nil {
+		t.Fatal("negative capacity accepted")
+	}
+}

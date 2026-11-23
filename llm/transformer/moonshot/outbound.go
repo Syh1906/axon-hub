@@ -117,3 +117,7 @@ func (t *OutboundTransformer) TransformRequest(
 		APIFormat: string(llm.APIFormatOpenAIChatCompletion),
 	}, nil
 }
+
+func (t *OutboundTransformer) NewStreamAggregation(req *httpclient.Request) transformer.StreamAggregation {
+	return transformer.NewStreamAggregation(t.Outbound, req)
+}

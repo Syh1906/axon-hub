@@ -229,3 +229,7 @@ func (t *InboundTransformer) TransformError(ctx context.Context, rawErr error) *
 		),
 	}
 }
+
+func (t *InboundTransformer) NewStreamAggregation(_ *httpclient.Request) transformer.StreamAggregation {
+	return newMessageAggregation(PlatformDirect)
+}

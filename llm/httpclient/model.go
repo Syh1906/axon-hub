@@ -16,6 +16,7 @@ import (
 type Request struct {
 	BodyReadAt time.Time `json:"-"`
 	// ZstdEndpoints applies only to an actual HTTP dispatch to an explicitly configured URL.
+	PeerDictionary      *PeerRequest       `json:"-"`
 	ZstdEndpoints       []string           `json:"-"`
 	HTTP1Endpoints      []string           `json:"-"`
 	LearnHTTP1          bool               `json:"-"`

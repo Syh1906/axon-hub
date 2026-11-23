@@ -125,6 +125,7 @@ func TestGeminiExplicitCache(t *testing.T) {
 	restricted := h.db.APIKey.Create().SetKey("ah-restricted").SetName("restricted").SetProjectID(h.key.ProjectID).SetUserID(h.key.UserID).
 		SetProfiles(&objects.APIKeyProfiles{ActiveProfile: "limited", Profiles: []objects.APIKeyProfile{{Name: "limited", ChannelTags: []string{"excluded-fixture-tag"}}}}).SaveX(h.ctx)
 	auth := biz.NewAuthService(biz.AuthServiceParams{Ent: h.db, SystemService: h.system, APIKeyService: h.keys})
+	h.requests.PayloadService = biz.NewRequestPayloadService(biz.RequestPayloadConfig{Directory: t.TempDir(), MaxInflightBodyMiB: 1})
 	handler := api.NewGeminiHandlers(api.GeminiHandlersParams{ModelService: h.openAI.ModelService, ChannelService: h.channels, DefaultSelector: orchestrator.NewDefaultSelector(h.channels, h.openAI.ModelService, h.system), RequestService: h.requests, SystemService: h.system, UsageLogService: h.usage, PromptService: h.prompts, PromptProtectionRuleService: h.protect, HttpClient: httpclient.NewHttpClient(), LiveStreamRegistry: biz.NewLiveStreamRegistry(), ChannelLimiterManager: orchestrator.NewChannelLimiterManager()})
 	config := api.GeminiCacheConfig{APIKeyIDs: []int{h.key.ID, second.ID, restricted.ID}, ChannelIDs: ids}
 	router := func(config api.GeminiCacheConfig) *gin.Engine {
@@ -152,6 +153,19 @@ func TestGeminiExplicitCache(t *testing.T) {
 		return gjson.Parse(w.Body.String())
 	}
 	const collection = "/v1beta/cachedContents"
+	t.Run("chunked cache write shares inference body capacity", func(t *testing.T) {
+		lease, err := h.requests.PayloadService.BodyBudget.Admit(t.Context(), 1<<20)
+		require.NoError(t, err)
+		defer lease.Release()
+		r := httptest.NewRequest(http.MethodPost, collection, strings.NewReader(strings.Repeat("x", 1<<20)))
+		r.ContentLength = -1
+		r.Header.Set("X-Goog-Api-Key", h.key.Key)
+		w := httptest.NewRecorder()
+		engine.ServeHTTP(w, r)
+		require.Equal(t, http.StatusServiceUnavailable, w.Code, w.Body.String())
+		require.Equal(t, httpclient.ErrBodyBudget.Error(), gjson.Get(w.Body.String(), "error.message").String())
+		require.Zero(t, calls.Load())
+	})
 	const create = `{"model":"models/cached-m","contents":[{"parts":[{"text":"context"}]}],"ttl":"60s"}`
 	engine = router(api.GeminiCacheConfig{})
 	call("POST", collection, h.key.Key, create, 403)

@@ -65,6 +65,9 @@ func TestResponsesNativeContinuationSurvivesRetentionLimit(t *testing.T) {
 				return
 			}
 		}
+		// This assertion concerns a live connection: keep the peer alive
+		// until the executor is closed during cleanup.
+		_, _, _ = conn.ReadMessage()
 	}))
 	t.Cleanup(server.Close)
 	executor := NewWebSocketExecutor(nil)
@@ -95,6 +98,7 @@ func TestResponsesNativeContinuationSurvivesRetentionLimit(t *testing.T) {
 	require.Equal(t, "resp_1", sent.Previous)
 	executor.mu.Lock()
 	defer executor.mu.Unlock()
+	require.Len(t, executor.pool, 1)
 	for _, pc := range executor.pool {
 		_, id := pc.previousTurn()
 		require.Equal(t, "resp_2", id)

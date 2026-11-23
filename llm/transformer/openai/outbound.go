@@ -603,3 +603,10 @@ func (t *OutboundTransformer) TransformError(ctx context.Context, rawErr *httpcl
 		},
 	}
 }
+
+func (t *OutboundTransformer) NewStreamAggregation(req *httpclient.Request) transformer.StreamAggregation {
+	if req == nil || req.APIFormat != string(llm.APIFormatOpenAIChatCompletion) {
+		return nil
+	}
+	return NewChatStreamAggregation(DefaultTransformChunk)
+}

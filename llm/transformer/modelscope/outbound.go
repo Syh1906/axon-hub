@@ -85,3 +85,7 @@ func (t *OutboundTransformer) TransformRequest(
 
 	return t.Outbound.TransformRequest(ctx, &reqCopy)
 }
+
+func (t *OutboundTransformer) NewStreamAggregation(req *httpclient.Request) transformer.StreamAggregation {
+	return transformer.NewStreamAggregation(t.Outbound, req)
+}

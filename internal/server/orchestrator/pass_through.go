@@ -146,25 +146,27 @@ func responsesClientModel(outbound *PersistentOutboundTransformer) string {
 	return gjson.GetBytes(body, "model").String()
 }
 
-func preserveResponsesModel(body []byte, clientModel string) []byte {
+// The input is immutable. sjson allocates a new buffer only for a changed field.
+func preserveResponsesModel(body []byte, clientModel string) ([]byte, bool) {
 	if clientModel == "" {
-		return append([]byte(nil), body...)
+		return body, false
 	}
 
-	patched := append([]byte(nil), body...)
+	patched := body
+	changed := false
 	for _, path := range []string{"model", "response.model"} {
-		if !gjson.GetBytes(patched, path).Exists() {
+		current := gjson.GetBytes(patched, path)
+		if !current.Exists() || (current.Type == gjson.String && current.String() == clientModel) {
 			continue
 		}
-
 		next, err := sjson.SetBytes(patched, path, clientModel)
 		if err != nil {
-			return append([]byte(nil), body...)
+			return body, false
 		}
 		patched = next
+		changed = true
 	}
-
-	return patched
+	return patched, changed
 }
 
 func applyResponsesTransportRequestBody(outbound *PersistentOutboundTransformer) pipeline.Middleware {
@@ -227,7 +229,7 @@ func applyResponsesTransportRequestBody(outbound *PersistentOutboundTransformer)
 // applyPassThroughRequestBody creates a middleware that reuses the original inbound request body when
 // the channel enables pass-through and the inbound and outbound API formats are identical.
 // For formats that encode the selected model in the request body, the mapped llmReq.Model is
-// written back into the copied raw payload so pass-through does not bypass model mapping.
+// written into a new payload when it changes so pass-through does not bypass model mapping.
 // Save the actual outbound provider request so pass-through checks use the emitted API format.
 func applyPassThroughRequestBody(outbound *PersistentOutboundTransformer, hooks RequestHookProvider) pipeline.Middleware {
 	return pipeline.OnRawRequest("pass-through-request-body", func(ctx context.Context, request *httpclient.Request) (*httpclient.Request, error) {
@@ -345,8 +347,9 @@ func applyPassThroughRequestHeaders(outbound *PersistentOutboundTransformer) pip
 	})
 }
 
-func mergePassThroughRequestBody(rawBody []byte, apiFormat llm.APIFormat, model string) ([]byte, error) {
-	body := append([]byte(nil), rawBody...)
+// Treat the shared raw body as read-only. Both normalization and model mapping
+// allocate their own bytes when they make a change.
+func mergePassThroughRequestBody(body []byte, apiFormat llm.APIFormat, model string) ([]byte, error) {
 	if isResponsesFormat(apiFormat) {
 		var err error
 		body, err = responsestransformer.NormalizeAgentMessageHistory(body)
@@ -520,7 +523,7 @@ func applyPassThroughResponse(outbound *PersistentOutboundTransformer) pipeline.
 				cloned.Body = body
 			}
 			if responsesIdentityPreservationEnabled(outbound) {
-				cloned.Body = preserveResponsesModel(rawResp.Body, responsesClientModel(outbound))
+				cloned.Body, _ = preserveResponsesModel(rawResp.Body, responsesClientModel(outbound))
 			}
 
 			return &cloned, nil
@@ -532,7 +535,7 @@ func applyPassThroughResponse(outbound *PersistentOutboundTransformer) pipeline.
 		if err != nil {
 			return nil, err
 		}
-		body = preserveResponsesModel(body, responsesClientModel(outbound))
+		body, _ = preserveResponsesModel(body, responsesClientModel(outbound))
 		cloned := *rawResp
 		cloned.Body = body
 		cloned.Request = response.Request
@@ -739,8 +742,12 @@ func preserveResponsesStreamEventModel(event *httpclient.StreamEvent, clientMode
 		return event
 	}
 
+	data, changed := preserveResponsesModel(event.Data, clientModel)
+	if !changed {
+		return event
+	}
 	cloned := *event
-	cloned.Data = preserveResponsesModel(event.Data, clientModel)
+	cloned.Data = data
 	return &cloned
 }
 

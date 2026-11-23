@@ -198,3 +198,13 @@ func (t *OutboundTransformer) AggregateStreamChunks(ctx context.Context, req *ht
 
 	return t.Outbound.AggregateStreamChunks(ctx, req, chunks)
 }
+
+func (t *OutboundTransformer) NewStreamAggregation(req *httpclient.Request) transformer.StreamAggregation {
+	if req == nil {
+		return nil
+	}
+	if req.RequestType == string(llm.RequestTypeCompletion) {
+		return transformer.NewStreamAggregation(t.completion, req)
+	}
+	return transformer.NewStreamAggregation(t.Outbound, req)
+}

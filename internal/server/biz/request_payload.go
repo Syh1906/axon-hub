@@ -8,13 +8,16 @@ import (
 	"time"
 
 	"github.com/looplj/axonhub/internal/contexts"
+	"github.com/looplj/axonhub/internal/ent/apikey"
 	"github.com/looplj/axonhub/internal/log"
 	"github.com/looplj/axonhub/internal/objects"
+	"github.com/looplj/axonhub/internal/pkg/clientsession"
 	"github.com/looplj/axonhub/internal/pkg/payloadcache"
 	"github.com/looplj/axonhub/internal/pkg/requestpayload"
 	"github.com/looplj/axonhub/internal/pkg/xjson"
 	"github.com/looplj/axonhub/internal/server/scheduler"
 	"github.com/looplj/axonhub/llm/httpclient"
+	"github.com/looplj/axonhub/llm/transformer/shared"
 )
 
 const (
@@ -24,6 +27,9 @@ const (
 )
 
 type RequestPayloadConfig struct {
+	MaxInflightBodyMiB       int      `conf:"max_inflight_body_mib" yaml:"max_inflight_body_mib" json:"max_inflight_body_mib"`
+	AcceptPeerDictionary     bool     `conf:"accept_peer_dictionary" yaml:"accept_peer_dictionary" json:"accept_peer_dictionary"`
+	PeerDictionaryEndpoints  []string `conf:"peer_dictionary_endpoints" yaml:"peer_dictionary_endpoints" json:"peer_dictionary_endpoints"`
 	CompactionCooldownMode   string   `conf:"compaction_cooldown_mode" yaml:"compaction_cooldown_mode" json:"compaction_cooldown_mode"`
 	Directory                string   `conf:"directory" yaml:"directory" json:"directory"`
 	CachedImagesOnlyChannels []int    `conf:"cached_images_only_channels" yaml:"cached_images_only_channels" json:"cached_images_only_channels"`
@@ -47,15 +53,19 @@ func (s *RequestPayloadService) CompactionCooldownMode() string {
 // RequestPayloadService separates short debug copies from continuation state.
 // Neither store writes large JSON into request rows or into a database backup.
 type RequestPayloadService struct {
-	config  RequestPayloadConfig
-	images  imageWorkHistory
-	debug   *payloadcache.Cache
-	session *payloadcache.Cache
+	BodyBudget          *httpclient.BodyBudget
+	ReceiveDictionaries *httpclient.PeerDictionaries
+	sendDictionaries    *httpclient.PeerDictionaries
+	config              RequestPayloadConfig
+	images              imageWorkHistory
+	debug               *payloadcache.Cache
+	session             *payloadcache.Cache
 }
 
 func NewRequestPayloadService(config RequestPayloadConfig) *RequestPayloadService {
-	return &RequestPayloadService{
-		config: config,
+	s := &RequestPayloadService{
+		BodyBudget: httpclient.NewBodyBudget(int64(config.MaxInflightBodyMiB) << 20),
+		config:     config,
 		debug: payloadcache.New(payloadcache.Directory(config.Directory, "debug"), payloadcache.Limits{
 			TTL: debugPayloadTTL, EntryBytes: debugPayloadMaxBytes, TotalBytes: 256 << 20, Entries: 4096,
 		}),
@@ -63,6 +73,35 @@ func NewRequestPayloadService(config RequestPayloadConfig) *RequestPayloadServic
 			TTL: contextPayloadTTL, EntryBytes: 32 << 20, TotalBytes: 512 << 20, Entries: 2048,
 		}),
 	}
+	if config.AcceptPeerDictionary {
+		s.ReceiveDictionaries = new(httpclient.PeerDictionaries)
+	}
+	if len(config.PeerDictionaryEndpoints) > 0 {
+		s.sendDictionaries = new(httpclient.PeerDictionaries)
+	}
+	return s
+}
+
+func (s *RequestPayloadService) PeerRequest(ctx context.Context) *httpclient.PeerRequest {
+	if s == nil || s.sendDictionaries == nil {
+		return nil
+	}
+	scope := PeerDictionaryScope(ctx)
+	if scope == "" {
+		return nil
+	}
+	// Client-provided session IDs are stable; gateway-generated turn IDs are not.
+	return &httpclient.PeerRequest{Scope: scope + "\x00" + clientsession.FromContext(ctx), Endpoints: s.config.PeerDictionaryEndpoints, Dictionaries: s.sendDictionaries}
+}
+
+// Anonymous callers share one reserved API key. Its routing scope must never
+// identify an owner for reusable request text.
+func PeerDictionaryScope(ctx context.Context) string {
+	if key, ok := contexts.GetAPIKey(ctx); ok && key.Type == apikey.TypeNoauth {
+		return ""
+	}
+	scope, _ := shared.GetSessionScope(ctx)
+	return scope
 }
 
 // ResponsesZstdEndpoints lists exact HTTP endpoints confirmed by the operator.

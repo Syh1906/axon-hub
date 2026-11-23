@@ -1,11 +1,13 @@
 package claudecode
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
+	"slices"
 	"strings"
 
 	"github.com/samber/lo"
@@ -317,15 +319,22 @@ func (t *ClaudeCodeTransformer) AggregateStreamChunks(
 	// 2. Claude CLI clients don't send proxy_ prefixed tool names
 	// 3. If no prefix was added, stripping won't find anything to strip
 
-	// Strip prefix from each chunk's data
+	// Archive the exact received events. Only replace entries in a private
+	// slice if this stream actually contains a prefixed tool.
+	mappedChunks := chunks
+	cloned := false
 	for i, chunk := range chunks {
-		if chunk != nil && len(chunk.Data) > 0 && strings.Contains(string(chunk.Data), `"type":"tool_use"`) {
-			chunks[i].Data = stripClaudeToolPrefixFromStreamLine(chunk.Data, toolPrefix)
+		if mapped := stripToolPrefixEvent(chunk); mapped != chunk {
+			if !cloned {
+				mappedChunks = slices.Clone(chunks)
+				cloned = true
+			}
+			mappedChunks[i] = mapped
 		}
 	}
 
 	// Call the base transformer
-	return t.Outbound.AggregateStreamChunks(ctx, req, chunks)
+	return t.Outbound.AggregateStreamChunks(ctx, req, mappedChunks)
 }
 
 // stripClaudeToolPrefixFromStreamLine removes the prefix from tool names in streaming events.
@@ -358,4 +367,25 @@ func stripClaudeToolPrefixFromStreamLine(line []byte, prefix string) []byte {
 
 func isClaudeCLIUserAgent(value string) bool {
 	return strings.HasPrefix(value, "claude-cli/")
+}
+
+func (t *ClaudeCodeTransformer) NewStreamAggregation(req *httpclient.Request) transformer.StreamAggregation {
+	a := transformer.NewStreamAggregation(t.Outbound, req)
+	if a == nil {
+		return nil
+	}
+	return &transformer.MappedStreamAggregation{StreamAggregation: a, Map: stripToolPrefixEvent}
+}
+
+func stripToolPrefixEvent(e *httpclient.StreamEvent) *httpclient.StreamEvent {
+	if e == nil || (!bytes.Contains(e.Data, []byte(toolPrefix)) && !bytes.Contains(e.Data, []byte(`\u`))) {
+		return e
+	}
+	data := stripClaudeToolPrefixFromStreamLine(e.Data, toolPrefix)
+	if &data[0] == &e.Data[0] {
+		return e
+	}
+	copy := *e
+	copy.Data = data
+	return &copy
 }

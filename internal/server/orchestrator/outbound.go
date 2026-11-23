@@ -51,7 +51,10 @@ type OutboundPersistentStream struct {
 	perf            *biz.PerformanceRecord
 	contentBatches  contexts.ContentBatches
 	observedCurrent bool
-	responseChunks  []*httpclient.StreamEvent
+	streamHistory
+	cachedTokens   int64
+	cacheReported  bool
+	cacheFieldSeen bool
 	// First reported model only. Intra-stream changes are not tracked.
 	upstreamModelID string
 	terminalState   streamTerminalState
@@ -99,7 +102,7 @@ func NewOutboundPersistentStream(
 		transformer:        outboundTransformer,
 		apiFormat:          format,
 		perf:               perf,
-		responseChunks:     make([]*httpclient.StreamEvent, 0),
+		streamHistory:      newStreamHistory(state, outboundTransformer),
 		state:              state,
 		terminalTracker:    NewStreamTerminalTrackerForRequest(request),
 		lifecycle:          streamLifecycleFromContext(ctx),
@@ -111,6 +114,19 @@ func NewOutboundPersistentStream(
 	return s
 }
 
+func (ts *OutboundPersistentStream) recordEvent(event *httpclient.StreamEvent) {
+	ts.add(ts.ctx, event)
+	if ts.incremental != nil && (ts.state.routeDecision != nil || ts.state.channelDecision != nil) {
+		if ts.apiFormat == llm.APIFormatAnthropicMessage && ts.cacheFieldSeen {
+			return
+		}
+		if v := cacheTokenField(ts.apiFormat, event); v.Exists() {
+			ts.cacheFieldSeen = true
+			ts.cachedTokens, ts.cacheReported = parseCacheTokenCount(v)
+		}
+	}
+}
+
 func (ts *OutboundPersistentStream) consumeTailEvent(event *httpclient.StreamEvent) error {
 	if event == nil {
 		return nil
@@ -120,13 +136,20 @@ func (ts *OutboundPersistentStream) consumeTailEvent(event *httpclient.StreamEve
 	}
 	observeResponseEffort(ts.requestExec, event.Type, event.Data, true)
 	ts.contentBatches.Observe(ts.apiFormat, event, time.Now())
-	ts.responseChunks = append(ts.responseChunks, httpclient.SummarizeBinaryChunk(event))
+	ts.recordEvent(event)
 	if ts.terminalState == streamTerminalNone && ts.terminalTracker.Observe(event) {
 		ts.terminalState = ts.terminalTracker.TerminalState()
 		ts.state.OutboundStreamTerminal = ts.terminalState
 		ts.outcome.observeTerminalEvent(ts.terminalState, event)
 	}
 	return nil
+}
+
+func (ts *OutboundPersistentStream) aggregate(ctx context.Context) ([]byte, llm.ResponseMeta, error) {
+	if ts.incremental != nil {
+		return ts.incremental.Result()
+	}
+	return ts.transformer.AggregateStreamChunks(ctx, ts.rawProviderRequest, ts.responseChunks)
 }
 
 func (ts *OutboundPersistentStream) Next() bool {
@@ -168,9 +191,7 @@ func (ts *OutboundPersistentStream) Current() *httpclient.StreamEvent {
 		if ts.upstreamModelID == "" {
 			ts.upstreamModelID = modelname.FromEvent(event, ts.apiFormat)
 		}
-		// For raw binary audio chunks (TTS stream_format=audio), persist only a size
-		// summary to avoid buffering the full audio payload in memory.
-		ts.responseChunks = append(ts.responseChunks, httpclient.SummarizeBinaryChunk(event))
+		ts.recordEvent(event)
 		ts.state.observeStreamTerminal(event)
 		if ts.terminalState == streamTerminalNone {
 			if ts.terminalTracker.Observe(event) {
@@ -200,6 +221,7 @@ func (ts *OutboundPersistentStream) Err() error {
 // stream lifecycle, Close collects the remaining source on the calling goroutine.
 func (ts *OutboundPersistentStream) Close() error {
 	ts.closeOnce.Do(func() {
+		defer ts.releaseHistory()
 		if ts.lifecycle != nil {
 			ts.collectTail()
 		}
@@ -250,7 +272,7 @@ func (ts *OutboundPersistentStream) finalizeClose() error {
 	ctx := ts.ctx
 	defer func() { ts.transport.record(ctx, ts.terminalState != streamTerminalCompleted) }()
 
-	log.Debug(ctx, "Closing persistent stream", log.Int("chunk_count", len(ts.responseChunks)), log.Bool("execution_completed", ts.terminalState == streamTerminalCompleted))
+	log.Debug(ctx, "Closing persistent stream", log.Int("chunk_count", ts.count), log.Bool("execution_completed", ts.terminalState == streamTerminalCompleted))
 
 	streamErr := ts.Err()
 	ctxErr := ctx.Err()
@@ -277,8 +299,8 @@ func (ts *OutboundPersistentStream) finalizeClose() error {
 	var aggErr error
 	aggregatedCompleted := false
 	sourceEnd := ts.accountingSourceEnd(streamErr, ctxErr)
-	if len(ts.responseChunks) > 0 {
-		responseBody, meta, aggErr = ts.transformer.AggregateStreamChunks(context.WithoutCancel(ctx), ts.rawProviderRequest, ts.responseChunks)
+	if ts.count > 0 {
+		responseBody, meta, aggErr = ts.aggregate(context.WithoutCancel(ctx))
 		if ts.state != nil && aggErr == nil {
 			ts.state.AccountingFinal = meta.AccountingFinal(sourceEnd)
 			ts.state.AccountingSourceEnd = sourceEnd
@@ -321,7 +343,7 @@ func (ts *OutboundPersistentStream) finalizeClose() error {
 		defer cancel()
 
 		// Keep partial chunks for debugging even when the request fails/cancels.
-		ts.persistPartialUsage(persistCtx)
+		ts.persistPartialUsage(persistCtx, responseBody, meta, aggErr)
 		ts.persistExecutionFailure(persistCtx, decision.cause)
 
 		return ts.closeSource()
@@ -334,7 +356,7 @@ func (ts *OutboundPersistentStream) finalizeClose() error {
 
 		// Upstream dropped mid-stream (clean EOF, no terminal). Persist what we
 		// buffered so operators can inspect the truncated generation.
-		ts.persistPartialUsage(persistCtx)
+		ts.persistPartialUsage(persistCtx, responseBody, meta, aggErr)
 
 		ts.persistExecutionFailure(persistCtx, decision.cause)
 
@@ -380,7 +402,7 @@ func (ts *OutboundPersistentStream) logFinalizationDecision(ctx context.Context,
 	fields := []log.Field{
 		log.String("decision", decision),
 		log.Bool("terminal_event_seen", ts.terminalState != streamTerminalNone),
-		log.Int("chunk_count", len(ts.responseChunks)),
+		log.Int("chunk_count", ts.count),
 		log.String("api_format", string(ts.transformer.APIFormat())),
 		log.Bool("aggregated_completed", aggregatedCompleted),
 	}
@@ -411,7 +433,7 @@ func (ts *OutboundPersistentStream) persistResponseChunks(ctx context.Context, s
 		persistCtx, cancel := xcontext.DetachWithTimeout(ctx, 10*time.Second)
 		defer cancel()
 
-		responseBody, meta, err := ts.transformer.AggregateStreamChunks(persistCtx, ts.rawProviderRequest, ts.responseChunks)
+		responseBody, meta, err := ts.aggregate(persistCtx)
 		if err != nil {
 			log.Warn(persistCtx, "Failed to aggregate chunks using transformer", log.Cause(err))
 			// Aggregation failure must not discard a known terminal outcome or
@@ -505,7 +527,10 @@ func (ts *OutboundPersistentStream) persistAggregatedResponse(ctx context.Contex
 		completion := firstContentCompletion{model: ts.upstreamModelID}
 		if usage := meta.Usage; status == requestexecution.StatusCompleted && accountingMayBeFinal(ts.apiFormat, meta, sourceEnd) &&
 			usage != nil && usage.PromptTokens > 0 {
-			cached, reported := reportedCacheTokens(ts.apiFormat, ts.responseChunks)
+			cached, reported := ts.cachedTokens, ts.cacheReported
+			if ts.incremental == nil {
+				cached, reported = reportedCacheTokens(ts.apiFormat, ts.responseChunks)
+			}
 			if reported && cached >= 0 && cached <= usage.PromptTokens {
 				completion.tokens, completion.cache, completion.valid = usage.PromptTokens, int(100*cached/usage.PromptTokens), true
 			}
@@ -1361,19 +1386,22 @@ func finalizeTransportRequest(p *PersistentOutboundTransformer) pipeline.Middlew
 
 // Billing evidence can be valid even when the response stream failed. Preserve
 // the failure status while settling confirmed usage exactly once.
-func (ts *OutboundPersistentStream) persistPartialUsage(ctx context.Context) {
-	if ts.requestExec == nil || len(ts.responseChunks) == 0 {
+func (ts *OutboundPersistentStream) persistPartialUsage(ctx context.Context, body []byte, meta llm.ResponseMeta, aggregateErr error) {
+	if ts.requestExec == nil || ts.count == 0 {
 		return
 	}
-	body, meta, err := ts.transformer.AggregateStreamChunks(ctx, ts.rawProviderRequest, ts.responseChunks)
-	if err != nil || meta.Usage == nil {
+	if aggregateErr != nil {
+		// Custom aggregators can use the detached persistence context to recover partial usage.
+		body, meta, aggregateErr = ts.aggregate(ctx)
+	}
+	if aggregateErr != nil || meta.Usage == nil {
 		return
 	}
 	costState := *ts.state
 	costState.RequestExec = ts.requestExec
 	costState.RawProviderRequest = ts.rawProviderRequest
 	captureImageCostEvidence(ctx, &costState, body)
-	if _, err = ts.UsageLogService.CreateUsageLogForAttempt(ctx, ts.request, ts.requestExec, meta.Usage, ts.state.budgetUnreserved); err != nil {
+	if _, err := ts.UsageLogService.CreateUsageLogForAttempt(ctx, ts.request, ts.requestExec, meta.Usage, ts.state.budgetUnreserved); err != nil {
 		log.Warn(ctx, "settle failed stream usage", log.Cause(err))
 	}
 }

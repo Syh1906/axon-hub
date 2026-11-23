@@ -16,6 +16,7 @@ import (
 	"github.com/looplj/axonhub/llm"
 	"github.com/looplj/axonhub/llm/httpclient"
 	"github.com/looplj/axonhub/llm/streams"
+	"github.com/looplj/axonhub/llm/transformer"
 )
 
 // TransformStream transforms the unified llm.Response stream to OpenAI Responses API SSE events.
@@ -78,9 +79,9 @@ type responsesInboundStream struct {
 	toolCallItemStarted map[int]bool
 	toolCallOutputIndex map[int]int // Maps tool call index to output index
 
-	// Response accumulation using streamAggregator
+	// Response accumulation using StreamAggregation
 	usage               *llm.Usage
-	aggregator          *streamAggregator
+	aggregator          *StreamAggregation
 	transformerMetadata map[string]any
 	responseHeaders     http.Header
 	responseHeadersSent bool
@@ -114,7 +115,7 @@ func (s *responsesInboundStream) enqueueEvent(ev *StreamEvent) error {
 
 	// Use aggregator to accumulate state for response.completed
 	if s.aggregator == nil {
-		s.aggregator = newStreamAggregator()
+		s.aggregator = NewStreamAggregation()
 	}
 
 	s.aggregator.processEvent(ev)
@@ -1456,4 +1457,8 @@ func (t *InboundTransformer) AggregateStreamChunks(
 	chunks []*httpclient.StreamEvent,
 ) ([]byte, llm.ResponseMeta, error) {
 	return AggregateStreamChunks(ctx, chunks)
+}
+
+func (t *InboundTransformer) NewStreamAggregation(_ *httpclient.Request) transformer.StreamAggregation {
+	return NewStreamAggregation()
 }

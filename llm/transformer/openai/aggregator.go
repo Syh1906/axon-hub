@@ -122,272 +122,280 @@ func DefaultTransformChunk(ctx context.Context, chunk *httpclient.StreamEvent) (
 	return &response, nil
 }
 
-// AggregateStreamChunks aggregates OpenAI streaming response chunks into a complete response.
-//
-//nolint:maintidx // Stream aggregation is inherently complex.
-func AggregateStreamChunks(ctx context.Context, chunks []*httpclient.StreamEvent, chunkTransformer ChunkTransformFunc) ([]byte, llm.ResponseMeta, error) {
-	if len(chunks) == 0 {
-		data, err := json.Marshal(&llm.Response{})
-		return data, llm.ResponseMeta{}, err
+// ChatStreamAggregation folds provider chunks in wire order without retaining their JSON.
+type ChatStreamAggregation struct {
+	transform                    ChunkTransformFunc
+	id, model                    string
+	created                      int64
+	hasChoices                   bool
+	usage                        *Usage
+	usageEvidence                llm.AccountingEvidence
+	seenChoices, finishedChoices map[int]struct{}
+	zeroChoiceUsages             int
+	// Output after a usage block invalidates its counts. A later zero
+	// placeholder must not erase an earlier real usage report.
+	outputSinceUsage, sawNonZeroUsage bool
+	systemFingerprint, serviceTier    string
+	choicesAggs                       map[int]*choiceAggregator
+	citationsMap                      map[string]struct{}
+	indexer                           *toolCallIndexer
+}
+
+func NewChatStreamAggregation(transform ChunkTransformFunc) *ChatStreamAggregation {
+	return &ChatStreamAggregation{
+		transform:       transform,
+		usageEvidence:   llm.AccountingEvidenceUnavailable,
+		seenChoices:     make(map[int]struct{}),
+		finishedChoices: make(map[int]struct{}),
+		choicesAggs:     make(map[int]*choiceAggregator),
+		citationsMap:    make(map[string]struct{}),
+		indexer:         newToolCallIndexer(),
 	}
+}
 
-	var (
-		lastChunkResponse *Response
-		usage             *Usage
-		usageEvidence     = llm.AccountingEvidenceUnavailable
-		seenChoices       = make(map[int]struct{})
-		finishedChoices   = make(map[int]struct{})
-		zeroChoiceUsages  int
-		// outputSinceUsage records whether model output was streamed at or after
-		// the last chunk that carried usage. Such a usage block cannot be final:
-		// the tokens produced afterwards are not covered by it.
-		outputSinceUsage bool
-		// sawNonZeroUsage records that a real usage block was seen. Zero blocks
-		// after it are placeholders: they are ignored instead of overwriting the
-		// real counts, so a trailing zero cannot zero out the row.
-		sawNonZeroUsage   bool
-		systemFingerprint string
-		serviceTier       string
-		// Map to track choices by their index
-		choicesAggs = make(map[int]*choiceAggregator)
-		// Map to track unique citations
-		citationsMap = make(map[string]struct{})
-		indexer      = newToolCallIndexer()
-	)
-
+func AggregateStreamChunks(ctx context.Context, chunks []*httpclient.StreamEvent, transform ChunkTransformFunc) ([]byte, llm.ResponseMeta, error) {
+	a := NewChatStreamAggregation(transform)
 	for _, chunk := range chunks {
-		// Skip [DONE] events
-		if bytes.HasPrefix(chunk.Data, []byte("[DONE]")) {
-			continue
+		a.Add(ctx, chunk)
+	}
+	return a.Result()
+}
+
+func (a *ChatStreamAggregation) Add(ctx context.Context, raw *httpclient.StreamEvent) {
+	// Skip [DONE] events
+	if bytes.HasPrefix(raw.Data, []byte("[DONE]")) {
+		return
+	}
+
+	data := raw.Data
+
+	chunk, err := a.transform(ctx, raw)
+	if err != nil {
+		return // Skip invalid chunks
+	}
+
+	a.indexer.applyToChunk(data, chunk)
+
+	// Process each choice in the chunk
+	for _, choice := range chunk.Choices {
+		choiceIndex := choice.Index
+		a.seenChoices[choiceIndex] = struct{}{}
+		if choice.FinishReason != nil {
+			a.finishedChoices[choiceIndex] = struct{}{}
 		}
 
-		data := chunk.Data
-
-		chunk, err := chunkTransformer(ctx, chunk)
-		if err != nil {
-			continue // Skip invalid chunks
+		// Initialize choice aggregator if it doesn't exist
+		if _, ok := a.choicesAggs[choiceIndex]; !ok {
+			a.choicesAggs[choiceIndex] = &choiceAggregator{
+				index:       choiceIndex,
+				toolCalls:   make(map[int]*llm.ToolCall),
+				annotations: make(map[string]llm.Annotation),
+				role:        "assistant",
+			}
 		}
 
-		indexer.applyToChunk(data, chunk)
+		choiceAgg := a.choicesAggs[choiceIndex]
 
-		// Process each choice in the chunk
-		for _, choice := range chunk.Choices {
-			choiceIndex := choice.Index
-			seenChoices[choiceIndex] = struct{}{}
-			if choice.FinishReason != nil {
-				finishedChoices[choiceIndex] = struct{}{}
+		if choice.Delta != nil {
+			// Handle role
+			if choice.Delta.Role != "" {
+				choiceAgg.role = choice.Delta.Role
 			}
 
-			// Initialize choice aggregator if it doesn't exist
-			if _, ok := choicesAggs[choiceIndex]; !ok {
-				choicesAggs[choiceIndex] = &choiceAggregator{
-					index:       choiceIndex,
-					toolCalls:   make(map[int]*llm.ToolCall),
-					annotations: make(map[string]llm.Annotation),
-					role:        "assistant",
+			// Handle content
+			if choice.Delta.Content.Content != nil {
+				choiceAgg.content.WriteString(*choice.Delta.Content.Content)
+			}
+			if len(choice.Delta.Content.MultipleContent) > 0 {
+				if choiceAgg.content.Len() > 0 {
+					choiceAgg.contentParts = append(choiceAgg.contentParts, llm.MessageContentPart{Type: "text", Text: lo.ToPtr(choiceAgg.content.String())})
+					choiceAgg.content.Reset()
+				}
+				for _, part := range choice.Delta.Content.MultipleContent {
+					choiceAgg.contentParts = append(choiceAgg.contentParts, part.ToLLMPart())
 				}
 			}
 
-			choiceAgg := choicesAggs[choiceIndex]
+			// Handle reasoning content. Track presence of the field separately from its
+			// content length so that a semantically meaningful empty string (e.g. DeepSeek
+			// thinking mode emitting reasoning_content: "") is preserved on the aggregated
+			// message rather than being silently dropped.
+			if choice.Delta.ReasoningContent != nil {
+				choiceAgg.hasReasoningContent = true
+				choiceAgg.reasoningContent.WriteString(*choice.Delta.ReasoningContent)
+			}
 
-			if choice.Delta != nil {
-				// Handle role
-				if choice.Delta.Role != "" {
-					choiceAgg.role = choice.Delta.Role
+			// Handle the reasoning field variant (used by providers such as Synthetic).
+			if choice.Delta.Reasoning != nil {
+				choiceAgg.hasReasoning = true
+				choiceAgg.reasoning.WriteString(*choice.Delta.Reasoning)
+			}
+
+			// Handle refusal streamed as delta.refusal chunks.
+			if choice.Delta.Refusal != "" {
+				choiceAgg.refusal.WriteString(choice.Delta.Refusal)
+			}
+
+			// Handle audio output streamed as delta.audio chunks. The audio ID and
+			// expiry arrive on the first chunk; data and transcript are fragmented.
+			if choice.Delta.Audio != nil {
+				if choiceAgg.audio == nil {
+					choiceAgg.audio = &llm.OutputAudio{}
 				}
 
-				// Handle content
-				if choice.Delta.Content.Content != nil {
-					choiceAgg.content.WriteString(*choice.Delta.Content.Content)
-				}
-				if len(choice.Delta.Content.MultipleContent) > 0 {
-					if choiceAgg.content.Len() > 0 {
-						choiceAgg.contentParts = append(choiceAgg.contentParts, llm.MessageContentPart{Type: "text", Text: lo.ToPtr(choiceAgg.content.String())})
-						choiceAgg.content.Reset()
-					}
-					for _, part := range choice.Delta.Content.MultipleContent {
-						choiceAgg.contentParts = append(choiceAgg.contentParts, part.ToLLMPart())
-					}
+				if choiceAgg.audio.ID == "" {
+					choiceAgg.audio.ID = choice.Delta.Audio.ID
 				}
 
-				// Handle reasoning content. Track presence of the field separately from its
-				// content length so that a semantically meaningful empty string (e.g. DeepSeek
-				// thinking mode emitting reasoning_content: "") is preserved on the aggregated
-				// message rather than being silently dropped.
-				if choice.Delta.ReasoningContent != nil {
-					choiceAgg.hasReasoningContent = true
-					choiceAgg.reasoningContent.WriteString(*choice.Delta.ReasoningContent)
+				if choiceAgg.audio.ExpiresAt == 0 {
+					choiceAgg.audio.ExpiresAt = choice.Delta.Audio.ExpiresAt
 				}
 
-				// Handle the reasoning field variant (used by providers such as Synthetic).
-				if choice.Delta.Reasoning != nil {
-					choiceAgg.hasReasoning = true
-					choiceAgg.reasoning.WriteString(*choice.Delta.Reasoning)
-				}
+				choiceAgg.audioData.WriteString(choice.Delta.Audio.Data)
+				choiceAgg.audioTranscript.WriteString(choice.Delta.Audio.Transcript)
+			}
 
-				// Handle refusal streamed as delta.refusal chunks.
-				if choice.Delta.Refusal != "" {
-					choiceAgg.refusal.WriteString(choice.Delta.Refusal)
-				}
+			// Handle tool calls
+			if len(choice.Delta.ToolCalls) > 0 {
+				for _, deltaToolCall := range choice.Delta.ToolCalls {
+					// Use the index from the OpenAI delta tool call
+					toolCallIndex := deltaToolCall.Index
 
-				// Handle audio output streamed as delta.audio chunks. The audio ID and
-				// expiry arrive on the first chunk; data and transcript are fragmented.
-				if choice.Delta.Audio != nil {
-					if choiceAgg.audio == nil {
-						choiceAgg.audio = &llm.OutputAudio{}
-					}
-
-					if choiceAgg.audio.ID == "" {
-						choiceAgg.audio.ID = choice.Delta.Audio.ID
-					}
-
-					if choiceAgg.audio.ExpiresAt == 0 {
-						choiceAgg.audio.ExpiresAt = choice.Delta.Audio.ExpiresAt
-					}
-
-					choiceAgg.audioData.WriteString(choice.Delta.Audio.Data)
-					choiceAgg.audioTranscript.WriteString(choice.Delta.Audio.Transcript)
-				}
-
-				// Handle tool calls
-				if len(choice.Delta.ToolCalls) > 0 {
-					for _, deltaToolCall := range choice.Delta.ToolCalls {
-						// Use the index from the OpenAI delta tool call
-						toolCallIndex := deltaToolCall.Index
-
-						// Initialize tool call if it doesn't exist
-						if _, ok := choiceAgg.toolCalls[toolCallIndex]; !ok {
-							choiceAgg.toolCalls[toolCallIndex] = &llm.ToolCall{
-								Index: toolCallIndex,
-								ID:    deltaToolCall.ID,
-								Type:  deltaToolCall.Type,
-								Function: llm.FunctionCall{
-									Name:      deltaToolCall.Function.Name,
-									Arguments: "",
-								},
-							}
-						}
-
-						// Aggregate function arguments
-						if deltaToolCall.Function.Arguments != "" {
-							choiceAgg.toolCalls[toolCallIndex].Function.Arguments += deltaToolCall.Function.Arguments
-						}
-
-						// Update function name if provided
-						if deltaToolCall.Function.Name != "" {
-							choiceAgg.toolCalls[toolCallIndex].Function.Name = deltaToolCall.Function.Name
-						}
-
-						// Update ID and type if provided
-						if deltaToolCall.ID != "" {
-							choiceAgg.toolCalls[toolCallIndex].ID = deltaToolCall.ID
-						}
-
-						if deltaToolCall.Type != "" {
-							choiceAgg.toolCalls[toolCallIndex].Type = deltaToolCall.Type
+					// Initialize tool call if it doesn't exist
+					if _, ok := choiceAgg.toolCalls[toolCallIndex]; !ok {
+						choiceAgg.toolCalls[toolCallIndex] = &llm.ToolCall{
+							Index: toolCallIndex,
+							ID:    deltaToolCall.ID,
+							Type:  deltaToolCall.Type,
+							Function: llm.FunctionCall{
+								Name:      deltaToolCall.Function.Name,
+								Arguments: "",
+							},
 						}
 					}
+
+					// Aggregate function arguments
+					if deltaToolCall.Function.Arguments != "" {
+						choiceAgg.toolCalls[toolCallIndex].Function.Arguments += deltaToolCall.Function.Arguments
+					}
+
+					// Update function name if provided
+					if deltaToolCall.Function.Name != "" {
+						choiceAgg.toolCalls[toolCallIndex].Function.Name = deltaToolCall.Function.Name
+					}
+
+					// Update ID and type if provided
+					if deltaToolCall.ID != "" {
+						choiceAgg.toolCalls[toolCallIndex].ID = deltaToolCall.ID
+					}
+
+					if deltaToolCall.Type != "" {
+						choiceAgg.toolCalls[toolCallIndex].Type = deltaToolCall.Type
+					}
 				}
 			}
-
-			// Handle annotations from Delta (streaming) and Message (non-streaming chunks)
-			choiceAgg.addAnnotations(choice.Delta)
-			choiceAgg.addAnnotations(choice.Message)
-
-			// Concatenate per-chunk logprobs instead of dropping them.
-			if choice.Logprobs != nil {
-				choiceAgg.logprobs = append(choiceAgg.logprobs, choice.Logprobs.Content...)
-			}
-
-			// Capture finish reason
-			if choice.FinishReason != nil {
-				choiceAgg.finishReason = choice.FinishReason
-			}
 		}
 
-		// Extract usage information if present
-		chunkOutput := hasMeaningfulOutput(chunk.Choices)
-		switch {
-		case chunk.Usage != nil && isZeroUsage(chunk.Usage) && sawNonZeroUsage:
-			// A zero block after a real one is a placeholder: keep the earlier
-			// counts instead of zeroing them. Providers use these as finish-chunk
-			// / trailing sentinels, and accepting one would save an undercounted
-			// zero row.
-			//
-			// The earlier counts still only describe what was produced before
-			// that block, so any later output (or a stream that has not finished
-			// every choice) invalidates the evidence that block established.
-			if chunkOutput {
-				outputSinceUsage = true
-				usageEvidence = llm.AccountingEvidenceUnavailable
-			}
-			// Only a placeholder that carries choices can leave them unfinished.
-			// A choices-less sentinel adds nothing, so the evidence the earlier
-			// block established (e.g. a trailing usage-only clean-EOF candidate)
-			// must survive.
-			if len(chunk.Choices) > 0 && !allChoicesFinished(seenChoices, finishedChoices) {
-				usageEvidence = llm.AccountingEvidenceUnavailable
-			}
-		case chunk.Usage != nil:
-			usage = chunk.Usage
-			if !isZeroUsage(chunk.Usage) {
-				sawNonZeroUsage = true
-			}
-			usageEvidence = llm.AccountingEvidenceUnavailable
-			// A delta riding on the usage chunk is treated as output after it:
-			// whether that block already counts those tokens is up to the
-			// provider, so the conservative answer is not to trust it.
-			outputSinceUsage = chunkOutput
-			if len(chunk.Choices) > 0 && isZeroUsage(chunk.Usage) {
-				zeroChoiceUsages++
-			}
-			if len(chunk.Choices) == 0 && allChoicesFinished(seenChoices, finishedChoices) {
-				usageEvidence = llm.AccountingEvidenceExplicitFinal
-			} else if len(chunk.Choices) > 0 && allChoicesFinished(seenChoices, finishedChoices) {
-				usageEvidence = llm.AccountingEvidenceCleanEndCandidate
-			} else if len(chunk.Choices) == 0 && len(seenChoices) > 0 {
-				// A trailing usage-only chunk after observed output is a clean-EOF
-				// candidate even when the provider omitted finish_reason.
-				usageEvidence = llm.AccountingEvidenceCleanEndCandidate
-			}
-		case len(chunk.Choices) > 0:
-			usageEvidence = llm.AccountingEvidenceUnavailable
-			if chunkOutput {
-				outputSinceUsage = true
-			}
+		// Handle annotations from Delta (streaming) and Message (non-streaming chunks)
+		choiceAgg.addAnnotations(choice.Delta)
+		choiceAgg.addAnnotations(choice.Message)
+
+		// Concatenate per-chunk logprobs instead of dropping them.
+		if choice.Logprobs != nil {
+			choiceAgg.logprobs = append(choiceAgg.logprobs, choice.Logprobs.Content...)
 		}
 
-		// Collect citations from chunk
-		for _, citation := range chunk.Citations {
-			citationsMap[citation] = struct{}{}
-		}
-
-		// Keep the first non-empty system fingerprint
-		if systemFingerprint == "" && chunk.SystemFingerprint != "" {
-			systemFingerprint = chunk.SystemFingerprint
-		}
-
-		// Keep the first non-empty service tier
-		if serviceTier == "" && chunk.ServiceTier != "" {
-			serviceTier = chunk.ServiceTier
-		}
-
-		// Keep the last chunk with valid choices for metadata.
-		// Skip non-standard events (e.g. inference-cost) that have empty
-		// choices and would overwrite the real last chunk's ID/Model/Created.
-		if len(chunk.Choices) > 0 {
-			lastChunkResponse = chunk
+		// Capture finish reason
+		if choice.FinishReason != nil {
+			choiceAgg.finishReason = choice.FinishReason
 		}
 	}
 
+	// Extract usage information if present
+	chunkOutput := hasMeaningfulOutput(chunk.Choices)
+	switch {
+	case chunk.Usage != nil && isZeroUsage(chunk.Usage) && a.sawNonZeroUsage:
+		// A zero block after a real one is a placeholder: keep the earlier
+		// counts instead of zeroing them. Providers use these as finish-chunk
+		// / trailing sentinels, and accepting one would save an undercounted
+		// zero row.
+		//
+		// The earlier counts still only describe what was produced before
+		// that block, so any later output (or a stream that has not finished
+		// every choice) invalidates the evidence that block established.
+		if chunkOutput {
+			a.outputSinceUsage = true
+			a.usageEvidence = llm.AccountingEvidenceUnavailable
+		}
+		// Only a placeholder that carries choices can leave them unfinished.
+		// A choices-less sentinel adds nothing, so the evidence the earlier
+		// block established (e.g. a trailing usage-only clean-EOF candidate)
+		// must survive.
+		if len(chunk.Choices) > 0 && !allChoicesFinished(a.seenChoices, a.finishedChoices) {
+			a.usageEvidence = llm.AccountingEvidenceUnavailable
+		}
+	case chunk.Usage != nil:
+		a.usage = chunk.Usage
+		if !isZeroUsage(chunk.Usage) {
+			a.sawNonZeroUsage = true
+		}
+		a.usageEvidence = llm.AccountingEvidenceUnavailable
+		// A delta riding on the usage chunk is treated as output after it:
+		// whether that block already counts those tokens is up to the
+		// provider, so the conservative answer is not to trust it.
+		a.outputSinceUsage = chunkOutput
+		if len(chunk.Choices) > 0 && isZeroUsage(chunk.Usage) {
+			a.zeroChoiceUsages++
+		}
+		if len(chunk.Choices) == 0 && allChoicesFinished(a.seenChoices, a.finishedChoices) {
+			a.usageEvidence = llm.AccountingEvidenceExplicitFinal
+		} else if len(chunk.Choices) > 0 && allChoicesFinished(a.seenChoices, a.finishedChoices) {
+			a.usageEvidence = llm.AccountingEvidenceCleanEndCandidate
+		} else if len(chunk.Choices) == 0 && len(a.seenChoices) > 0 {
+			// A trailing usage-only chunk after observed output is a clean-EOF
+			// candidate even when the provider omitted finish_reason.
+			a.usageEvidence = llm.AccountingEvidenceCleanEndCandidate
+		}
+	case len(chunk.Choices) > 0:
+		a.usageEvidence = llm.AccountingEvidenceUnavailable
+		if chunkOutput {
+			a.outputSinceUsage = true
+		}
+	}
+
+	// Collect citations from chunk
+	for _, citation := range chunk.Citations {
+		a.citationsMap[citation] = struct{}{}
+	}
+
+	// Keep the first non-empty system fingerprint
+	if a.systemFingerprint == "" && chunk.SystemFingerprint != "" {
+		a.systemFingerprint = chunk.SystemFingerprint
+	}
+
+	// Keep the first non-empty service tier
+	if a.serviceTier == "" && chunk.ServiceTier != "" {
+		a.serviceTier = chunk.ServiceTier
+	}
+
+	// Keep the last chunk with valid choices for metadata.
+	// Skip non-standard events (e.g. inference-cost) that have empty
+	// choices and would overwrite the real last chunk's ID/Model/Created.
+	if len(chunk.Choices) > 0 {
+		a.id, a.model, a.created = chunk.ID, chunk.Model, chunk.Created
+		a.hasChoices = true
+	}
+}
+
+func (a *ChatStreamAggregation) Result() ([]byte, llm.ResponseMeta, error) {
 	// Create a complete ChatCompletionResponse based on the last chunk structure
-	if lastChunkResponse == nil {
+	if !a.hasChoices {
 		data, err := json.Marshal(&llm.Response{})
 		return data, llm.ResponseMeta{}, err
 	}
 
-	choiceIndexes := make([]int, 0, len(choicesAggs))
-	for choiceIndex := range choicesAggs {
+	choiceIndexes := make([]int, 0, len(a.choicesAggs))
+	for choiceIndex := range a.choicesAggs {
 		choiceIndexes = append(choiceIndexes, choiceIndex)
 	}
 	sort.Ints(choiceIndexes)
@@ -396,7 +404,7 @@ func AggregateStreamChunks(ctx context.Context, chunks []*httpclient.StreamEvent
 	completed := len(choiceIndexes) > 0
 
 	for i, choiceIndex := range choiceIndexes {
-		choiceAgg := choicesAggs[choiceIndex]
+		choiceAgg := a.choicesAggs[choiceIndex]
 
 		var finalToolCalls []llm.ToolCall
 		if len(choiceAgg.toolCalls) > 0 {
@@ -446,10 +454,11 @@ func AggregateStreamChunks(ctx context.Context, chunks []*httpclient.StreamEvent
 
 		// Set content if available
 		if len(choiceAgg.contentParts) > 0 {
+			parts := choiceAgg.contentParts
 			if choiceAgg.content.Len() > 0 {
-				choiceAgg.contentParts = append(choiceAgg.contentParts, llm.MessageContentPart{Type: "text", Text: lo.ToPtr(choiceAgg.content.String())})
+				parts = append(parts, llm.MessageContentPart{Type: "text", Text: lo.ToPtr(choiceAgg.content.String())})
 			}
-			message.Content = llm.MessageContent{MultipleContent: choiceAgg.contentParts}
+			message.Content = llm.MessageContent{MultipleContent: parts}
 		} else if choiceAgg.content.Len() > 0 {
 			content := choiceAgg.content.String()
 			message.Content = llm.MessageContent{Content: &content}
@@ -506,8 +515,8 @@ func AggregateStreamChunks(ctx context.Context, chunks []*httpclient.StreamEvent
 
 	// Build the final response using llm.Response struct
 	var responseUsage *llm.Usage
-	if usage != nil {
-		responseUsage = usage.ToLLMUsage()
+	if a.usage != nil {
+		responseUsage = a.usage.ToLLMUsage()
 	}
 	// Some providers (and proxies in front of them) do not follow OpenAI's
 	// include_usage shape: they send the usage block in a chunk that still
@@ -517,31 +526,31 @@ func AggregateStreamChunks(ctx context.Context, chunks []*httpclient.StreamEvent
 	// finished, a usage block seen anywhere in the stream is the final usage
 	// - provided no model output was streamed after it, since that output is
 	// not covered by the block.
-	if usage != nil && !outputSinceUsage && usageEvidence == llm.AccountingEvidenceUnavailable &&
-		allChoicesFinished(seenChoices, finishedChoices) {
-		usageEvidence = llm.AccountingEvidenceCleanEndCandidate
+	if a.usage != nil && !a.outputSinceUsage && a.usageEvidence == llm.AccountingEvidenceUnavailable &&
+		allChoicesFinished(a.seenChoices, a.finishedChoices) {
+		a.usageEvidence = llm.AccountingEvidenceCleanEndCandidate
 	}
 
-	if usageEvidence == llm.AccountingEvidenceCleanEndCandidate && zeroChoiceUsages > 1 && isZeroUsage(usage) {
-		usageEvidence = llm.AccountingEvidenceUnavailable
+	if a.usageEvidence == llm.AccountingEvidenceCleanEndCandidate && a.zeroChoiceUsages > 1 && isZeroUsage(a.usage) {
+		a.usageEvidence = llm.AccountingEvidenceUnavailable
 	}
 
 	response := &llm.Response{
-		ID:                lastChunkResponse.ID,
-		Model:             lastChunkResponse.Model,
+		ID:                a.id,
+		Model:             a.model,
 		Object:            "chat.completion", // Change from "chat.completion.chunk" to "chat.completion"
-		Created:           lastChunkResponse.Created,
-		SystemFingerprint: systemFingerprint,
-		ServiceTier:       serviceTier,
+		Created:           a.created,
+		SystemFingerprint: a.systemFingerprint,
+		ServiceTier:       a.serviceTier,
 		Choices:           choices,
 		Usage:             responseUsage,
 	}
 
 	// Collect the deduplicated, sorted citations for the final response.
 	var citations []string
-	if len(citationsMap) > 0 {
-		citations = make([]string, 0, len(citationsMap))
-		for citation := range citationsMap {
+	if len(a.citationsMap) > 0 {
+		citations = make([]string, 0, len(a.citationsMap))
+		for citation := range a.citationsMap {
 			citations = append(citations, citation)
 		}
 
@@ -557,7 +566,7 @@ func AggregateStreamChunks(ctx context.Context, chunks []*httpclient.StreamEvent
 		ID:                 response.ID,
 		Usage:              responseUsage,
 		Completed:          completed,
-		AccountingEvidence: usageEvidence,
+		AccountingEvidence: a.usageEvidence,
 	}, nil
 }
 

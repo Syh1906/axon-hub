@@ -223,6 +223,10 @@ func (t *TransportTrace) trackExpectBody(req *http.Request) {
 	if t == nil || req.Body == nil || req.ContentLength <= 0 || !strings.Contains(strings.ToLower(req.Header.Get("Expect")), "100-continue") {
 		return
 	}
+	if tracked, ok := req.Body.(*expectContinueBody); ok {
+		t.expectRemaining.Store(tracked.remaining)
+		return
+	}
 	size := req.ContentLength
 	wrap := func(body io.ReadCloser) io.ReadCloser {
 		remaining := new(atomic.Int64)
@@ -321,6 +325,7 @@ func traceHTTPRequest(request *Request, raw *http.Request) *http.Request {
 			progress: request.OnHTTPProgress,
 		})
 	}
+	ctx = request.PeerDictionary.bind(ctx, raw, request)
 	return raw.WithContext(httptrace.WithClientTrace(ctx, trace))
 }
 

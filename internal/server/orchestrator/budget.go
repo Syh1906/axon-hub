@@ -8,6 +8,7 @@ import (
 
 	"github.com/looplj/axonhub/internal/log"
 	"github.com/looplj/axonhub/internal/pkg/budget"
+	"github.com/looplj/axonhub/internal/pkg/xcontext"
 	"github.com/looplj/axonhub/internal/server/biz"
 	"github.com/looplj/axonhub/llm"
 	"github.com/looplj/axonhub/llm/httpclient"
@@ -92,7 +93,7 @@ func (p *PersistentOutboundTransformer) endBudgetAttempt(ctx context.Context) er
 	if p.state.budgetUnreserved || p.state.APIKey == nil || p.state.RequestExec == nil {
 		return nil
 	}
-	persistCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 10*time.Second)
+	persistCtx, cancel := xcontext.DetachWithTimeout(ctx, 10*time.Second)
 	defer cancel()
 	lost, err := p.state.UsageLogService.BudgetService.EndOwnedAttempt(persistCtx, p.state.RequestExec.ID)
 	if lost {
@@ -181,7 +182,7 @@ func (e *budgetExecutor) releaseUnsent(ctx context.Context, cause error) error {
 	if !errors.Is(cause, httpclient.ErrRequestNotSent) {
 		return cause
 	}
-	persistCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 10*time.Second)
+	persistCtx, cancel := xcontext.DetachWithTimeout(ctx, 10*time.Second)
 	defer cancel()
 	if err := e.service.ReleaseUnwrittenAttempt(persistCtx, e.executionID); err != nil {
 		return errors.Join(cause, &biz.BudgetDenied{Reason: "accounting_unavailable"})
@@ -206,7 +207,7 @@ func (s *budgetStream) Close() error {
 		s.attempt.Stop()
 	}
 	err := s.Stream.Close()
-	ctx, cancel := context.WithTimeout(context.WithoutCancel(s.ctx), 10*time.Second)
+	ctx, cancel := xcontext.DetachWithTimeout(s.ctx, 10*time.Second)
 	defer cancel()
 	lost, endErr := s.service.EndOwnedAttempt(ctx, s.executionID)
 	if lost {

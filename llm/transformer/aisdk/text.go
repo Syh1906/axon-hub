@@ -217,3 +217,12 @@ func (t *TextTransformer) TransformError(ctx context.Context, rawErr error) *htt
 		Body:       fmt.Appendf(nil, `{"message":"%s","type":"internal_server_error"}`, rawErr.Error()),
 	}
 }
+
+// The text protocol currently persists an empty object and consumes no wire history.
+func (t *TextTransformer) NewStreamAggregation(_ *httpclient.Request) transformer.StreamAggregation {
+	return t
+}
+func (*TextTransformer) Add(context.Context, *httpclient.StreamEvent) {}
+func (t *TextTransformer) Result() ([]byte, llm.ResponseMeta, error) {
+	return t.AggregateStreamChunks(context.Background(), nil)
+}

@@ -175,3 +175,7 @@ func (t *OutboundTransformer) TransformStream(
 
 	return newBailianStreamFilter(baseStream), nil
 }
+
+func (t *OutboundTransformer) NewStreamAggregation(req *httpclient.Request) transformer.StreamAggregation {
+	return transformer.NewStreamAggregation(t.Outbound, req)
+}

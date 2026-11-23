@@ -313,3 +313,14 @@ func (t *OutboundTransformer) AggregateStreamChunks(ctx context.Context, req *ht
 func (t *OutboundTransformer) TransformError(ctx context.Context, rawErr *httpclient.Error) *llm.ResponseError {
 	return t.Outbound.TransformError(ctx, rawErr)
 }
+
+func (t *OutboundTransformer) NewStreamAggregation(req *httpclient.Request) transformer.StreamAggregation {
+	if req == nil {
+		return nil
+	}
+	return transformer.NewStreamAggregation(t.sub(routeFromHTTPRequest(req)), req)
+}
+
+func (t *sessionHeaderOutbound) NewStreamAggregation(req *httpclient.Request) transformer.StreamAggregation {
+	return transformer.NewStreamAggregation(t.Outbound, req)
+}

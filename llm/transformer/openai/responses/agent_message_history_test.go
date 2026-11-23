@@ -1,6 +1,7 @@
 package responses
 
 import (
+	"bytes"
 	"encoding/json"
 	"testing"
 
@@ -51,10 +52,15 @@ func TestNormalizeAgentMessageHistory(t *testing.T) {
 			}
 			body, err := json.Marshal(map[string]any{"model": "test", "input": items})
 			require.NoError(t, err)
+			// Escaped JSON field names and values still carry the same wire meaning.
+			escaped := bytes.ReplaceAll(body, []byte("encrypted_content"), []byte(`\u0065ncrypted_content`))
+			escapedResult, err := NormalizeAgentMessageHistory(escaped)
+			require.NoError(t, err)
 			original := string(body)
 			actual, err := NormalizeAgentMessageHistory(body)
 			require.NoError(t, err)
 			require.Equal(t, original, string(body))
+			require.JSONEq(t, string(actual), string(escapedResult))
 			if !tc.want {
 				require.Equal(t, body, actual)
 				return

@@ -13,6 +13,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/tidwall/gjson"
 
+	"github.com/looplj/axonhub/internal/pkg/xcontext"
 	"github.com/looplj/axonhub/llm/httpclient"
 	"github.com/looplj/axonhub/llm/streams"
 	"github.com/looplj/axonhub/llm/transformer/openai/responses"
@@ -69,6 +70,10 @@ func (s *responsesSessionStore) prepare(ctx context.Context, body []byte) ([]byt
 // the submitted turn. Custom hooks and history-dependent checks get full input.
 func (s *responsesSessionStore) prepareEnvelope(ctx context.Context, body []byte, allowDelta func(shared.ResponsesOrigin) bool) ([]byte, string, error) {
 	sessionID, _ := shared.GetSessionID(ctx)
+	// Only continuation and history normalization can change the envelope.
+	if !bytes.Contains(body, []byte(`"previous_response_id"`)) && !bytes.Contains(body, []byte(`"status"`)) && !bytes.Contains(body, []byte(`\u`)) {
+		return body, responseSessionID(sessionID), nil
+	}
 	var current map[string]json.RawMessage
 	if json.Unmarshal(body, &current) != nil || current == nil {
 		// Invalid request bodies are validated by the normal request parser;
@@ -292,7 +297,7 @@ func (s *responsesSessionStore) record(ctx context.Context, requestBody, respons
 // 取消生成后仍须保存客户端已收到的完整输出项，取消信号不应取消这次短暂的历史写入。
 func (s *responsesSessionStore) continuationRecorder(ctx context.Context, requestBody []byte) func([]byte) {
 	return func(responseBody []byte) {
-		persistCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+		persistCtx, cancel := xcontext.DetachWithTimeout(ctx, 5*time.Second)
 		defer cancel()
 		s.record(persistCtx, requestBody, responseBody)
 	}

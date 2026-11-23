@@ -17,6 +17,7 @@ import (
 	"github.com/looplj/axonhub/llm/httpclient"
 	"github.com/looplj/axonhub/llm/internal/pkg/xurl"
 	"github.com/looplj/axonhub/llm/streams"
+	"github.com/looplj/axonhub/llm/transformer"
 	"github.com/looplj/axonhub/llm/transformer/shared"
 )
 
@@ -1015,4 +1016,8 @@ func (t *OutboundTransformer) AggregateStreamChunks(
 	chunks []*httpclient.StreamEvent,
 ) ([]byte, llm.ResponseMeta, error) {
 	return AggregateStreamChunks(ctx, chunks)
+}
+
+func (t *OutboundTransformer) NewStreamAggregation(_ *httpclient.Request) transformer.StreamAggregation {
+	return NewStreamAggregation()
 }

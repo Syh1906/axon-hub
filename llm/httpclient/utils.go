@@ -23,19 +23,7 @@ var maxRequestBodySize = 64 * 1024 * 1024
 var ErrRequestBodyTooLarge = errors.New("request body too large")
 
 func ReadHTTPRequest(rawReq *http.Request) (*Request, error) {
-	req := &Request{
-		Method:     rawReq.Method,
-		URL:        rawReq.URL.String(),
-		Path:       rawReq.URL.Path,
-		Query:      rawReq.URL.Query(),
-		Headers:    rawReq.Header,
-		Body:       nil,
-		Auth:       &AuthConfig{},
-		RequestID:  "",
-		ClientIP:   getClientIP(rawReq),
-		UserAgent:  rawReq.UserAgent(),
-		RawRequest: rawReq,
-	}
+	req := inboundRequest(rawReq)
 
 	if prepared, ok := inspectedBody(rawReq); ok {
 		if prepared.err != nil {
@@ -68,6 +56,35 @@ func ReadHTTPRequest(rawReq *http.Request) (*Request, error) {
 	return req, nil
 }
 
+// NewJSONRequest uses a validated, owned JSON body from a WebSocket frame.
+func NewJSONRequest(r *http.Request, body []byte) (*Request, error) {
+	if len(body) > maxRequestBodySize {
+		return nil, ErrRequestBodyTooLarge
+	}
+	req := inboundRequest(r)
+	req.BodyReadAt, req.Body = time.Now(), body
+	// Match ReadHTTPRequest: the synthesized HTTP body has been consumed.
+	r.Body = http.NoBody
+	r.ContentLength = int64(len(body))
+	return req, nil
+}
+
+func inboundRequest(rawReq *http.Request) *Request {
+	return &Request{
+		Method:     rawReq.Method,
+		URL:        rawReq.URL.String(),
+		Path:       rawReq.URL.Path,
+		Query:      rawReq.URL.Query(),
+		Headers:    rawReq.Header,
+		Body:       nil,
+		Auth:       &AuthConfig{},
+		RequestID:  "",
+		ClientIP:   getClientIP(rawReq),
+		UserAgent:  rawReq.UserAgent(),
+		RawRequest: rawReq,
+	}
+}
+
 type inspectedRequestBody struct {
 	*bytes.Reader
 	io.Closer
@@ -85,21 +102,26 @@ func inspectedBody(r *http.Request) (*inspectedRequestBody, bool) {
 
 // InspectRequestBody shares the bounded, decoded input with the eventual handler.
 // Other readers can still consume the original wire representation.
-func InspectRequestBody(r *http.Request) ([]byte, error) {
+func InspectRequestBody(r *http.Request) ([]byte, error) { return InspectBudgetedBody(r, nil) }
+
+func InspectBudgetedBody(r *http.Request, lease *BodyLease) ([]byte, error) {
 	if body, ok := inspectedBody(r); ok {
 		return body.decoded, body.err
 	}
 	if r.Body == nil {
 		return nil, nil
 	}
-	wire, err := readLimited(r.Body, maxRequestBodySize)
+	wire, err := readLimited(lease.Reader(r.Body, 0), maxRequestBodySize)
+	if err != nil {
+		err = fmt.Errorf("failed to read request body: %w", err)
+	}
 	readAt := time.Now()
 	encoding := r.Header.Get("Content-Encoding")
 	decoded := wire
 	decompressed := false
 	if err == nil && len(wire) > 0 && encoding != "" {
 		headers := r.Header.Clone()
-		decoded, err = decodeRequestBody(wire, headers)
+		decoded, err = decodeBudgetedBody(wire, headers, lease)
 		decompressed = err == nil && headers.Get("Content-Encoding") == ""
 	}
 	r.Body = &inspectedRequestBody{Reader: bytes.NewReader(wire), Closer: r.Body, readAt: readAt, decoded: decoded, err: err, decompressed: decompressed, encoding: encoding}
@@ -107,6 +129,10 @@ func InspectRequestBody(r *http.Request) ([]byte, error) {
 }
 
 func decodeRequestBody(body []byte, headers http.Header) ([]byte, error) {
+	return decodeBudgetedBody(body, headers, nil)
+}
+
+func decodeBudgetedBody(body []byte, headers http.Header, lease *BodyLease) ([]byte, error) {
 	contentEncoding := headers.Get("Content-Encoding")
 	if contentEncoding == "" {
 		return body, nil
@@ -125,7 +151,7 @@ func decodeRequestBody(body []byte, headers http.Header) ([]byte, error) {
 		}
 		defer reader.Close()
 
-		decoded, err := readLimited(reader, maxRequestBodySize)
+		decoded, err := readLimited(lease.Reader(reader, int64(len(body))), maxRequestBodySize)
 		if err != nil {
 			return nil, fmt.Errorf("failed to decompress gzip body: %w", err)
 		}
@@ -138,7 +164,7 @@ func decodeRequestBody(body []byte, headers http.Header) ([]byte, error) {
 	case "deflate":
 		// RFC 7230/2616 defines "deflate" as zlib (RFC 1950), but many clients send
 		// raw DEFLATE (RFC 1951). Try zlib first, fall back to raw DEFLATE.
-		decoded, err := decodeZlibOrFlate(body, maxRequestBodySize)
+		decoded, err := decodeZlibOrFlate(body, maxRequestBodySize, lease)
 		if err != nil {
 			return nil, fmt.Errorf("failed to decompress deflate body: %w", err)
 		}
@@ -156,7 +182,7 @@ func decodeRequestBody(body []byte, headers http.Header) ([]byte, error) {
 		defer decoder.Close()
 
 		decoderReader := decoder.IOReadCloser()
-		decoded, err := readLimited(decoderReader, maxRequestBodySize)
+		decoded, err := readLimited(lease.Reader(decoderReader, int64(len(body))), maxRequestBodySize)
 		closeErr := decoderReader.Close()
 		if err != nil {
 			return nil, fmt.Errorf("failed to decode zstd compressed body: %w", err)
@@ -175,16 +201,16 @@ func decodeRequestBody(body []byte, headers http.Header) ([]byte, error) {
 	}
 }
 
-func decodeZlibOrFlate(body []byte, maxSize int) ([]byte, error) {
+func decodeZlibOrFlate(body []byte, maxSize int, lease *BodyLease) ([]byte, error) {
 	reader, err := zlib.NewReader(bytes.NewReader(body))
 	if err == nil {
 		defer reader.Close()
-		return readLimited(reader, maxSize)
+		return readLimited(lease.Reader(reader, int64(len(body))), maxSize)
 	}
 
 	flateReader := flate.NewReader(bytes.NewReader(body))
 	defer flateReader.Close()
-	return readLimited(flateReader, maxSize)
+	return readLimited(lease.Reader(flateReader, int64(len(body))), maxSize)
 }
 
 func readLimited(r io.Reader, maxSize int) ([]byte, error) {
@@ -304,6 +330,7 @@ var blockedHeaders = map[string]bool{
 // blockedHeaderPrefixes lists header prefixes that should not be forwarded to upstream.
 // For example, Cloudflare adds Cf-* and Cdn-* headers that can cause upstream providers to reject requests.
 var blockedHeaderPrefixes = []string{
+	"X-Axonhub-Dict-",
 	"Cf-",
 	"Cdn-",
 }

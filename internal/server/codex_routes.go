@@ -15,7 +15,7 @@ func registerCodexRoutes(server *Server, handlers Handlers, services Services) {
 		middleware.WithSource(request.SourceAPI),
 	}
 	group := server.Group("/codex", common...)
-	timedTracking := append(requestTracking(server, services), middleware.WithTimeout(server.Config.LLMRequestTimeout))
+	timedTracking := append([]gin.HandlerFunc{middleware.WithTimeout(server.Config.LLMRequestTimeout)}, requestTracking(server, services)...)
 	account := group.Group("", timedTracking...)
 	account.GET("/v1/user-auth-credential/whoami", handlers.CodexCompatibility.Whoami)
 	account.GET("/api/codex/accounts/check", handlers.CodexCompatibility.AccountsCheck)

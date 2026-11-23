@@ -273,3 +273,7 @@ func normalizeHTTPErrorStatus(httpErr *httpclient.Error) *httpclient.Error {
 
 	return &normalized
 }
+
+func (t *InboundTransformer) NewStreamAggregation(_ *httpclient.Request) transformer.StreamAggregation {
+	return NewChatStreamAggregation(DefaultTransformChunk)
+}

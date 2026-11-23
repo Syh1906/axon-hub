@@ -79,7 +79,7 @@ func (t *recoveringTransport) newGeneration(http1Only bool) *poolGeneration {
 		dial = (&net.Dialer{}).DialContext
 	}
 	generation.transport.DialContext = func(ctx context.Context, network, address string) (net.Conn, error) {
-		conn, err := dial(ctx, network, address)
+		conn, err := dialWithScopedValues(ctx, dial, network, address)
 		if err != nil {
 			return nil, err
 		}
@@ -129,6 +129,13 @@ type http1EndpointKey struct{}
 type protocolPreferenceKey struct{}
 
 func (t *recoveringTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	if peer, _ := req.Context().Value(peerRequestKey{}).(*peerUpload); peer != nil && req.Response == nil {
+		return peer.roundTrip(req, t.roundTripHTTP)
+	}
+	return t.roundTripHTTP(req)
+}
+
+func (t *recoveringTransport) roundTripHTTP(req *http.Request) (*http.Response, error) {
 	req, encoding := t.encodings.prepare(req)
 	// Keep both protocols' connections separate even for paths on the same host.
 	origin := strings.ToLower(req.URL.Scheme + "://" + req.URL.Host)
@@ -210,7 +217,8 @@ func (t *recoveringTransport) RoundTrip(req *http.Request) (*http.Response, erro
 		bodyBytes := req.ContentLength
 		observer.mu.Lock()
 		observer.wireBytes = bodyBytes
-		observer.zstdEncoded = req.Header.Get("Content-Encoding") == "zstd"
+		coding := req.Header.Get("Content-Encoding")
+		observer.zstdEncoded = coding == "zstd" || coding == PeerEncoding
 		observer.rejectProtocol = nil
 		if sample.http1 {
 			observer.rejectProtocol = func() {
@@ -219,7 +227,7 @@ func (t *recoveringTransport) RoundTrip(req *http.Request) (*http.Response, erro
 				t.protocols.reject(sample, time.Now())
 			}
 		}
-		observer.encodeDuration = 0
+		observer.encodeDuration, _ = req.Context().Value(peerEncodingTimeKey{}).(time.Duration)
 		if encoding != nil {
 			observer.encodeDuration = encoding.cpu
 		}

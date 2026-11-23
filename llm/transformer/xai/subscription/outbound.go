@@ -83,3 +83,7 @@ func (t *OutboundTransformer) TransformError(ctx context.Context, err *httpclien
 func (t *OutboundTransformer) AggregateStreamChunks(ctx context.Context, request *httpclient.Request, chunks []*httpclient.StreamEvent) ([]byte, llm.ResponseMeta, error) {
 	return t.responses.AggregateStreamChunks(ctx, request, chunks)
 }
+
+func (t *OutboundTransformer) NewStreamAggregation(req *httpclient.Request) transformer.StreamAggregation {
+	return transformer.NewStreamAggregation(t.responses, req)
+}

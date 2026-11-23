@@ -566,30 +566,23 @@ func (t *OutboundTransformer) TransformError(ctx context.Context, rawErr *httpcl
 
 // AggregateStreamChunks aggregates streaming chunks into a complete response.
 func (t *OutboundTransformer) AggregateStreamChunks(ctx context.Context, _ *httpclient.Request, chunks []*httpclient.StreamEvent) ([]byte, llm.ResponseMeta, error) {
-	// Check if chunks are in Responses API format (used by Codex models)
-	if isResponsesAPIStream(chunks) {
-		return responses.AggregateStreamChunks(ctx, chunks)
+	a := t.NewStreamAggregation(nil)
+	for _, e := range chunks {
+		a.Add(ctx, e)
 	}
-
-	return openai.AggregateStreamChunks(ctx, chunks, openai.DefaultTransformChunk)
+	return a.Result()
 }
 
-// isResponsesAPIStream checks if the stream chunks are in OpenAI Responses API format.
-func isResponsesAPIStream(chunks []*httpclient.StreamEvent) bool {
-	for _, chunk := range chunks {
-		if chunk == nil || len(chunk.Data) == 0 {
-			continue
-		}
-		// Check for Responses API specific event types
-		data := string(chunk.Data)
-		if strings.Contains(data, `"type":"response.completed"`) ||
-			strings.Contains(data, `"type":"response.created"`) ||
-			strings.Contains(data, `"type":"response.in_progress"`) ||
-			strings.Contains(data, `"type":"response.output_item.added"`) {
+// Preserve Copilot's wire-dialect detection for models advertised on either API.
+func isResponsesMarker(chunk *httpclient.StreamEvent) bool {
+	if chunk == nil {
+		return false
+	}
+	for _, marker := range [...]string{`"type":"response.completed"`, `"type":"response.created"`, `"type":"response.in_progress"`, `"type":"response.output_item.added"`} {
+		if bytes.Contains(chunk.Data, []byte(marker)) {
 			return true
 		}
 	}
-
 	return false
 }
 
@@ -698,4 +691,36 @@ func (s *prependedStream) Err() error {
 
 func (s *prependedStream) Close() error {
 	return s.upstream.Close()
+}
+
+func (t *OutboundTransformer) NewStreamAggregation(_ *httpclient.Request) transformer.StreamAggregation {
+	return &copilotAggregation{chat: openai.NewChatStreamAggregation(openai.DefaultTransformChunk)}
+}
+
+type copilotAggregation struct {
+	chat      *openai.ChatStreamAggregation
+	responses *responses.StreamAggregation
+}
+
+func (a *copilotAggregation) Add(ctx context.Context, e *httpclient.StreamEvent) {
+	if a.chat != nil && isResponsesMarker(e) {
+		a.chat = nil
+	}
+	// Untyped Chat chunks have no Responses semantics. Preserve early typed
+	// Responses events even when a recognizable marker arrives later.
+	if a.chat == nil || (e != nil && gjson.GetBytes(e.Data, "type").Exists()) {
+		if a.responses == nil {
+			a.responses = responses.NewStreamAggregation()
+		}
+		a.responses.Add(ctx, e)
+	}
+	if e != nil && a.chat != nil {
+		a.chat.Add(ctx, e)
+	}
+}
+func (a *copilotAggregation) Result() ([]byte, llm.ResponseMeta, error) {
+	if a.chat != nil {
+		return a.chat.Result()
+	}
+	return a.responses.Result()
 }

@@ -184,3 +184,10 @@ func (t *OutboundTransformer) AggregateStreamChunks(ctx context.Context, req *ht
 
 	return openai.AggregateStreamChunks(ctx, chunks, nanoGPTChunkTransform)
 }
+
+func (t *OutboundTransformer) NewStreamAggregation(req *httpclient.Request) transformer.StreamAggregation {
+	if req == nil || req.APIFormat != string(llm.APIFormatOpenAIChatCompletion) {
+		return nil
+	}
+	return openai.NewChatStreamAggregation(nanoGPTChunkTransform)
+}

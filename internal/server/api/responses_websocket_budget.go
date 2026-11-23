@@ -18,6 +18,8 @@ func (s *responsesWebSocketSession) releaseWarmup() {
 	if s.budget != nil {
 		s.budget.Replace(s.warmupBytes, 0)
 	}
+	s.warmupLease.Release()
+	s.warmupLease = nil
 	s.warmupBytes = 0
 	s.warmupID, s.warmupPayload = "", nil
 }

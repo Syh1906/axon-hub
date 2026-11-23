@@ -1,12 +1,12 @@
 package api
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"net/http"
 	"strings"
 	"sync"
@@ -99,7 +99,22 @@ func serveResponsesWebSocket(
 	dispatcher := newResponsesWebSocketDispatcher(ctx, cancelSession, conn, writer, c.Request, requestTimeout, process, transformError)
 	defer dispatcher.wait()
 	for {
-		messageType, message, readErr := conn.ReadMessage()
+		messageType, reader, readErr := conn.NextReader()
+		var message []byte
+		var lease *httpclient.BodyLease
+		if readErr == nil {
+			lease, _ = httpclient.BodyBudgetFromContext(ctx).Admit(ctx, 0)
+			message, readErr = io.ReadAll(lease.Reader(reader, 0))
+		}
+		if readErr != nil {
+			lease.Release()
+		}
+		if errors.Is(readErr, httpclient.ErrBodyBudget) {
+			if err := writeResponsesWebSocketError(writer, responsesBodyCapacityError(), ""); err != nil {
+				return
+			}
+			continue
+		}
 		if readErr != nil {
 			if !websocket.IsCloseError(readErr, websocket.CloseNormalClosure, websocket.CloseGoingAway) &&
 				!errors.Is(readErr, io.EOF) && ctx.Err() == nil {
@@ -108,25 +123,30 @@ func serveResponsesWebSocket(
 			return
 		}
 		if err := conn.SetReadDeadline(time.Now().Add(responsesWebSocketIdleTimeout)); err != nil {
+			lease.Release()
 			log.Warn(ctx, "Failed to refresh Responses WebSocket read deadline", log.Cause(err))
 			return
 		}
 
 		if messageType != websocket.TextMessage {
+			lease.Release()
 			if err := writeResponsesWebSocketError(writer, invalidResponsesWebSocketRequest("response.create must be sent as a text message", ""), ""); err != nil {
 				return
 			}
 			continue
 		}
-		if handled, err := dispatcher.handleInterrupt(message); handled {
-			if err != nil {
+		frame, envelopeErr := parseResponsesFrame(message)
+		frame.lease = lease
+		if envelopeErr == nil && frame.kind == "response.interrupt" {
+			lease.Release()
+			if err := dispatcher.handleInterrupt(message); err != nil {
 				return
 			}
 			continue
 		}
-
-		streamID, envelopeErr := responsesWebSocketEnvelopeStreamID(message)
+		streamID := frame.streamID
 		if envelopeErr != nil {
+			lease.Release()
 			if err := writeResponsesWebSocketError(writer, envelopeErr, ""); err != nil {
 				return
 			}
@@ -135,19 +155,21 @@ func serveResponsesWebSocket(
 
 		lane, laneErr := dispatcher.lane(streamID)
 		if laneErr != nil {
+			lease.Release()
 			if err := writeResponsesWebSocketError(writer, laneErr, streamID); err != nil {
 				return
 			}
 			continue
 		}
 		if !dispatcher.reserve(len(message)) {
+			lease.Release()
 			if err := writeResponsesWebSocketError(writer, responsesWebSocketQueueLimitError(), streamID); err != nil {
 				return
 			}
 			continue
 		}
 
-		dispatcher.dispatch(lane, streamID, append([]byte(nil), message...))
+		dispatcher.dispatch(lane, frame)
 	}
 }
 
@@ -256,15 +278,17 @@ func (d *responsesWebSocketDispatcher) lane(streamID string) (*responsesWebSocke
 	return lane, nil
 }
 
-func (d *responsesWebSocketDispatcher) dispatch(lane *responsesWebSocketLane, streamID string, message []byte) {
+func (d *responsesWebSocketDispatcher) dispatch(lane *responsesWebSocketLane, frame responsesFrame) {
 	bodyRead := time.Now()
 	previous := lane.tail
 	done := make(chan struct{})
 	lane.tail = done
 	d.wg.Go(func() {
-		defer func() { <-d.pending }()
-		defer d.queueBudget.Replace(len(message), 0)
+		// The next turn may need this turn's capacity as soon as it wakes.
 		defer close(done)
+		defer frame.lease.Release()
+		defer func() { <-d.pending }()
+		defer d.queueBudget.Replace(len(frame.raw), 0)
 		defer func() {
 			if recovered := recover(); recovered != nil {
 				log.Error(d.ctx, "Panic while processing Responses WebSocket request", log.Any("panic", recovered))
@@ -287,7 +311,7 @@ func (d *responsesWebSocketDispatcher) dispatch(lane *responsesWebSocketLane, st
 			return
 		}
 
-		if err := d.processMessage(lane, streamID, message, bodyRead); err != nil {
+		if err := d.processMessage(lane, frame, bodyRead); err != nil {
 			if !errors.Is(err, context.Canceled) && d.ctx.Err() == nil {
 				log.Warn(d.ctx, "Failed to write Responses WebSocket result", log.Cause(err))
 			}
@@ -299,8 +323,9 @@ func (d *responsesWebSocketDispatcher) dispatch(lane *responsesWebSocketLane, st
 	})
 }
 
-func (d *responsesWebSocketDispatcher) processMessage(lane *responsesWebSocketLane, streamID string, message []byte, bodyRead time.Time) error {
-	request, warmup, requestErr := lane.session.prepareRequest(d.rawRequest, message)
+func (d *responsesWebSocketDispatcher) processMessage(lane *responsesWebSocketLane, frame responsesFrame, bodyRead time.Time) error {
+	streamID := frame.streamID
+	request, warmup, requestErr := lane.session.prepareFrame(d.rawRequest, frame)
 	defer lane.session.releaseConsumedWarmup()
 	if requestErr != nil {
 		return writeResponsesWebSocketError(d.writer, requestErr, streamID)
@@ -368,35 +393,49 @@ func runResponsesWebSocketPings(ctx context.Context, conn *websocket.Conn, done 
 	}
 }
 
-func responsesWebSocketEnvelopeStreamID(message []byte) (string, *httpclient.Error) {
-	var payload map[string]json.RawMessage
-	if err := json.Unmarshal(message, &payload); err != nil || payload == nil {
-		return "", invalidResponsesWebSocketRequest("invalid response.create JSON payload", "")
-	}
+type responsesFrame struct {
+	lease          *httpclient.BodyLease
+	raw            []byte
+	kind, streamID string
+}
 
-	var eventType string
-	if rawType, ok := payload["type"]; !ok || json.Unmarshal(rawType, &eventType) != nil || eventType != responseCreateWebSocketEventType {
-		return "", invalidResponsesWebSocketRequest("expected a response.create event", "type")
-	}
+const maxResponsesStreamID = 256
 
-	rawStreamID, ok := payload["stream_id"]
-	if !ok {
-		return "", nil
-	}
-	var streamID string
-	if json.Unmarshal(rawStreamID, &streamID) != nil || !validResponsesWebSocketStreamID(streamID) {
-		return "", responsesWebSocketRequestError(
-			"The 'stream_id' field must be a non-empty string with at most 256 characters and may only contain letters, numbers, underscores, hyphens, and periods.",
-			"stream_id",
-			"invalid_stream_id",
-		)
-	}
+// Only the event type and the short, ASCII stream ID are needed to enqueue a
+// frame. Keep exact JSON member names and last-member-wins decoding without
+// copying large values such as input or tools into the queue.
+type responsesRoutingString string
 
-	return streamID, nil
+func (s *responsesRoutingString) UnmarshalJSON(raw []byte) error {
+	*s = ""
+	// Each permitted ASCII character can also be spelled as a six-byte escape.
+	if len(raw) <= 2+6*maxResponsesStreamID && raw[0] == '"' {
+		return json.Unmarshal(raw, (*string)(s))
+	}
+	return nil
+}
+
+func parseResponsesFrame(message []byte) (responsesFrame, *httpclient.Error) {
+	f := responsesFrame{raw: message}
+	var routing map[string]responsesRoutingString
+	if json.Unmarshal(message, &routing) != nil || routing == nil {
+		return f, invalidResponsesWebSocketRequest("invalid response.create JSON payload", "")
+	}
+	f.kind = string(routing["type"])
+	if f.kind != responseCreateWebSocketEventType && f.kind != "response.interrupt" {
+		return f, invalidResponsesWebSocketRequest("expected a response.create event", "type")
+	}
+	if id, ok := routing["stream_id"]; ok && f.kind == responseCreateWebSocketEventType {
+		if !validResponsesWebSocketStreamID(string(id)) {
+			return f, responsesWebSocketRequestError("The 'stream_id' field must be a non-empty string with at most 256 characters and may only contain letters, numbers, underscores, hyphens, and periods.", "stream_id", "invalid_stream_id")
+		}
+		f.streamID = string(id)
+	}
+	return f, nil
 }
 
 func validResponsesWebSocketStreamID(streamID string) bool {
-	if streamID == "" || len(streamID) > 256 {
+	if streamID == "" || len(streamID) > maxResponsesStreamID {
 		return false
 	}
 	for _, char := range streamID {
@@ -414,6 +453,7 @@ type responsesWebSocketSession struct {
 	warmupPayload map[string]json.RawMessage
 	budget        *shared.ResponsesBudget
 	warmupBytes   int
+	warmupLease   *httpclient.BodyLease
 }
 
 type responsesWebSocketWarmup struct {
@@ -422,20 +462,11 @@ type responsesWebSocketWarmup struct {
 	PreviousResponseID string
 }
 
-func (s *responsesWebSocketSession) prepareRequest(
-	rawRequest *http.Request,
-	message []byte,
-) (*httpclient.Request, *responsesWebSocketWarmup, *httpclient.Error) {
+func (s *responsesWebSocketSession) prepareFrame(rawRequest *http.Request, frame responsesFrame) (*httpclient.Request, *responsesWebSocketWarmup, *httpclient.Error) {
 	var payload map[string]json.RawMessage
-	if err := json.Unmarshal(message, &payload); err != nil || payload == nil {
+	if err := json.Unmarshal(frame.raw, &payload); err != nil {
 		return nil, nil, invalidResponsesWebSocketRequest("invalid response.create JSON payload", "")
 	}
-
-	var eventType string
-	if rawType, ok := payload["type"]; !ok || json.Unmarshal(rawType, &eventType) != nil || eventType != responseCreateWebSocketEventType {
-		return nil, nil, invalidResponsesWebSocketRequest("expected a response.create event", "type")
-	}
-
 	generate := true
 	if rawGenerate, ok := payload["generate"]; ok {
 		if err := json.Unmarshal(rawGenerate, &generate); err != nil {
@@ -448,25 +479,28 @@ func (s *responsesWebSocketSession) prepareRequest(
 	delete(payload, "stream_id")
 
 	previousResponseID := responseWebSocketStringField(payload, "previous_response_id")
-	if s.warmupID != "" && previousResponseID == s.warmupID {
-		mergedBytes := responsesWarmupBytes(payload) + s.warmupBytes
-		if mergedBytes > 64<<20 || (s.budget != nil && !s.budget.Replace(0, mergedBytes)) {
+	mergeWarmup := s.warmupID != "" && previousResponseID == s.warmupID
+	var reserved int
+	// Until the merged turn is admitted, its pre-existing warmup remains usable.
+	defer func() {
+		if reserved > 0 {
+			s.budget.Replace(reserved, 0)
+		}
+	}()
+	if mergeWarmup {
+		size := responsesWarmupBytes(payload) + s.warmupBytes
+		if size > 64<<20 || !s.budget.Replace(0, size) {
 			return nil, nil, responsesWebSocketRetentionLimitError()
+		}
+		reserved = size
+		if err := frame.lease.Cover(s.warmupLease, int64(size)); err != nil {
+			return nil, nil, responsesBodyCapacityError()
 		}
 		var err error
 		payload, err = mergeResponsesWebSocketWarmup(s.warmupPayload, payload)
 		if err != nil {
-			if s.budget != nil {
-				s.budget.Replace(mergedBytes, 0)
-			}
 			return nil, nil, invalidResponsesWebSocketRequest(err.Error(), "input")
 		}
-		s.warmupID = ""
-		s.warmupPayload = nil
-		if s.budget != nil {
-			s.budget.Replace(s.warmupBytes, 0)
-		}
-		s.warmupBytes = mergedBytes
 	}
 
 	if !generate {
@@ -480,12 +514,22 @@ func (s *responsesWebSocketSession) prepareRequest(
 			s.budget = shared.NewResponsesBudget(64 << 20)
 		}
 		size := responsesWarmupBytes(payload)
-		if !s.budget.Replace(s.warmupBytes, size) {
-			return nil, nil, responsesWebSocketRetentionLimitError()
+		if extra := size - (s.warmupBytes + reserved); extra > 0 {
+			if !s.budget.Replace(0, extra) {
+				return nil, nil, responsesWebSocketRetentionLimitError()
+			}
+			reserved += extra
 		}
+		held, err := frame.lease.Retain(s.warmupLease, int64(size))
+		if err != nil {
+			return nil, nil, responsesBodyCapacityError()
+		}
+		s.budget.Replace(s.warmupBytes+reserved, size)
+		reserved = 0
 		s.warmupBytes = size
 		s.warmupID = id
-		s.warmupPayload = cloneResponsesWebSocketPayload(payload)
+		s.warmupPayload = payload
+		s.warmupLease = held
 
 		return nil, &responsesWebSocketWarmup{
 			ID:                 id,
@@ -503,16 +547,26 @@ func (s *responsesWebSocketSession) prepareRequest(
 
 	request := rawRequest.Clone(rawRequest.Context())
 	request.Method = http.MethodPost
-	request.Body = io.NopCloser(bytes.NewReader(body))
-	request.ContentLength = int64(len(body))
 	request.Header = responseWebSocketRequestHeaders(rawRequest.Header)
 
-	genericRequest, err := httpclient.ReadHTTPRequest(request)
+	genericRequest, err := httpclient.NewJSONRequest(request, body)
 	if err != nil {
 		return nil, nil, invalidResponsesWebSocketRequest(fmt.Sprintf("failed to read response.create payload: %v", err), "")
 	}
 
-	genericRequest.JSONBody = append([]byte(nil), message...)
+	genericRequest.JSONBody = frame.raw
+	var warmupCredit *httpclient.BodyLease
+	if mergeWarmup {
+		warmupCredit = s.warmupLease
+	}
+	if err := frame.lease.Cover(warmupCredit, int64(len(body))); err != nil {
+		return nil, nil, responsesBodyCapacityError()
+	}
+	if mergeWarmup {
+		s.budget.Replace(s.warmupBytes, 0)
+		s.warmupBytes, reserved = reserved, 0
+		s.warmupID, s.warmupPayload = "", nil
+	}
 
 	return genericRequest, nil, nil
 }
@@ -521,12 +575,12 @@ func mergeResponsesWebSocketWarmup(
 	base map[string]json.RawMessage,
 	continuation map[string]json.RawMessage,
 ) (map[string]json.RawMessage, error) {
-	merged := cloneResponsesWebSocketPayload(base)
+	merged := maps.Clone(base)
 	for key, value := range continuation {
 		if key == "input" || key == "previous_response_id" {
 			continue
 		}
-		merged[key] = append(json.RawMessage(nil), value...)
+		merged[key] = value
 	}
 
 	baseInput, baseHasInput := base["input"]
@@ -539,11 +593,11 @@ func mergeResponsesWebSocketWarmup(
 		}
 		merged["input"] = items
 	case continuationHasInput:
-		merged["input"] = append(json.RawMessage(nil), continuationInput...)
+		merged["input"] = continuationInput
 	}
 
 	if previous, ok := base["previous_response_id"]; ok {
-		merged["previous_response_id"] = append(json.RawMessage(nil), previous...)
+		merged["previous_response_id"] = previous
 	} else {
 		delete(merged, "previous_response_id")
 	}
@@ -586,14 +640,6 @@ func responsesWebSocketInputItems(input json.RawMessage) ([]json.RawMessage, err
 	}
 
 	return []json.RawMessage{item}, nil
-}
-
-func cloneResponsesWebSocketPayload(payload map[string]json.RawMessage) map[string]json.RawMessage {
-	cloned := make(map[string]json.RawMessage, len(payload))
-	for key, value := range payload {
-		cloned[key] = append(json.RawMessage(nil), value...)
-	}
-	return cloned
 }
 
 func responseWebSocketStringField(payload map[string]json.RawMessage, key string) string {
@@ -874,4 +920,8 @@ func withResponsesWebSocketStreamID(data []byte, streamID string) ([]byte, error
 	event["stream_id"] = encodedStreamID
 
 	return json.Marshal(event)
+}
+
+func responsesBodyCapacityError() *httpclient.Error {
+	return &httpclient.Error{StatusCode: http.StatusServiceUnavailable, Body: []byte(`{"error":{"code":"body_capacity_exhausted","message":"Gateway request body capacity is exhausted"}}`)}
 }

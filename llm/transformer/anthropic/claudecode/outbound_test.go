@@ -19,6 +19,17 @@ import (
 	llmtransformer "github.com/looplj/axonhub/llm/transformer"
 )
 
+func TestAggregatePreservesArchivedToolEvent(t *testing.T) {
+	adapter, err := NewOutboundTransformer(Params{TokenProvider: newMockTokenProvider("fixture")})
+	require.NoError(t, err)
+	const wire = `{ "type":"content_block_start","index":0,"content_block":{"type" : "tool_use","id":"t","name":"proxy_lookup","input":{}} }`
+	events := []*httpclient.StreamEvent{{Data: []byte(wire)}}
+	body, _, err := adapter.AggregateStreamChunks(t.Context(), nil, events)
+	require.NoError(t, err)
+	require.Equal(t, "lookup", gjson.GetBytes(body, "content.0.name").String())
+	require.Equal(t, wire, string(events[0].Data))
+}
+
 func TestClaudeCodeTransformer_TransformRequest(t *testing.T) {
 	ctx := context.Background()
 

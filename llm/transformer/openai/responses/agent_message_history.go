@@ -1,6 +1,7 @@
 package responses
 
 import (
+	"bytes"
 	"encoding/json"
 	"strconv"
 	"strings"
@@ -15,6 +16,11 @@ import (
 // bytes are not evidence. Unknown content and native agent-message identities
 // remain intact. The original request buffer is never modified.
 func NormalizeAgentMessageHistory(body []byte) ([]byte, error) {
+	// Ordinary text and image histories have nothing to repair. A Unicode
+	// escape can spell a field name too; use the parser in that case.
+	if !bytes.Contains(body, []byte("encrypted_content")) && !bytes.Contains(body, []byte(`\u`)) {
+		return body, nil
+	}
 	items := gjson.GetBytes(body, "input").Array()
 	type delivery struct {
 		target string

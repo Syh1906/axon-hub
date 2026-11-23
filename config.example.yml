@@ -10,6 +10,9 @@ codex_catalog:
 
 # Optional per-instance overrides. Endpoint entries are exact Responses POST URLs.
 request_payload:
+  max_inflight_body_mib: 256
+  accept_peer_dictionary: false
+  peer_dictionary_endpoints: []
   compaction_cooldown_mode: observe   # observe | enforce | off. Identical Codex compactions, per instance, 30s after a first-event timeout.
   cached_images_only_channels: []
   responses_zstd_endpoints: []

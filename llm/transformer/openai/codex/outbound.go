@@ -652,3 +652,7 @@ func (e *codexExecutor) requestForTransport(request *httpclient.Request) *httpcl
 func (t *OutboundTransformer) FinalizeTransportRequest(request *httpclient.Request) *httpclient.Request {
 	return request
 }
+
+func (t *OutboundTransformer) NewStreamAggregation(_ *httpclient.Request) transformer.StreamAggregation {
+	return responses.NewStreamAggregation()
+}

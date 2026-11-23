@@ -515,3 +515,7 @@ func (t *OutboundTransformer) TransformError(ctx context.Context, rawErr *httpcl
 
 	return t.Outbound.TransformError(ctx, rawErr)
 }
+
+func (t *OutboundTransformer) NewStreamAggregation(req *httpclient.Request) transformer.StreamAggregation {
+	return transformer.NewStreamAggregation(t.Outbound, req)
+}

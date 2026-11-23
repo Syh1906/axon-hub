@@ -84,7 +84,7 @@ func TestStreamDeliveryFailurePreservesCompletedExecution(t *testing.T) {
 				}
 				outbound, err := responses.NewOutboundTransformer("https://example.test", "synthetic")
 				require.NoError(t, err)
-				state := &PersistenceState{}
+				state := &PersistenceState{Settings: &RequestSettings{}}
 				event := &httpclient.StreamEvent{Type: "response.completed", Data: []byte(`{"type":"response.completed","response":{"id":"resp_delivery","status":"completed","output":[],"usage":{"input_tokens":12,"output_tokens":34,"total_tokens":46}}}`)}
 				provider := NewOutboundPersistentStream(streamCtx, streams.SliceStream([]*httpclient.StreamEvent{event}), req, exec, service, usage, outbound, nil, state)
 				stream := NewInboundPersistentStream(streamCtx, provider, req, exec, service, responses.NewInboundTransformer(), nil, state)
@@ -183,7 +183,7 @@ func TestStreamDeliveryAccountingBaseline(t *testing.T) {
 			streamCtx, cancel := context.WithCancel(ctx)
 			t.Cleanup(cancel)
 			event := &httpclient.StreamEvent{Type: scenario.eventType, Data: []byte(`{"type":"` + scenario.eventType + `","response":{"id":"resp_baseline","status":"` + scenario.status + `","output":[]` + scenario.usage + `}}`)}
-			stream := NewOutboundPersistentStream(streamCtx, streams.SliceStream([]*httpclient.StreamEvent{event}), req, exec, requestService, usageService, outbound, nil, &PersistenceState{})
+			stream := NewOutboundPersistentStream(streamCtx, streams.SliceStream([]*httpclient.StreamEvent{event}), req, exec, requestService, usageService, outbound, nil, &PersistenceState{Settings: &RequestSettings{}})
 			// When
 			require.True(t, stream.Next())
 			stream.Current()
