@@ -1,5 +1,12 @@
 # Fork 维护台账
 
+## rc1-fork.22 精简正式发布与双站验收（2026-11-23）
+
+- [正式版](https://github.com/Syh1906/axon-hub/releases/tag/v1.0.0-rc1-fork.22)对应源码 `6d01957e8f9bde6cef64144652eadf1feb317583`。维护分支同提交的 [Test](https://github.com/Syh1906/axon-hub/actions/runs/45112485140)、[Build](https://github.com/Syh1906/axon-hub/actions/runs/45112485073)、[Lint](https://github.com/Syh1906/axon-hub/actions/runs/45112485182) 和 [Govulncheck](https://github.com/Syh1906/axon-hub/actions/runs/45112485058) 均通过。[发布工作流](https://github.com/Syh1906/axon-hub/actions/runs/45113311482)验证了 PostgreSQL 启动并发布 Linux amd64、arm64 镜像和 `release.json`。两站使用同一固定摘要 `sha256:f17bb02cb7bae91de2dd82c0cdd1e3a47f897c570a20b332b55e10144b506ce6`。
+- 新加坡时间泉哥 12:49:49、云悠 12:50:51 达到容器健康，重建应用并等待健康分别用时 8.013 秒和 7.101 秒。两站的本机与公网版本、源码提交、初始化状态、各 34 项同源静态资源及匿名鉴权均通过。PostgreSQL 容器 ID 和应用内存额度核对一致，应用重启计数均为 0。旧镜像仍可用于回退，本版无需数据库迁移。
+- 泉哥启用站间字典接收，云悠为三个直连渠道共用的六个 HTTPS POST 路径启用发送，涵盖 Responses、上下文压缩、Chat Completions、Messages、令牌计数和 Alpha Search。两端已核对运行容器挂载的配置。55 秒自然流量观测中，云悠进入了字典编码分支并收到了可用回执，泉哥收到字典编码正文。随后独立观测 55 秒，泉哥有 4 次执行到解压正文摘要校验通过后的处理步骤。观测仅计数，不记录提示词、请求头或字典内容。
+- 切换前泉哥有 2 笔、云悠有 1 笔近期在途请求。跨越切换时刻的记录中，泉哥 2 笔失败，云悠 1 笔取消。到 12:54:30，各站恢复健康后新建的请求中，云悠已完成 23 笔、泉哥已完成 71 笔，各有 2 笔处理中。云悠直连渠道已完成 13 次执行。长期内存和带宽收益尚未测量。
+
 ## 原生对话转发的内存开销与站间字典压缩（rc1-fork.22）
 
 - 原生 Responses 透传复用未改动的请求和事件；模型映射、提示保护和协作历史修复仍需验证原始输入完整。同步上游时复核[透传实现](../internal/server/orchestrator/pass_through.go)与[大正文基准](../internal/server/orchestrator/responses_request_chain_test.go)。

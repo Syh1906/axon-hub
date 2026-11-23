@@ -1,5 +1,7 @@
 # 独立维护、同步上游与发版
 
+2026-11-23，泉哥、云悠依次更新到 [fork.22 精简正式版](https://github.com/Syh1906/axon-hub/releases/tag/v1.0.0-rc1-fork.22)。云悠向泉哥的直连 HTTP 渠道已启用跨请求字典压缩。固定摘要、切换窗口和生产观测见[维护台账](../../fork-maintenance.md)。
+
 2026-11-22，云悠和泉哥已部署 [fork.21 精简正式版](https://github.com/Syh1906/axon-hub/releases/tag/v1.0.0-rc1-fork.21)。后台支持上游协议自动择优和请求压缩默认设置，原有固定端点继续优先。双架构镜像摘要、健康检查及切换窗口的请求状态见[维护台账](../../fork-maintenance.md)。
 
 2026-11-21，云悠和泉哥均已更新到 [fork.20 精简正式版](https://github.com/Syh1906/axon-hub/releases/tag/v1.0.0-rc1-fork.20)。请求日志和 API 密钥用量明细分别展示发送档位与计费档位。本版无需数据库迁移，两站的健康检查、在途请求和上线后验证见[维护台账](../../fork-maintenance.md)。
