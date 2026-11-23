@@ -64,7 +64,16 @@ func TestStatisticsProjectionReusesAndInvalidatesNumericFacts(t *testing.T) {
 	first, err := queryChannelTodayUsageModels(f.ctx, f.client, f.channel.ID, start, end)
 	require.NoError(t, err)
 	require.InDelta(t, 100, *first[0].AvgTokensPerSecond, 1e-9)
-	require.True(t, f.client.RequestExecution.GetX(f.ctx, e.ID).StatisticsReady)
+	require.False(t, f.client.RequestExecution.GetX(f.ctx, e.ID).StatisticsReady, "channel usage reads the sample without persisting it")
+	// The attempt reader still uses stored projections. Exercise that caller
+	// before each source change so the invalidation checks start from ready.
+	readProjected := func() {
+		t.Helper()
+		_, err := queryChannelAttemptGroups(f.ctx, f.client, f.project.ID, ConsumptionFilter{}, []int{f.channel.ID}, &start, end)
+		require.NoError(t, err)
+		require.True(t, f.client.RequestExecution.GetX(f.ctx, e.ID).StatisticsReady)
+	}
+	readProjected()
 	bill := f.client.UsageLog.Query().OnlyX(f.ctx)
 	require.True(t, bill.StatisticsStandardReady)
 	_, err = bill.Update().SetCompletionTokens(200).Save(f.ctx)
@@ -76,6 +85,7 @@ func TestStatisticsProjectionReusesAndInvalidatesNumericFacts(t *testing.T) {
 	require.InDelta(t, 200, *second[0].AvgTokensPerSecond, 1e-9)
 	require.Equal(t, int64(300), second[0].TotalTokens)
 	require.Equal(t, 1, second[0].RequestCount)
+	readProjected()
 	// A new retry changes legacy unique-usage attribution for the older attempt.
 	_, err = f.client.RequestExecution.Create().SetRequestID(r.ID).SetProjectID(f.project.ID).SetChannelID(f.channel.ID).
 		SetModelID("model").SetStatus("completed").SetRequestBody([]byte(`{}`)).Save(f.ctx)
