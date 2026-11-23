@@ -494,6 +494,47 @@ func (s *SelfUsageService) Requests(ctx context.Context, start, end string, mode
 	return s.requestsForScope(ctx, scope, model, status, page, pageSize, after)
 }
 
+func (s *SelfUsageService) loadRequestPage(ctx context.Context, scope selfUsageScope, model *string, status string, page, pageSize int, after *SelfUsageRequestCursor) ([]*ent.Request, int, error) {
+	q := scope.requestQuery(s.client)
+	if model != nil {
+		q.Where(request.ModelIDEQ(*model))
+	}
+	switch status {
+	case "SUCCESS":
+		q.Where(request.StatusEQ(request.StatusCompleted))
+	case "FAILED":
+		q.Where(request.StatusIn(request.StatusFailed, request.StatusCanceled))
+	case "PROCESSING":
+		q.Where(request.StatusIn(request.StatusPending, request.StatusProcessing))
+	}
+	total, err := q.Clone().Count(ctx)
+	if err != nil {
+		return nil, 0, fmt.Errorf("count self usage requests: %w", err)
+	}
+	if after == nil {
+		q.Offset((page - 1) * pageSize)
+	} else if scope.sessionID == "" {
+		q.Where(request.Or(request.CreatedAtLT(after.CreatedAt), request.And(request.CreatedAtEQ(after.CreatedAt), request.IDLT(after.ID))))
+	} else {
+		q.Where(request.Or(request.CreatedAtGT(after.CreatedAt), request.And(request.CreatedAtEQ(after.CreatedAt), request.IDGT(after.ID))))
+	}
+	order := sql.OrderDesc()
+	if scope.sessionID != "" {
+		order = sql.OrderAsc()
+	}
+	requests, err := q.Select(
+		request.FieldID, request.FieldAPIKeyID, request.FieldCreatedAt, request.FieldModelID, request.FieldStatus,
+		request.FieldStream, request.FieldMetricsLatencyMs, request.FieldMetricsFirstTokenLatencyMs, request.FieldStreamTiming,
+		request.FieldFormat, request.FieldReasoningEffort, request.FieldClientStatusCode,
+		request.FieldChannelID, request.FieldResultExecutionID, request.FieldFailure, request.FieldClientSessionID,
+	).Order(request.ByCreatedAt(order), request.ByID(order)).
+		Limit(pageSize + 1).All(ctx)
+	if err != nil {
+		return nil, 0, fmt.Errorf("list self usage requests: %w", err)
+	}
+	return requests, total, nil
+}
+
 func (s *SelfUsageService) requestsForScope(ctx context.Context, scope selfUsageScope, model *string, status string, page, pageSize int, after *SelfUsageRequestCursor) (*SelfUsageRequestPage, error) {
 	if page < 1 || pageSize < 1 || pageSize > 100 || page > int(^uint(0)>>1)/pageSize {
 		return nil, fmt.Errorf("invalid_page: page must be positive and pageSize between 1 and 100")
@@ -502,46 +543,9 @@ func (s *SelfUsageService) requestsForScope(ctx context.Context, scope selfUsage
 		return nil, fmt.Errorf("invalid_page: unknown status")
 	}
 	return authz.RunWithSystemBypass(ctx, "self-usage", func(ctx context.Context) (*SelfUsageRequestPage, error) {
-		query := func() *ent.RequestQuery {
-			q := scope.requestQuery(s.client)
-			if model != nil {
-				q.Where(request.ModelIDEQ(*model))
-			}
-			switch status {
-			case "SUCCESS":
-				q.Where(request.StatusEQ(request.StatusCompleted))
-			case "FAILED":
-				q.Where(request.StatusIn(request.StatusFailed, request.StatusCanceled))
-			case "PROCESSING":
-				q.Where(request.StatusIn(request.StatusPending, request.StatusProcessing))
-			}
-			return q
-		}
-		total, err := query().Count(ctx)
+		requests, total, err := s.loadRequestPage(ctx, scope, model, status, page, pageSize, after)
 		if err != nil {
-			return nil, fmt.Errorf("count self usage requests: %w", err)
-		}
-		rows := query()
-		if after == nil {
-			rows.Offset((page - 1) * pageSize)
-		} else if scope.sessionID == "" {
-			rows.Where(request.Or(request.CreatedAtLT(after.CreatedAt), request.And(request.CreatedAtEQ(after.CreatedAt), request.IDLT(after.ID))))
-		} else {
-			rows.Where(request.Or(request.CreatedAtGT(after.CreatedAt), request.And(request.CreatedAtEQ(after.CreatedAt), request.IDGT(after.ID))))
-		}
-		order := sql.OrderDesc()
-		if scope.sessionID != "" {
-			order = sql.OrderAsc()
-		}
-		requests, err := rows.Select(
-			request.FieldID, request.FieldAPIKeyID, request.FieldCreatedAt, request.FieldModelID, request.FieldStatus,
-			request.FieldStream, request.FieldMetricsLatencyMs, request.FieldMetricsFirstTokenLatencyMs, request.FieldStreamTiming,
-			request.FieldFormat, request.FieldReasoningEffort, request.FieldClientStatusCode,
-			request.FieldChannelID, request.FieldResultExecutionID, request.FieldFailure, request.FieldClientSessionID,
-		).Order(request.ByCreatedAt(order), request.ByID(order)).
-			Limit(pageSize + 1).All(ctx)
-		if err != nil {
-			return nil, fmt.Errorf("list self usage requests: %w", err)
+			return nil, err
 		}
 		hasMore := len(requests) > pageSize
 		if hasMore {
