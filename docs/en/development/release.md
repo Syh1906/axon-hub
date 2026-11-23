@@ -1,5 +1,7 @@
 # Independent releases and upstream maintenance
 
+Both production sites upgraded to [fork.24](https://github.com/Syh1906/axon-hub/releases/tag/v1.0.0-rc1-fork.24) on 2026-11-24. The release aligns refresh behavior on the API key and group usage pages and requires no database migration. The [maintenance ledger](../../fork-maintenance.md) records the pinned image digest, health checks and request counts after each switch.
+
 Both production sites upgraded to [fork.23](https://github.com/Syh1906/axon-hub/releases/tag/v1.0.0-rc1-fork.23) on 2026-11-23. The archive index on `request_id` was verified on each database. The [maintenance ledger](../../fork-maintenance.md) records how long each application took to rebuild and reach healthy status, and what happened to requests in flight during each switch.
 
 Both production sites upgraded to [fork.22](https://github.com/Syh1906/axon-hub/releases/tag/v1.0.0-rc1-fork.22) on 2026-11-23. The receiving site was upgraded first. The sending site now negotiates dictionary compression on its direct HTTPS routes to that receiver. The [maintenance ledger](../../fork-maintenance.md) records the image digest, requests affected during each cutover and observations from production traffic.
