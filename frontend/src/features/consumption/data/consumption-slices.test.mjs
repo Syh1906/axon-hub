@@ -319,3 +319,59 @@ test('全范围核对失败不把未验证日期写入共享缓存', async () =>
   assert.equal(client.getQueryData(key), undefined);
   client.clear();
 });
+
+test('折叠时只凭模型名称选择性能样本，父行与展开一致', () => {
+  const input = { dimension: 'CHANNEL', metric: 'COST' };
+  const full = day('2026-11-12', metric({ totalCost: 2 }));
+  const parent = full.entries[0];
+  parent.models = [{ model: 'visible', metrics: metric({ totalCost: 2 }) }];
+  full.performanceSamples = ['visible', 'outside'].map((model, i) => ({
+    channelID: parent.id, model, metrics: metric({ successCount: 1, outcomeCount: 1, firstTokenCount: 1, firstTokenSum: i ? 1000 : 100 }),
+  }));
+  const folded = { ...full, entries: [{ ...parent, modelNames: ['visible'], models: [] }] };
+  const expanded = combineConsumptionSlices([full], full, input).entries[0];
+  const summary = combineConsumptionSlices([folded], full, input).entries[0];
+  assert.deepEqual(summary.metrics, expanded.metrics);
+  assert.equal(summary.metrics.avgFirstTokenMs, 100);
+  assert.deepEqual(summary.modelNames, ['visible']);
+  assert.deepEqual(summary.models, []);
+});
+
+test('多日刷新只轮询未完成日期，最后核对所有日期', async () => {
+  const client = new QueryClient();
+  const a = day('2026-11-01', metric({ totalCost: 1 }));
+  const b = day('2026-11-02', metric({ totalCost: 2 }));
+  const state = (d) => ({ start: d.rangeStart, revision: d.revision });
+  const meta = { rangeStart: a.rangeStart, rangeEnd: b.rangeEnd, timezone: 'UTC', currencyCode: 'USD', next: null, resolvedAt: b.rangeEnd };
+  const result = await loadConsumptionSlices(client, ['consumptionDays', 'pending-only'],
+    { period: 'CUSTOM', startDate: '2026-11-01', endDate: '2026-11-02', dimension: 'API_KEY', metric: 'COST' },
+    async (_after, known, _asOf, verify, pendingDates) => {
+      if (verify) {
+        assert.deepEqual(known, [state(a), state(b)]);
+        return { ...meta, pending: false };
+      }
+      if (!pendingDates) return { ...meta, pending: true, days: [state(a), { start: b.rangeStart, revision: '' }], slices: [a] };
+      assert.deepEqual(pendingDates, [b.rangeStart]);
+      return { ...meta, pending: false, days: [state(b)], slices: [b] };
+    }, new AbortController().signal);
+  assert.equal(result.entries[0].metrics.totalCost, 3);
+  client.clear();
+});
+
+test('切换展开行后重新读取明细，不能复用前一行的日期版本', async () => {
+  const client = new QueryClient();
+  const key = ['consumptionDays', 'details'];
+  const d = day('2026-11-02', metric({ totalCost: 1 }));
+  const filter = { period: 'CUSTOM', startDate: '2026-11-02', endDate: '2026-11-02', dimension: 'API_KEY', metric: 'COST' };
+  for (const selection of ['one', 'two']) {
+    const fetch = async (_after, known, _asOf, verify) => {
+      if (verify) return { pending: false };
+      assert.deepEqual(known, []);
+      return { ...d, next: null, resolvedAt: d.rangeEnd, pending: false,
+        days: [{ start: d.rangeStart, revision: d.revision }], slices: [d] };
+    };
+    await loadConsumptionSlices(client, key, filter, fetch, new AbortController().signal, false, selection);
+    assert.equal(client.getQueryData(key).detailSelection, selection);
+  }
+  client.clear();
+});

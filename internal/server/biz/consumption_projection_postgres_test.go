@@ -28,7 +28,7 @@ fixture_requests(id, project_id, channel_id, api_key_id, model_id, status, creat
  (5,1,11,1,'fixture','completed',TIMESTAMPTZ '2026-11-09T08:00:00Z',NULL::jsonb,501),
  (6,1,11,1,'fixture','completed',TIMESTAMPTZ '2026-11-09T08:00:00Z',NULL::jsonb,601)
 ),
-requests AS (SELECT fixture_requests.*, 'api'::text AS source FROM fixture_requests),
+requests AS (SELECT fixture_requests.*, 'api'::text AS source, ''::text AS client_session_id FROM fixture_requests),
 fixture_executions(id, request_id, project_id, channel_id, model_id, status, error_message,
  response_status_code, metrics_latency_ms, metrics_first_byte_latency_ms, metrics_first_byte_recorded,
  metrics_first_token_latency_ms, stream, format) AS (
@@ -44,7 +44,7 @@ fixture_executions(id, request_id, project_id, channel_id, model_id, status, err
  (601,6,1,11,'fixture','completed','',200,1200,200,TRUE,300,TRUE,'openai/chat_completions')
 ),
 request_executions AS (
- SELECT e.*, TRUE AS statistics_ready, NULL::jsonb AS selection, TIMESTAMPTZ '2026-11-09T08:00:00Z' AS created_at,
+ SELECT e.*, NULL::integer AS content_batches, NULL::bigint AS content_batch_span_ms, TRUE AS statistics_ready, NULL::jsonb AS selection, TIMESTAMPTZ '2026-11-09T08:00:00Z' AS created_at,
  NULL::text AS cache_compatibility_key, NULL::text AS cache_ttl_bucket, NULL::bigint AS theoretical_cache_tokens,
  CASE WHEN status='completed' THEN 1.0 ELSE 0.0 END::double precision AS statistics_outcome,
  CASE WHEN status='completed' THEN 1.0 ELSE 0.0 END::double precision AS statistics_channel_outcome,
@@ -75,7 +75,7 @@ api_key_groups(id,project_id,name) AS (VALUES (1,1,'fixture')),
 channels(id,name,deleted_at) AS (VALUES (11,'winner',0),(12,'backup',0)),
 usage_archives AS (
  SELECT id, 'usage'::text AS kind, id AS source_id, request_id, project_id, api_key_id, channel_id, model_id,
- model_id AS request_model_id, created_at AS occurred_at, 'completed'::text AS request_status, 'api'::text AS request_source,
+ ''::text AS client_session_id, model_id AS request_model_id, created_at AS occurred_at, 'completed'::text AS request_status, 'api'::text AS request_source,
  prompt_tokens, completion_tokens, total_tokens, prompt_cached_tokens, prompt_write_cached_tokens,
  completion_reasoning_tokens, total_cost, 1 AS billing_version, TRUE AS pricing_complete,
  3 AS speed_version, 0 AS speed_count, 0::double precision AS speed_sum,

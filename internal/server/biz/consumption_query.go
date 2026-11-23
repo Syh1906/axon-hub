@@ -18,6 +18,8 @@ import (
 )
 
 type consumptionGroup struct {
+	ParentRow  bool  `json:"parent_row,omitempty"`
+	HourBucket int64 `json:"hour_bucket,omitempty"`
 	// Channel totals use one billing sample per request/channel, even when a
 	// retried request has charges for several models on that channel.
 	ChannelTotal        *consumptionBillingTotals `json:"channelTotal,omitempty"`
@@ -263,21 +265,22 @@ func (s *ConsumptionService) queryGroupsFactsSnapshot(ctx context.Context, proje
 			}
 			parents[row.EntityID].add(row)
 		}
-		additionalTotals, err := queryAdditionalChannelBilling(ctx, s.client, projectID, input, nil, start, end, true, false)
+		additional, err := queryAdditionalChannelBilling(ctx, s.client, projectID, input, nil, start, end, true, true)
 		if err != nil {
 			return nil, err
 		}
-		for _, row := range additionalTotals {
+		models := additional[:0]
+		for _, row := range additional {
+			if !row.ParentRow {
+				models = append(models, row)
+				continue
+			}
 			if parents[row.EntityID] == nil {
 				parents[row.EntityID] = &consumptionBillingTotals{}
 			}
 			parents[row.EntityID].add(row)
 		}
-		additional, err := queryAdditionalChannelBilling(ctx, s.client, projectID, input, nil, start, end, true, true)
-		if err != nil {
-			return nil, err
-		}
-		rows = mergeConsumptionGroups(rows, additional)
+		rows = mergeConsumptionGroups(rows, models)
 		if !input.OmitPerformance || input.Metric != ConsumptionMetricCache {
 			attempts, err := queryChannelAttemptGroups(ctx, s.client, projectID, input, nil, start, end)
 			if err != nil {

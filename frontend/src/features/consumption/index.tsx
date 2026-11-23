@@ -16,6 +16,7 @@ import { Main } from '@/components/layout/main';
 import { ConsumptionTable } from './components/consumption-table';
 import { ConsumptionDateFilter } from './components/date-filter';
 import {
+  consumptionQueryInput,
   useConsumption,
   useConsumptionGroupOptions,
   useConsumptionProjects,
@@ -49,7 +50,17 @@ export default function ConsumptionPage({ view = 'leaderboard' }: { view?: 'lead
     search: (dimension === 'API_KEY' || dimension === 'USER' ? debouncedSearch : search) || undefined,
     projectID: isLeaderboard && projectID !== 'all' ? projectID : undefined,
   };
-  const { data, isLoading, isFetching, error, refetch } = useConsumption(filter, view, selectedProjectID);
+  const projectionScope = JSON.stringify([view, scope, consumptionQueryInput(filter)]);
+  const [details, setDetails] = useState<{ scope: string; ids: string[]; reuse: boolean } | null>(null);
+  if (details && details.scope !== projectionScope) setDetails(null);
+  const detailIDs = details?.scope === projectionScope ? details.ids : [];
+  const { data, isLoading, isFetching, error, refetch, changeDetailSelection } =
+    useConsumption(filter, view, selectedProjectID, true, detailIDs, details?.scope === projectionScope && details.reuse);
+  const toggleDetails = (id: string) => {
+    const closing = detailIDs.includes(id);
+    const ids = closing ? detailIDs.filter((openID) => openID !== id) : [...detailIDs, id].sort();
+    setDetails({ scope: projectionScope, ids, reuse: changeDetailSelection(ids, closing) });
+  };
   const projects = useConsumptionProjects(isLeaderboard);
   const groupOptions = useConsumptionGroupOptions(
     { ...filter, dimension: 'API_KEY_GROUP', groupRef: undefined, search: undefined },
@@ -195,6 +206,8 @@ export default function ConsumptionPage({ view = 'leaderboard' }: { view?: 'lead
               ) : data?.entries.length ? (
                 <ConsumptionTable
                   key={`${scope}:${dimension}:${metric}`}
+                  expandedIDs={detailIDs}
+                  onToggle={toggleDetails}
                   scrollElement={tableScrollElement}
                   view={view}
                   entries={data.entries}

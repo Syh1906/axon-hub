@@ -17,15 +17,9 @@ func queryChannelTodayUsageModels(ctx context.Context, client *ent.Client, id in
 }
 
 func queryChannelTodayUsageModelsSnapshot(ctx context.Context, client *ent.Client, id int, start, end time.Time) ([]*objects.ChannelTodayModelUsage, error) {
-	if err := prepareChannelStandardCosts(ctx, client, []int{id}, start, end); err != nil {
-		return nil, err
-	}
-	rows, err := queryChannelUsageModelsBatch(ctx, client, []int{id}, start, end)
+	facts, err := readChannelUsageFacts(ctx, client, []int{id}, start, end)
 	if err != nil {
 		return nil, err
 	}
-	if rows[id] == nil {
-		return []*objects.ChannelTodayModelUsage{}, nil
-	}
-	return rows[id], nil
+	return renderChannelUsage([]int{id}, start.Location().String(), facts)[0].Models, nil
 }

@@ -66,6 +66,9 @@ func queryAdditionalChannelBilling(ctx context.Context, client *ent.Client, proj
 		if projectID > 0 {
 			units.Where(sql.EQ(r.C("project_id"), projectID))
 		}
+		if len(channelIDs) == 1 {
+			units.Where(sql.Or(sql.IsNull(r.C("channel_id")), sql.NEQ(r.C("channel_id"), channelIDs[0])))
+		}
 		if len(channelIDs) > 0 {
 			units.Where(sql.InInts(u.C("channel_id"), channelIDs...))
 		}
@@ -84,9 +87,30 @@ func queryAdditionalChannelBilling(ctx context.Context, client *ent.Client, proj
 			units.AppendSelect(sql.As("COALESCE(SUM("+u.C(field)+"), 0)", field))
 		}
 		units.AppendSelect(sql.As(sql.Count("*"), "usage_count"), sql.As(sql.Count(u.C("total_cost")), "priced_count"))
+		if groupModels {
+			// Aggregate both the per-model and per-request denominators from
+			// the same bounded set of bills. Empty model names remain valid.
+			d := sql.Dialect(q.Dialect())
+			cte := d.With("billed_models").As(units)
+			t := sql.Table("billed_models")
+			t.SetDialect(q.Dialect())
+			values := []string{"prompt_tokens", "completion_tokens", "prompt_cached_tokens", "prompt_write_cached_tokens", "total_cost", "usage_count", "priced_count"}
+			byModel := d.Select(t.C("channel_id"), t.C("model_id"), "0 AS parent_row").From(t)
+			byRequest := d.Select(t.C("channel_id"), "'' AS model_id", "1 AS parent_row").From(t).
+				GroupBy(t.C("request_id"), t.C("project_id"), t.C("channel_id"))
+			for _, v := range values {
+				byModel.AppendSelect(t.C(v))
+				byRequest.AppendSelect(sql.As(sql.Sum(t.C(v)), v))
+			}
+			units = byModel.UnionAll(byRequest)
+			q.Prefix(cte)
+		}
 		units.As(usagelog.Table)
 		q.From(units).As(usagelog.Table)
 		selectConsumptionEntity(q, input, q.C("model_id"))
+		if groupModels {
+			q.AppendSelect(q.C("parent_row")).GroupBy(q.C("parent_row"))
+		}
 		cacheRead, cacheWrite := q.C("prompt_cached_tokens"), q.C("prompt_write_cached_tokens")
 		cache := "(" + cacheRead + " > 0 OR " + cacheWrite + " > 0)"
 		unpriced := consumptionUnpriced(units)

@@ -117,6 +117,7 @@ type ConsumptionEntry {
   name: String!
   metrics: ConsumptionMetrics!
   models: [ConsumptionModel!]!
+  modelDetails(entryIDs: [ID!]!): [ConsumptionModel!]!
 }
 
 type ConsumptionResult {
@@ -134,8 +135,8 @@ type ConsumptionResult {
 }
 
 extend type Query {
-  consumptionSlices(input: ConsumptionFilter!, after: Time, known: [ConsumptionSliceRevisionInput!], asOf: Time, verify: Boolean! = false): ConsumptionSlicePage!
-  usageSlices(input: ConsumptionFilter!, after: Time, known: [ConsumptionSliceRevisionInput!], asOf: Time, verify: Boolean! = false): ConsumptionSlicePage!
+  consumptionSlices(input: ConsumptionFilter!, after: Time, known: [ConsumptionSliceRevisionInput!], pendingDates: [Time!], asOf: Time, verify: Boolean! = false): ConsumptionSlicePage!
+  usageSlices(input: ConsumptionFilter!, after: Time, known: [ConsumptionSliceRevisionInput!], pendingDates: [Time!], asOf: Time, verify: Boolean! = false): ConsumptionSlicePage!
   consumptionProjects: [ConsumptionProject!]!
   consumptionGroupOptions(input: ConsumptionFilter!): [ConsumptionGroupOption!]!
   usageGroupOptions(input: ConsumptionFilter!): [ConsumptionGroupOption!]!

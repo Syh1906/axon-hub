@@ -45,9 +45,13 @@ func excludeArchivedExecutions(q *sql.Selector) {
 }
 
 func queryChannelAttemptGroups(ctx context.Context, client *ent.Client, projectID int, input ConsumptionFilter, ids []int, start *time.Time, end time.Time) ([]consumptionGroup, error) {
+	return readChannelAttemptGroups(ctx, client, projectID, input, ids, start, end, false)
+}
+
+func readChannelAttemptGroups(ctx context.Context, client *ent.Client, projectID int, input ConsumptionFilter, ids []int, start *time.Time, end time.Time, hourly bool) ([]consumptionGroup, error) {
 	if _, transactional := client.Driver().(dialect.Tx); !transactional {
 		return readStatisticsSnapshot(ctx, client, false, func(client *ent.Client) ([]consumptionGroup, error) {
-			return queryChannelAttemptGroups(ctx, client, projectID, input, ids, start, end)
+			return readChannelAttemptGroups(ctx, client, projectID, input, ids, start, end, hourly)
 		})
 	}
 	if !input.DailySnapshot {
@@ -84,6 +88,9 @@ func queryChannelAttemptGroups(ctx context.Context, client *ent.Client, projectI
 		}
 		model := "COALESCE(NULLIF(TRIM(" + q.C("model_id") + "), ''), " + sql.Table(request.Table).As("attempt_request").C("model_id") + ")"
 		selectConsumptionEntity(q, ConsumptionFilter{Dimension: ConsumptionDimensionChannel, Search: input.Search}, model)
+		if hourly {
+			q.AppendSelect(sql.As(statisticsTimeBucket(q.Dialect(), q.C("created_at"), 3600), "hour_bucket")).GroupBy("hour_bucket")
+		}
 		q.AppendSelect(sql.As("COALESCE(SUM("+outcome+"),0)", "success_count"), sql.As("COUNT("+outcome+")", "outcome_count"),
 			sql.As("COALESCE(SUM("+first+"),0)", "first_token_sum"), sql.As("COUNT("+first+")", "first_token_count"),
 			sql.As("COALESCE(SUM("+speed+"),0)", "speed_sum"), sql.As("COUNT("+speed+")", "speed_count"))
@@ -104,6 +111,9 @@ func queryChannelAttemptGroups(ctx context.Context, client *ent.Client, projectI
 	var archived []consumptionGroup
 	err = archives.Modify(func(q *sql.Selector) {
 		selectConsumptionEntity(q, ConsumptionFilter{Dimension: ConsumptionDimensionChannel, Search: input.Search}, q.C("model_id"))
+		if hourly {
+			q.AppendSelect(sql.As(statisticsTimeBucket(q.Dialect(), q.C("occurred_at"), 3600), "hour_bucket")).GroupBy("hour_bucket")
+		}
 		for _, field := range []string{"success_count", "outcome_count", "first_token_sum", "first_token_count"} {
 			q.AppendSelect(sql.As("COALESCE(SUM("+q.C(field)+"),0)", field))
 		}

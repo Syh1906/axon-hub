@@ -73,41 +73,23 @@ func (s *ConsumptionService) queryArchivedGroups(ctx context.Context, projectID 
 
 func mergeConsumptionGroups(live, archived []consumptionGroup) []consumptionGroup {
 	type key struct {
+		hour  int64
 		id    int
 		model string
 	}
 	index := make(map[key]int, len(live))
 	for i, row := range live {
-		index[key{row.EntityID, row.Model}] = i
+		index[key{row.HourBucket, row.EntityID, row.Model}] = i
 	}
 	for _, row := range archived {
-		k := key{row.EntityID, row.Model}
+		k := key{row.HourBucket, row.EntityID, row.Model}
 		i, found := index[k]
 		if !found {
 			index[k] = len(live)
 			live = append(live, row)
 			continue
 		}
-		t := &live[i]
-		t.Requests += row.Requests
-		t.Tokens += row.Tokens
-		t.Cost += row.Cost
-		t.UnpricedRequests += row.UnpricedRequests
-		t.PricedRequests += row.PricedRequests
-		t.PricedCost += row.PricedCost
-		t.TokenPricedRequests += row.TokenPricedRequests
-		t.TokenPricedCost += row.TokenPricedCost
-		t.PricedTokens += row.PricedTokens
-		t.CacheRequests += row.CacheRequests
-		t.CacheRead += row.CacheRead
-		t.CacheInput += row.CacheInput
-		t.CacheCreationCost += row.CacheCreationCost
-		t.SuccessCount += row.SuccessCount
-		t.OutcomeCount += row.OutcomeCount
-		t.FirstTokenSum += row.FirstTokenSum
-		t.FirstTokenCount += row.FirstTokenCount
-		t.SpeedSum += row.SpeedSum
-		t.SpeedCount += row.SpeedCount
+		live[i].add(row)
 	}
 	return live
 }

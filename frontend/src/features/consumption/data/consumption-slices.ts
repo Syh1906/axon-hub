@@ -14,6 +14,7 @@ export type SlicePage = {
 };
 
 type DayCache = {
+  detailSelection?: string;
   timezone: string;
   currencyCode: string;
   days: Record<string, ConsumptionResult>;
@@ -46,6 +47,8 @@ const SUM_FIELDS = [
   'coefficientObserved',
 ] as const;
 
+const performanceKeys = ['successCount', 'outcomeCount', 'firstTokenSum', 'firstTokenCount', 'speedSum', 'speedSampleCount'] as const;
+
 function addMetrics(a: ConsumptionMetrics, b: ConsumptionMetrics) {
   for (const key of SUM_FIELDS) a[key] += b[key];
 }
@@ -76,6 +79,7 @@ export function combineConsumptionSlices(
   filter: ConsumptionFilter
 ): ConsumptionResult {
   const entries = new Map<string, ConsumptionEntry>();
+  const names = new Map<string, Set<string>>();
   const models = new Map<string, Map<string, ConsumptionEntry['models'][number]>>();
   const cacheSamples = new Map<string, ConsumptionResult['cacheSamples'][number]>();
   const performanceSamples = new Map<string, ConsumptionResult['performanceSamples'][number]>();
@@ -93,10 +97,15 @@ export function combineConsumptionSlices(
     for (const sample of day.performanceSamples ?? []) {
       const key = JSON.stringify([sample.channelID, sample.model]);
       const previous = performanceSamples.get(key);
-      if (previous) addMetrics(previous.metrics, sample.metrics);
+      if (previous) {
+        for (const key of performanceKeys) previous.metrics[key] += sample.metrics[key];
+      }
       else performanceSamples.set(key, { ...sample, metrics: { ...sample.metrics } });
     }
     for (const entry of day.entries) {
+      if (!names.has(entry.id)) names.set(entry.id, new Set());
+      const modelNames = names.get(entry.id)!;
+      for (const name of entry.modelNames ?? entry.models.map((m) => m.model)) modelNames.add(name);
       const existing = entries.get(entry.id);
       if (existing) addMetrics(existing.metrics, entry.metrics);
       else entries.set(entry.id, { ...entry, metrics: { ...entry.metrics }, models: [] });
@@ -117,38 +126,42 @@ export function combineConsumptionSlices(
         compareNullable(a.cacheHitRate, b.cacheHitRate) ||
         b.requestCount - a.requestCount;
   for (const entry of entries.values()) {
+    entry.modelNames = [...names.get(entry.id)!];
     entry.models = [...models.get(entry.id)!.values()];
-    if (filter.dimension === 'CHANNEL') {
-      const performanceKeys = ['successCount', 'outcomeCount', 'firstTokenSum', 'firstTokenCount', 'speedSum', 'speedSampleCount'] as const;
-      const reset = (m: ConsumptionMetrics) => {
-        for (const key of performanceKeys) m[key] = 0;
-        m.coefficientSamples = m.coefficientEligible = m.coefficientTheoretical = m.coefficientObserved = 0;
-      };
+  }
+  if (filter.dimension === 'CHANNEL') {
+    const reset = (m: ConsumptionMetrics) => {
+      for (const key of performanceKeys) m[key] = 0;
+      m.coefficientSamples = m.coefficientEligible = m.coefficientTheoretical = m.coefficientObserved = 0;
+    };
+    for (const entry of entries.values()) {
       reset(entry.metrics);
       for (const model of entry.models) reset(model.metrics);
-      for (const sample of performanceSamples.values())
-        if (sample.channelID === entry.id) {
-          const model = entry.models.find((m) => m.model === sample.model);
-          // 缓存榜仅向整个范围中有缓存账目的模型附加性能；消耗榜保留实际尝试。
-          if (!model) continue;
-          for (const key of performanceKeys) {
-            model.metrics[key] += sample.metrics[key];
-            entry.metrics[key] += sample.metrics[key];
-          }
-        }
-      for (const sample of cacheSamples.values())
-        if (sample.channelID === entry.id) {
-          const apply = (m: ConsumptionMetrics) => {
-            m.coefficientSamples += sample.samples;
-            m.coefficientEligible += sample.eligible;
-            m.coefficientTheoretical += sample.theoretical;
-            m.coefficientObserved += sample.observed;
-          };
-          apply(entry.metrics);
-          const model = entry.models.find((m) => m.model === sample.model);
-          if (model) apply(model.metrics);
-        }
     }
+    for (const sample of performanceSamples.values()) {
+      const entry = entries.get(sample.channelID);
+      if (!entry || !names.get(entry.id)!.has(sample.model)) continue;
+      const model = models.get(entry.id)!.get(sample.model);
+      for (const key of performanceKeys) {
+        entry.metrics[key] += sample.metrics[key];
+        if (model) model.metrics[key] += sample.metrics[key];
+      }
+    }
+    for (const sample of cacheSamples.values()) {
+      const entry = entries.get(sample.channelID);
+      if (!entry) continue;
+      const apply = (m: ConsumptionMetrics) => {
+        m.coefficientSamples += sample.samples;
+        m.coefficientEligible += sample.eligible;
+        m.coefficientTheoretical += sample.theoretical;
+        m.coefficientObserved += sample.observed;
+      };
+      apply(entry.metrics);
+      const model = models.get(entry.id)!.get(sample.model);
+      if (model) apply(model.metrics);
+    }
+  }
+  for (const entry of entries.values()) {
     finishMetrics(entry.metrics);
     for (const model of entry.models) finishMetrics(model.metrics);
     entry.models.sort(
@@ -257,9 +270,9 @@ function cachedRange(input: ConsumptionFilter, cache: DayCache, now: number) {
 }
 
 export type KnownSlice = { start: string; revision: string };
-type FetchSlices = (after?: string, known?: KnownSlice[], asOf?: string, verify?: boolean) => Promise<SlicePage>;
+type FetchSlices = (after?: string, known?: KnownSlice[], asOf?: string, verify?: boolean, pendingDates?: string[]) => Promise<SlicePage>;
 
-function waitForSummary(signal: AbortSignal) {
+function waitForSummary(signal: AbortSignal, delay: number) {
   return new Promise<void>((resolve, reject) => {
     signal.throwIfAborted();
     const cancel = () => {
@@ -269,7 +282,7 @@ function waitForSummary(signal: AbortSignal) {
     const timer = setTimeout(() => {
       signal.removeEventListener('abort', cancel);
       resolve();
-    }, 300);
+    }, delay);
     signal.addEventListener('abort', cancel, { once: true });
   });
 }
@@ -284,7 +297,7 @@ function trimDays(cache: DayCache) {
     )
     .entries()) {
     rows +=
-      cache.days[date].entries.reduce((n, entry) => n + 1 + entry.models.length, 0) +
+      cache.days[date].entries.reduce((n, entry) => n + 1 + (entry.modelNames?.length ?? entry.models.length), 0) +
       cache.days[date].cacheSamples.length +
       cache.days[date].performanceSamples.length;
     if (index >= 90 || rows > 10000) {
@@ -300,12 +313,14 @@ export async function loadConsumptionSlices(
   input: ConsumptionFilter,
   fetchPage: FetchSlices,
   signal: AbortSignal,
-  reuse = true
+  reuse = true,
+  detailSelection?: string
 ) {
   signal.throwIfAborted();
   // 固定前缀只占一个默认项，任意搜索词和权限范围不会积累全局 defaults。
   client.setQueryDefaults(['consumptionDays'], { gcTime: 30 * 60000 });
   let cache = client.getQueryData<DayCache>(key);
+  if (cache?.detailSelection !== detailSelection) cache = undefined;
   const covered = reuse && cache && cachedRange(input, cache, Date.now());
   if (covered) return { ...combineConsumptionSlices(covered.days, covered.metadata, input), resolvedAt: new Date().toISOString() };
   const started = Date.now();
@@ -318,6 +333,9 @@ export async function loadConsumptionSlices(
       const pageDays = new Map<string, ConsumptionResult>();
       if (cache) for (const value of Object.values(cache.days)) pageDays.set(value.rangeStart!, value);
       let page: SlicePage;
+      let pendingDates: string[] | undefined;
+      const states = new Map<string, KnownSlice>();
+      let delay = 300;
       do {
         signal.throwIfAborted();
         const dates = cache && requestedDates(input, cache.timezone, Date.parse(first?.resolvedAt ?? new Date().toISOString()));
@@ -332,7 +350,7 @@ export async function loadConsumptionSlices(
           .sort((a, b) => a.rangeStart!.localeCompare(b.rangeStart!))
           .slice(0, 31)
           .map((day) => ({ start: day.rangeStart!, revision: day.revision }));
-        page = await fetchPage(after, known, first?.resolvedAt);
+        page = await fetchPage(after, known, first?.resolvedAt, false, pendingDates);
         signal.throwIfAborted();
         first ??= page;
         if (
@@ -344,14 +362,17 @@ export async function loadConsumptionSlices(
           throw Object.assign(new Error('统计范围已变化，请重试'), { extensions: { code: 'STATISTICS_RANGE_CHANGED' } });
         }
         for (const day of page.slices) pageDays.set(day.rangeStart!, day);
+        for (const state of page.days) states.set(state.start, state);
         if (page.pending) {
+          pendingDates = page.days.filter((day) => !day.revision).map((day) => day.start);
           if (Date.now() - started > 180000)
             throw Object.assign(new Error('统计汇总仍在处理，请稍后重试'), { extensions: { code: 'STATISTICS_PENDING' } });
-          await waitForSummary(signal);
+          await waitForSummary(signal, delay);
+          delay = Math.min(delay * 2, 1200);
         }
       } while (page.pending);
       const current: ConsumptionResult[] = [];
-      for (const state of page.days) {
+      for (const state of states.values()) {
         const day = pageDays.get(state.start);
         if (!day || day.revision !== state.revision)
           throw Object.assign(new Error('统计日期数据不完整，请重试'), { extensions: { code: 'INTERNAL_SERVER_ERROR' } });
@@ -360,7 +381,7 @@ export async function loadConsumptionSlices(
       }
       combined = combineConsumptionSlices(combined ? [combined, ...current] : current, first, input);
       if (!cache || cache.timezone !== page.timezone || cache.currencyCode !== page.currencyCode)
-        cache = { timezone: page.timezone, currencyCode: page.currencyCode, days: {} };
+        cache = { timezone: page.timezone, currencyCode: page.currencyCode, days: {}, detailSelection };
       cache = { ...cache, days: { ...cache.days }, checkedAt: { ...cache.checkedAt } };
       for (const day of current) {
         const date = reportingDate(day.rangeStart!, page.timezone);

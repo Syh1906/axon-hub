@@ -82,7 +82,11 @@ export function ConsumptionTable({
   expandable = true,
   scrollElement,
   view = 'leaderboard',
+  expandedIDs,
+  onToggle,
 }: {
+  expandedIDs: string[];
+  onToggle: (id: string) => void;
   entries: ConsumptionEntry[];
   dimension: ConsumptionDimension;
   metric: ConsumptionMetric;
@@ -93,7 +97,7 @@ export function ConsumptionTable({
 }) {
   const { t, i18n } = useTranslation();
   const currencyDisplayDecimals = useCurrencyDisplayDecimals();
-  const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
+  const expanded = useMemo(() => new Set(expandedIDs), [expandedIDs]);
   const [sort, setSort] = useState<{ key: MetricKey; direction: 'asc' | 'desc' } | null>(null);
   const columns = useMemo(() => columnsFor(dimension, metric, view), [dimension, metric, view]);
   const visibleSort = sort && columns.some((column) => column.key === sort.key) ? sort : null;
@@ -171,14 +175,6 @@ export function ConsumptionTable({
         )}
       </TableCell>
     ));
-  const toggle = (id: string) =>
-    setExpanded((current) => {
-      const next = new Set(current);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-
   return (
     <Table
       className={cn(
@@ -259,7 +255,8 @@ export function ConsumptionTable({
                 {metricCells(model.metrics, true)}
               </TableRow>
             );
-          const hasModels = expandable && entry.models.length > 0;
+          const modelCount = entry.modelNames?.length ?? entry.models.length;
+          const hasModels = expandable && modelCount > 0;
           const isExpanded = hasModels && expanded.has(entry.id);
           return (
             <ExpandableTableRow
@@ -267,7 +264,7 @@ export function ConsumptionTable({
               ref={virtualizer.measureElement}
               data-index={item.index}
               expanded={isExpanded}
-              onToggle={hasModels ? () => toggle(entry.id) : undefined}
+              onToggle={hasModels ? () => onToggle(entry.id) : undefined}
               className={cn('consumption-parent-row', isExpanded && 'consumption-parent-open')}
             >
               <TableCell className='text-muted-foreground text-center'>
@@ -290,7 +287,7 @@ export function ConsumptionTable({
                       className={cn('relative h-auto max-w-full justify-center px-0', entry.duplicateName ? 'py-0' : 'py-1')}
                       aria-expanded={isExpanded}
                       aria-label={t(isExpanded ? 'consumption.collapseEntity' : 'consumption.expandEntity', { name: entry.name })}
-                      onClick={() => toggle(entry.id)}
+                      onClick={() => onToggle(entry.id)}
                     >
                       <span className='absolute top-1/2 right-full mr-2 -translate-y-1/2' aria-hidden>
                         {isExpanded ? <ChevronDown /> : <ChevronRight />}
@@ -299,7 +296,7 @@ export function ConsumptionTable({
                         {entry.name}
                       </span>
                       <span className='text-muted-foreground absolute top-1/2 left-full ml-2 -translate-y-1/2 text-xs font-normal'>
-                        {t('consumption.modelCount', { count: entry.models.length })}
+                        {t('consumption.modelCount', { count: modelCount })}
                       </span>
                     </Button>
                   </div>

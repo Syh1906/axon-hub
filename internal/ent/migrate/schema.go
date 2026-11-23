@@ -1430,6 +1430,11 @@ var (
 				Columns: []*schema.Column{UsageArchivesColumns[1], UsageArchivesColumns[2]},
 			},
 			{
+				Name:    "usage_archive_by_request_id",
+				Unique:  false,
+				Columns: []*schema.Column{UsageArchivesColumns[3]},
+			},
+			{
 				Name:    "usage_archive_by_kind_time",
 				Unique:  false,
 				Columns: []*schema.Column{UsageArchivesColumns[1], UsageArchivesColumns[12]},

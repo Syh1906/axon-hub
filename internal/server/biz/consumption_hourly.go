@@ -27,7 +27,7 @@ type consumptionHourPayload struct {
 	Cache    []consumptionCacheGroup `json:"cache"`
 }
 
-func (s *ConsumptionService) consumptionHours(ctx context.Context, query consumptionDayQuery) ([]consumptionHour, error) {
+func (s *ConsumptionService) consumptionHours(ctx context.Context, query consumptionDayQuery, withPayload bool) ([]consumptionHour, error) {
 	revisions, err := readStatisticsRevisions(ctx, s.client, query.Project, query.Start, query.End)
 	if err != nil {
 		return nil, err
@@ -52,9 +52,11 @@ func (s *ConsumptionService) consumptionHours(ctx context.Context, query consump
 		keys = append(keys, key)
 		start = end
 	}
-	stored, err := s.client.ConsumptionSnapshot.Query().Where(consumptionsnapshot.CacheKeyIn(keys...)).
-		Select(consumptionsnapshot.FieldID, consumptionsnapshot.FieldCacheKey, consumptionsnapshot.FieldFingerprint,
-			consumptionsnapshot.FieldPayload, consumptionsnapshot.FieldRequestedAt).All(ctx)
+	fields := []string{consumptionsnapshot.FieldID, consumptionsnapshot.FieldCacheKey, consumptionsnapshot.FieldFingerprint, consumptionsnapshot.FieldRequestedAt}
+	if withPayload {
+		fields = append(fields, consumptionsnapshot.FieldPayload)
+	}
+	stored, err := s.client.ConsumptionSnapshot.Query().Where(consumptionsnapshot.CacheKeyIn(keys...)).Select(fields...).All(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -73,7 +75,7 @@ func (s *ConsumptionService) prepareConsumptionHours(ctx context.Context, query 
 	if err != nil || len(job.Payload) > 0 && version == job.Fingerprint {
 		return err
 	}
-	hours, err := s.consumptionHours(ctx, query)
+	hours, err := s.consumptionHours(ctx, query, false)
 	if err != nil {
 		return err
 	}
@@ -86,9 +88,12 @@ func (s *ConsumptionService) prepareConsumptionHours(ctx context.Context, query 
 			reader.client = client
 			part := query
 			part.Start, part.End = hour.start, hour.end
-			current, err := reader.consumptionHours(ctx, part)
+			current, err := reader.consumptionHours(ctx, part, false)
 			if err != nil {
 				return nil, err
+			}
+			if current[0].stored != nil && current[0].stored.Fingerprint == current[0].version {
+				return nil, nil
 			}
 			return reader.readConsumptionHour(ctx, query, current[0])
 		})
@@ -127,7 +132,7 @@ func (s *ConsumptionService) readConsumptionHour(ctx context.Context, query cons
 // reused when their source revision matches that same snapshot. Corrections
 // since preparation recompute their affected hour, not the entire day.
 func (s *ConsumptionService) consumptionHourlyFacts(ctx context.Context, query consumptionDayQuery) (*consumptionFacts, error) {
-	hours, err := s.consumptionHours(ctx, query)
+	hours, err := s.consumptionHours(ctx, query, true)
 	if err != nil {
 		return nil, err
 	}

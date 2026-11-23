@@ -104,6 +104,16 @@ type ConsumptionEntry struct {
 	Models          []*ConsumptionModel `json:"models"`
 }
 
+// ModelDetails projects already authorized snapshot data for the expanded rows.
+func (e *ConsumptionEntry) ModelDetails(entryIDs []*objects.GUID) []*ConsumptionModel {
+	for _, id := range entryIDs {
+		if id != nil && *id == e.ID {
+			return e.Models
+		}
+	}
+	return []*ConsumptionModel{}
+}
+
 type ConsumptionResult struct {
 	Revision           string                          `json:"revision"`
 	CacheSamples       []*ConsumptionCacheSample       `json:"cacheSamples"`

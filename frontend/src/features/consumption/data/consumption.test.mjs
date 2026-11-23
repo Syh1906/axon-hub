@@ -17,15 +17,15 @@ const utils = compile(readFileSync(join(import.meta.dirname, '../../../lib/utils
   .replaceAll("'tailwind-merge'", JSON.stringify(import.meta.resolve('tailwind-merge')));
 const slices = compile(readFileSync(join(import.meta.dirname, 'consumption-slices.ts'), 'utf8'));
 const source = compile(readFileSync(join(import.meta.dirname, 'consumption.ts'), 'utf8'))
-  .replaceAll("import { useCallback } from 'react';", 'const useCallback = (fn) => fn;')
+  .replaceAll("import { useCallback, useState } from 'react';", 'const useCallback = (fn) => fn; let state; const useState = () => [state, (next) => { state = next; }];')
   .replaceAll("import { useTranslation } from 'react-i18next';", `import i18next from ${JSON.stringify(import.meta.resolve('i18next'))}; const useTranslation = () => ({ t: i18next.getFixedT(i18next.language) });`)
-  .replaceAll("import { useQuery, useQueryClient } from '@tanstack/react-query';", 'const useQuery = (options) => options; const useQueryClient = () => ({});')
+  .replaceAll("import { useQuery, useQueryClient } from '@tanstack/react-query';", 'let testError; export const setTestError = (err) => {testError = err;}; const useQuery = (options) => testError ? {...options,isError:true,error:testError} : options; let testClient; export const setTestClient = (value) => { testClient = value; state = undefined; }; const useQueryClient = () => testClient;')
   .replaceAll("import { graphqlRequest } from '@/gql/graphql';", 'const graphqlRequest = () => { throw new Error("unexpected network"); };')
   .replaceAll("import { useAuthStore } from '@/stores/authStore';", 'let userID = "viewer"; export const setTestUserID = (id) => { userID = id; }; const useAuthStore = (select) => select({ auth: { user: { id: userID } } });')
   .replaceAll("'./consumption-slices'", JSON.stringify(moduleURL(slices)))
   .replaceAll("'@/lib/utils'", JSON.stringify(moduleURL(utils)))
   .replaceAll("'zod'", JSON.stringify(import.meta.resolve('zod')));
-const { useConsumption, useConsumptionGroupOptions, setTestUserID } = await import(moduleURL(source));
+const { useConsumption, useConsumptionGroupOptions, setTestUserID, setTestClient, setTestError } = await import(moduleURL(source));
 const input = { period: 'YESTERDAY', dimension: 'API_KEY_GROUP', metric: 'COST' };
 
 test('同名渠道按标签搜索后保留辨认信息并复用完整统计缓存', async () => {
@@ -188,4 +188,80 @@ test('服务商搜索匹配中文名和带空格名称，切换语言仍复用�
     assert.deepEqual(selected.queryKey, base.queryKey);
     assert.deepEqual(selected.select(result).entries, [result.entries[0]]);
   } finally { await i18next.changeLanguage('zh-CN'); }
+});
+
+test('收起行从同一份已核对数据恢复，正在读取的旧选择随观察者切换取消', async () => {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  setTestClient(client);
+  const [a, b] = data.entries.map((entry) => entry.id);
+  try {
+    const summary = useConsumption(input, 'usage', 'project-1');
+    const one = useConsumption(input, 'usage', 'project-1', true, [a]);
+    const both = useConsumption(input, 'usage', 'project-1', true, [a, b]);
+    client.setQueryData(summary.queryKey, { ...data, entries: data.entries.map((entry) => ({ ...entry, models: [] })) });
+    client.setQueryData(both.queryKey, data);
+    assert.equal(both.changeDetailSelection([a], true), true);
+    assert.deepEqual(client.getQueryData(one.queryKey).entries[0].models, data.entries[0].models);
+    assert.equal(one.changeDetailSelection([], true), true);
+    assert.ok(client.getQueryData(summary.queryKey).entries.every((entry) => entry.models.length === 0));
+
+    const observer = new QueryObserver(client, { ...both, queryFn: ({ signal }) => new Promise((_resolve, reject) => {
+      signal.addEventListener('abort', () => reject(signal.reason), { once: true });
+    }) });
+    const unsubscribe = observer.subscribe(() => {});
+    const active = client.getQueryCache().find({ queryKey: both.queryKey });
+    assert.equal(active.state.fetchStatus, 'fetching');
+    let reads = 0;
+    observer.setOptions({ ...useConsumption(input, 'usage', 'project-1', true, [], true),
+      queryFn: () => { reads++; return data; } });
+    assert.equal(active.state.fetchStatus, 'idle');
+    assert.equal(observer.getCurrentResult().fetchStatus, 'idle');
+    assert.equal(reads, 0);
+    unsubscribe();
+  } finally {
+    setTestClient(undefined);
+    client.clear();
+  }
+});
+
+test('第二行首次加载时收起或失败，保留已成功的第一行', async () => {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  setTestClient(client);
+  const [a, b] = data.entries.map((entry) => entry.id);
+  const options = (ids, reused = false) => useConsumption(input, 'usage', 'project-1', true, ids, reused);
+  try {
+    const one = options([a]);
+    await client.fetchQuery({ ...one, queryFn: async () => data });
+    one.changeDetailSelection([a, b], false);
+    const both = options([a, b]);
+    let aborted = false;
+    const observer = new QueryObserver(client, { ...one, refetchOnMount: false });
+    const unsubscribe = observer.subscribe(() => {});
+    observer.setOptions({ ...both, queryFn: ({ signal }) => new Promise((_resolve, reject) =>
+      signal.addEventListener('abort', () => { aborted = true; reject(signal.reason); }, { once: true })) });
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    assert.equal(client.getQueryData(one.queryKey), undefined);
+    assert.equal(client.getQueryData(both.queryKey), undefined);
+    assert.equal(both.changeDetailSelection([a], true), true);
+    let reads = 0;
+    observer.setOptions({ ...options([a], true), queryFn: () => { reads++; return data; } });
+    assert.equal(aborted, true);
+    assert.equal(reads, 0);
+    assert.deepEqual(observer.getCurrentResult().data.entries[0].models, data.entries[0].models);
+    assert.equal(both.changeDetailSelection([b], true), false);
+    unsubscribe();
+
+    const failing = options([a, b]);
+    const clientError = new Error('fixture failure');
+    setTestError(clientError);
+    const failed = options([a, b]);
+    assert.equal(failed.error, clientError);
+    assert.deepEqual(failed.data.entries[0].models, data.entries[0].models);
+    assert.equal(useConsumption(input, 'usage', 'project-2', true, [a]).data, undefined);
+    assert.equal(client.getQueryData(failing.queryKey), undefined);
+  } finally {
+    setTestError(undefined);
+    setTestClient(undefined);
+    client.clear();
+  }
 });

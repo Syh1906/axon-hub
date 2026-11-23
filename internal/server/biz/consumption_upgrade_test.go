@@ -35,6 +35,9 @@ func TestConsumptionSchemaUpgradePreservesMissingSamples(t *testing.T) {
 			})
 		}
 		if table.Name == "usage_archives" {
+			table.Indexes = slices.DeleteFunc(table.Indexes, func(idx *schema.Index) bool {
+				return idx.Name == "usage_archive_by_request_id"
+			})
 			table.Columns = slices.DeleteFunc(table.Columns, func(column *schema.Column) bool {
 				return column.Name == "pricing_complete" || column.Name == "speed_version"
 			})
@@ -62,6 +65,10 @@ func TestConsumptionSchemaUpgradePreservesMissingSamples(t *testing.T) {
 	require.Nil(t, legacy.CacheCompatibilityKey)
 	require.Nil(t, legacy.TheoreticalCacheTokens)
 	require.Nil(t, legacy.CacheTTLBucket)
+	var archiveIndexColumn string
+	err = db.QueryRowContext(ctx, "SELECT name FROM pragma_index_info('usage_archive_by_request_id')").Scan(&archiveIndexColumn)
+	require.NoError(t, err)
+	require.Equal(t, "request_id", archiveIndexColumn)
 	legacyArchive := client.UsageArchive.Query().OnlyX(ctx)
 	require.Nil(t, legacyArchive.PricingComplete, "unknown legacy zero cost must not become confirmed free")
 	require.Zero(t, legacyArchive.SpeedVersion, "legacy speed must not be treated as the corrected formula")

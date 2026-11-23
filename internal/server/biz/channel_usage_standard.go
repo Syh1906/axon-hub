@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"entgo.io/ent/dialect"
 	"entgo.io/ent/dialect/sql"
 	"github.com/looplj/axonhub/internal/ent"
 	"github.com/looplj/axonhub/internal/ent/usagelog"
@@ -15,9 +16,13 @@ import (
 // The caller owns the same transaction used for the following aggregate read.
 func prepareChannelStandardCosts(ctx context.Context, client *ent.Client, ids []int, start, end time.Time) error {
 	versions, loaded := map[string]objects.ModelPrice{}, map[string]bool{}
+	lastID := 0
 	for {
 		var rows []channelUsageRow
-		err := client.UsageLog.Query().Where(usagelog.ChannelIDIn(ids...), usagelog.StatisticsStandardReadyEQ(false)).
+		err := client.UsageLog.Query().Where(usagelog.ChannelIDIn(ids...), usagelog.StatisticsStandardReadyEQ(false), usagelog.IDGT(lastID),
+			usagelog.Or(usagelog.StatisticsStandardCostNotNil(), usagelog.And(usagelog.TotalCostNotNil(),
+				usagelog.Or(usagelog.CostItemsNotNil(), usagelog.CostSnapshotNotNil(), usagelog.CostPriceReferenceIDNEQ("")))),
+		).Unique(false).
 			Order(ent.Asc(usagelog.FieldID)).Limit(channelUsageBatchSize).
 			Modify(func(q *sql.Selector) {
 				r := requestHistory(q.Dialect()).As("price_request")
@@ -37,14 +42,23 @@ func prepareChannelStandardCosts(ctx context.Context, client *ent.Client, ids []
 			return err
 		}
 		values := make([]any, len(rows))
+		for i, row := range logs {
+			if cost, known := usageStandardCost(row, versions); known {
+				values[i] = cost.InexactFloat64()
+			}
+		}
+		lastID = logs[len(logs)-1].ID
+		if client.Driver().Dialect() == dialect.Postgres {
+			if err := savePostgresStandardCosts(ctx, client, logs, values); err != nil {
+				return err
+			}
+			continue
+		}
 		keys := make([]int, len(rows))
 		conditions := make([]*sql.Predicate, len(rows))
 		for i, row := range logs {
 			keys[i] = row.ID
 			conditions[i] = sql.And(sql.EQ(usagelog.FieldID, row.ID), sql.EQ(usagelog.FieldStatisticsVersion, row.StatisticsVersion))
-			if cost, known := usageStandardCost(row, versions); known {
-				values[i] = cost.InexactFloat64()
-			}
 		}
 		update := sql.Dialect(client.Driver().Dialect()).Update(usagelog.Table).
 			Set(usagelog.FieldStatisticsStandardReady, true).
@@ -59,4 +73,20 @@ func prepareChannelStandardCosts(ctx context.Context, client *ent.Client, ids []
 			return err
 		}
 	}
+}
+
+// Join each bill to its own price and source revision in one set update.
+func savePostgresStandardCosts(ctx context.Context, client *ent.Client, logs []*ent.UsageLog, values []any) error {
+	b := sql.Builder{}
+	b.SetDialect(dialect.Postgres)
+	b.WriteString("UPDATE usage_logs AS u SET statistics_standard_ready = TRUE, statistics_standard_cost = v.cost FROM (VALUES ")
+	for i, row := range logs {
+		if i > 0 {
+			b.Comma()
+		}
+		b.WriteByte('(').Arg(row.ID).WriteString("::bigint, ").Arg(row.StatisticsVersion).WriteString("::bigint, ").Arg(values[i]).WriteString("::double precision)")
+	}
+	b.WriteString(") AS v(id, version, cost) WHERE u.id = v.id AND u.statistics_version = v.version")
+	stmt, args := b.Query()
+	return execStatisticsProjection(ctx, client, stmt, args, len(logs))
 }

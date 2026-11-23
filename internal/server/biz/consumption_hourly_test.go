@@ -173,7 +173,7 @@ func TestConsumptionHourlyCalendarBoundaries(t *testing.T) {
 		start, err := time.ParseInLocation("2006-01-02", tc.day, loc)
 		require.NoError(t, err)
 		end := start.AddDate(0, 0, 1)
-		hours, err := f.service.consumptionHours(f.ctx, consumptionDayQuery{Project: f.project.ID, Start: start.UTC(), End: end.UTC(), Timezone: tc.zone})
+		hours, err := f.service.consumptionHours(f.ctx, consumptionDayQuery{Project: f.project.ID, Start: start.UTC(), End: end.UTC(), Timezone: tc.zone}, false)
 		require.NoError(t, err)
 		require.Len(t, hours, tc.hours)
 		next := start.UTC()

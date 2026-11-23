@@ -51,6 +51,7 @@ func (UsageArchive) Fields() []ent.Field {
 func (UsageArchive) Indexes() []ent.Index {
 	return []ent.Index{
 		index.Fields("kind", "source_id").Unique().StorageKey("usage_archive_by_source"),
+		index.Fields("request_id").StorageKey("usage_archive_by_request_id"),
 		index.Fields("kind", "occurred_at").StorageKey("usage_archive_by_kind_time"),
 		index.Fields("project_id", "kind", "occurred_at").StorageKey("usage_archive_by_project_kind_time"),
 		index.Fields("occurred_at").StorageKey("usage_archive_by_time"),

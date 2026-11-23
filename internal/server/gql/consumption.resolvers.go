@@ -13,13 +13,13 @@ import (
 )
 
 // ConsumptionSlices is the resolver for the consumptionSlices field.
-func (r *queryResolver) ConsumptionSlices(ctx context.Context, input biz.ConsumptionFilter, after *time.Time, known []*biz.ConsumptionSliceRevision, asOf *time.Time, verify bool) (*biz.ConsumptionSlicePage, error) {
-	return r.consumptionService.ReadSlices(ctx, consumptionFields(ctx, input), after, known, asOf, verify, "leaderboard")
+func (r *queryResolver) ConsumptionSlices(ctx context.Context, input biz.ConsumptionFilter, after *time.Time, known []*biz.ConsumptionSliceRevision, pendingDates []*time.Time, asOf *time.Time, verify bool) (*biz.ConsumptionSlicePage, error) {
+	return r.consumptionService.ReadSlices(ctx, consumptionFields(ctx, input), after, known, asOf, verify, "leaderboard", pendingDates...)
 }
 
 // UsageSlices is the resolver for the usageSlices field.
-func (r *queryResolver) UsageSlices(ctx context.Context, input biz.ConsumptionFilter, after *time.Time, known []*biz.ConsumptionSliceRevision, asOf *time.Time, verify bool) (*biz.ConsumptionSlicePage, error) {
-	return r.consumptionService.ReadSlices(ctx, consumptionFields(ctx, input), after, known, asOf, verify, "usage")
+func (r *queryResolver) UsageSlices(ctx context.Context, input biz.ConsumptionFilter, after *time.Time, known []*biz.ConsumptionSliceRevision, pendingDates []*time.Time, asOf *time.Time, verify bool) (*biz.ConsumptionSlicePage, error) {
+	return r.consumptionService.ReadSlices(ctx, consumptionFields(ctx, input), after, known, asOf, verify, "usage", pendingDates...)
 }
 
 // ConsumptionProjects is the resolver for the consumptionProjects field.

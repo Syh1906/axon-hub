@@ -136,3 +136,33 @@ func TestChannelTodayUsageSharedRefreshSurvivesCanceledHover(t *testing.T) {
 	require.Equal(t, 1, models[0].RequestCount)
 	require.LessOrEqual(t, queries.Load(), int64(11), "包括先选执行编号的首次数值准备，只进行一次共享刷新")
 }
+
+func TestChannelTodayHourlyRefreshAndRollback(t *testing.T) {
+	f := newConsumptionFixture(t)
+	svc := &ChannelService{AbstractService: &AbstractService{db: f.client}, SystemService: f.service.system}
+	start := time.Date(2026, 11, 12, 0, 0, 0, 0, time.UTC)
+	end := start.AddDate(0, 0, 1)
+	req, exec := f.addRequest(t, start.Add(time.Minute), "first", request.StatusCompleted, 100, 50, 0, 0, 2, nil)
+	read := func(client *ent.Client) *objects.ChannelTodayUsage {
+		rows, err := svc.channelUsageWithModels(f.ctx, client, []int{f.channel.ID}, start, end)
+		require.NoError(t, err)
+		return rows[0]
+	}
+	before := read(f.client)
+	require.Equal(t, 1, before.RequestCount)
+	require.Equal(t, 2., before.TotalCost)
+	f.addRequest(t, start.Add(2*time.Hour), "later", request.StatusCompleted, 100, 20, 0, 0, 3, nil)
+	require.Equal(t, 5., read(f.client).TotalCost)
+	f.client.UsageLog.Update().Where(usagelog.RequestIDEQ(req.ID)).SetTotalCost(7).ExecX(f.ctx)
+	f.client.RequestExecution.UpdateOneID(exec.ID).SetMetricsFirstTokenLatencyMs(450).ExecX(f.ctx)
+	corrected := read(f.client)
+	require.Equal(t, 10., corrected.TotalCost)
+	require.Equal(t, "first", corrected.Models[0].Model)
+	require.Equal(t, 450., *corrected.Models[0].AvgFirstTokenMs)
+	tx, err := f.client.Tx(f.ctx)
+	require.NoError(t, err)
+	tx.UsageLog.Update().Where(usagelog.RequestIDEQ(req.ID)).SetTotalCost(17).ExecX(f.ctx)
+	require.Equal(t, 20., read(tx.Client()).TotalCost)
+	require.NoError(t, tx.Rollback())
+	require.Equal(t, corrected, read(f.client))
+}

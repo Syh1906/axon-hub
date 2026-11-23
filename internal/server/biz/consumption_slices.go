@@ -142,7 +142,7 @@ func (s *ConsumptionService) Slices(ctx context.Context, input ConsumptionFilter
 
 // ReadSlices 只登记/读取日期任务；历史计算由有界 worker 执行，不占据 HTTP 查询期限。
 
-func (s *ConsumptionService) ReadSlices(ctx context.Context, input ConsumptionFilter, after *time.Time, known []*ConsumptionSliceRevision, asOf *time.Time, verify bool, view string) (*ConsumptionSlicePage, error) {
+func (s *ConsumptionService) ReadSlices(ctx context.Context, input ConsumptionFilter, after *time.Time, known []*ConsumptionSliceRevision, asOf *time.Time, verify bool, view string, pendingDates ...*time.Time) (*ConsumptionSlicePage, error) {
 	var projectID int
 
 	var err error
@@ -157,6 +157,9 @@ func (s *ConsumptionService) ReadSlices(ctx context.Context, input ConsumptionFi
 		return nil, err
 	}
 
+	if len(pendingDates) > consumptionSlicePageDays {
+		return nil, fmt.Errorf("too many pending consumption days")
+	}
 	if !verify && len(known) > consumptionSlicePageDays {
 		return nil, fmt.Errorf("too many known consumption days")
 	}
@@ -254,10 +257,20 @@ func (s *ConsumptionService) ReadSlices(ctx context.Context, input ConsumptionFi
 
 		dates := make([]time.Time, 0, consumptionSlicePageDays)
 
-		for date := cursor; len(dates) < consumptionSlicePageDays && date.Before(end) && !date.After(resolved); date = date.AddDate(0, 0, 1) {
-			dates = append(dates, date)
+		waiting := make(map[time.Time]bool, len(pendingDates))
+		for _, date := range pendingDates {
+			waiting[date.UTC()] = true
+		}
+		for i := 0; i < consumptionSlicePageDays && cursor.Before(end) && !cursor.After(resolved); i++ {
+			if len(waiting) == 0 || waiting[cursor.UTC()] {
+				dates = append(dates, cursor)
+			}
+			cursor = cursor.AddDate(0, 0, 1)
 		}
 
+		if len(waiting) > 0 && len(waiting) != len(dates) {
+			return nil, fmt.Errorf("invalid pending consumption date")
+		}
 		identity, err := loadConsumptionChannelIdentity(ctx, s.client, input.Dimension)
 		if err != nil {
 			return nil, err
@@ -267,13 +280,9 @@ func (s *ConsumptionService) ReadSlices(ctx context.Context, input ConsumptionFi
 			return nil, err
 		}
 
-		for len(page.Days) < consumptionSlicePageDays && cursor.Before(end) && !cursor.After(resolved) {
-
-			next := cursor.AddDate(0, 0, 1)
-
-			job := jobs[len(page.Days)]
-
-			state := &ConsumptionSliceRevision{Start: cursor.UTC()}
+		for i, date := range dates {
+			job := jobs[i]
+			state := &ConsumptionSliceRevision{Start: date.UTC()}
 
 			ready := consumptionDayReady(job, resolved)
 
@@ -315,8 +324,6 @@ func (s *ConsumptionService) ReadSlices(ctx context.Context, input ConsumptionFi
 			}
 
 			page.Days = append(page.Days, state)
-
-			cursor = next
 
 		}
 

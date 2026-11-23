@@ -1032,6 +1032,7 @@ type ComplexityRoot struct {
 		DuplicateName   func(childComplexity int) int
 		ID              func(childComplexity int) int
 		Metrics         func(childComplexity int) int
+		ModelDetails    func(childComplexity int, entryIDs []*objects.GUID) int
 		Models          func(childComplexity int) int
 		Name            func(childComplexity int) int
 	}
@@ -2345,7 +2346,7 @@ type ComplexityRoot struct {
 		ConsumptionGroupOptions         func(childComplexity int, input biz.ConsumptionFilter) int
 		ConsumptionLeaderboard          func(childComplexity int, input biz.ConsumptionFilter) int
 		ConsumptionProjects             func(childComplexity int) int
-		ConsumptionSlices               func(childComplexity int, input biz.ConsumptionFilter, after *time.Time, known []*biz.ConsumptionSliceRevision, asOf *time.Time, verify bool) int
+		ConsumptionSlices               func(childComplexity int, input biz.ConsumptionFilter, after *time.Time, known []*biz.ConsumptionSliceRevision, pendingDates []*time.Time, asOf *time.Time, verify bool) int
 		CostStatsByAPIKey               func(childComplexity int, timeWindow *string) int
 		CostStatsByChannel              func(childComplexity int, timeWindow *string) int
 		CostStatsByModel                func(childComplexity int, timeWindow *string) int
@@ -2433,7 +2434,7 @@ type ComplexityRoot struct {
 		UsageCostInjectionSettings      func(childComplexity int) int
 		UsageGroupOptions               func(childComplexity int, input biz.ConsumptionFilter) int
 		UsageLogs                       func(childComplexity int, after *entgql.Cursor[int], first *int, before *entgql.Cursor[int], last *int, orderBy *ent.UsageLogOrder, where *ent.UsageLogWhereInput) int
-		UsageSlices                     func(childComplexity int, input biz.ConsumptionFilter, after *time.Time, known []*biz.ConsumptionSliceRevision, asOf *time.Time, verify bool) int
+		UsageSlices                     func(childComplexity int, input biz.ConsumptionFilter, after *time.Time, known []*biz.ConsumptionSliceRevision, pendingDates []*time.Time, asOf *time.Time, verify bool) int
 		UsageStatistics                 func(childComplexity int, input biz.ConsumptionFilter) int
 		UsageStatsByUser                func(childComplexity int, timeWindow *string) int
 		UserAgentPassThroughSettings    func(childComplexity int) int
@@ -4004,8 +4005,8 @@ type QueryResolver interface {
 	AnalyticsAPIKeyStats(ctx context.Context, filter *AnalyticsFilter) ([]*AnalyticsAPIKeyStat, error)
 	AnalyticsChannelTags(ctx context.Context) ([]string, error)
 	AnalyticsModelStats(ctx context.Context, filter *AnalyticsModelFilter) ([]*AnalyticsModelStat, error)
-	ConsumptionSlices(ctx context.Context, input biz.ConsumptionFilter, after *time.Time, known []*biz.ConsumptionSliceRevision, asOf *time.Time, verify bool) (*biz.ConsumptionSlicePage, error)
-	UsageSlices(ctx context.Context, input biz.ConsumptionFilter, after *time.Time, known []*biz.ConsumptionSliceRevision, asOf *time.Time, verify bool) (*biz.ConsumptionSlicePage, error)
+	ConsumptionSlices(ctx context.Context, input biz.ConsumptionFilter, after *time.Time, known []*biz.ConsumptionSliceRevision, pendingDates []*time.Time, asOf *time.Time, verify bool) (*biz.ConsumptionSlicePage, error)
+	UsageSlices(ctx context.Context, input biz.ConsumptionFilter, after *time.Time, known []*biz.ConsumptionSliceRevision, pendingDates []*time.Time, asOf *time.Time, verify bool) (*biz.ConsumptionSlicePage, error)
 	ConsumptionProjects(ctx context.Context) ([]*biz.ConsumptionProject, error)
 	ConsumptionGroupOptions(ctx context.Context, input biz.ConsumptionFilter) ([]*biz.ConsumptionGroupOption, error)
 	UsageGroupOptions(ctx context.Context, input biz.ConsumptionFilter) ([]*biz.ConsumptionGroupOption, error)
@@ -7917,6 +7918,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.ConsumptionEntry.Metrics(childComplexity), true
+	case "ConsumptionEntry.modelDetails":
+		if e.complexity.ConsumptionEntry.ModelDetails == nil {
+			break
+		}
+
+		args, err := ec.field_ConsumptionEntry_modelDetails_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.ConsumptionEntry.ModelDetails(childComplexity, args["entryIDs"].([]*objects.GUID)), true
 	case "ConsumptionEntry.models":
 		if e.complexity.ConsumptionEntry.Models == nil {
 			break
@@ -14335,7 +14347,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.complexity.Query.ConsumptionSlices(childComplexity, args["input"].(biz.ConsumptionFilter), args["after"].(*time.Time), args["known"].([]*biz.ConsumptionSliceRevision), args["asOf"].(*time.Time), args["verify"].(bool)), true
+		return e.complexity.Query.ConsumptionSlices(childComplexity, args["input"].(biz.ConsumptionFilter), args["after"].(*time.Time), args["known"].([]*biz.ConsumptionSliceRevision), args["pendingDates"].([]*time.Time), args["asOf"].(*time.Time), args["verify"].(bool)), true
 	case "Query.costStatsByAPIKey":
 		if e.complexity.Query.CostStatsByAPIKey == nil {
 			break
@@ -15123,7 +15135,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.complexity.Query.UsageSlices(childComplexity, args["input"].(biz.ConsumptionFilter), args["after"].(*time.Time), args["known"].([]*biz.ConsumptionSliceRevision), args["asOf"].(*time.Time), args["verify"].(bool)), true
+		return e.complexity.Query.UsageSlices(childComplexity, args["input"].(biz.ConsumptionFilter), args["after"].(*time.Time), args["known"].([]*biz.ConsumptionSliceRevision), args["pendingDates"].([]*time.Time), args["asOf"].(*time.Time), args["verify"].(bool)), true
 	case "Query.usageStatistics":
 		if e.complexity.Query.UsageStatistics == nil {
 			break
@@ -20589,6 +20601,17 @@ func (ec *executionContext) field_Channel_usageLogs_args(ctx context.Context, ra
 	return args, nil
 }
 
+func (ec *executionContext) field_ConsumptionEntry_modelDetails_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "entryIDs", ec.unmarshalNID2ᚕᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐGUIDᚄ)
+	if err != nil {
+		return nil, err
+	}
+	args["entryIDs"] = arg0
+	return args, nil
+}
+
 func (ec *executionContext) field_DataStorage_executions_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -23617,16 +23640,21 @@ func (ec *executionContext) field_Query_consumptionSlices_args(ctx context.Conte
 		return nil, err
 	}
 	args["known"] = arg2
-	arg3, err := graphql.ProcessArgField(ctx, rawArgs, "asOf", ec.unmarshalOTime2ᚖtimeᚐTime)
+	arg3, err := graphql.ProcessArgField(ctx, rawArgs, "pendingDates", ec.unmarshalOTime2ᚕᚖtimeᚐTimeᚄ)
 	if err != nil {
 		return nil, err
 	}
-	args["asOf"] = arg3
-	arg4, err := graphql.ProcessArgField(ctx, rawArgs, "verify", ec.unmarshalNBoolean2bool)
+	args["pendingDates"] = arg3
+	arg4, err := graphql.ProcessArgField(ctx, rawArgs, "asOf", ec.unmarshalOTime2ᚖtimeᚐTime)
 	if err != nil {
 		return nil, err
 	}
-	args["verify"] = arg4
+	args["asOf"] = arg4
+	arg5, err := graphql.ProcessArgField(ctx, rawArgs, "verify", ec.unmarshalNBoolean2bool)
+	if err != nil {
+		return nil, err
+	}
+	args["verify"] = arg5
 	return args, nil
 }
 
@@ -24709,16 +24737,21 @@ func (ec *executionContext) field_Query_usageSlices_args(ctx context.Context, ra
 		return nil, err
 	}
 	args["known"] = arg2
-	arg3, err := graphql.ProcessArgField(ctx, rawArgs, "asOf", ec.unmarshalOTime2ᚖtimeᚐTime)
+	arg3, err := graphql.ProcessArgField(ctx, rawArgs, "pendingDates", ec.unmarshalOTime2ᚕᚖtimeᚐTimeᚄ)
 	if err != nil {
 		return nil, err
 	}
-	args["asOf"] = arg3
-	arg4, err := graphql.ProcessArgField(ctx, rawArgs, "verify", ec.unmarshalNBoolean2bool)
+	args["pendingDates"] = arg3
+	arg4, err := graphql.ProcessArgField(ctx, rawArgs, "asOf", ec.unmarshalOTime2ᚖtimeᚐTime)
 	if err != nil {
 		return nil, err
 	}
-	args["verify"] = arg4
+	args["asOf"] = arg4
+	arg5, err := graphql.ProcessArgField(ctx, rawArgs, "verify", ec.unmarshalNBoolean2bool)
+	if err != nil {
+		return nil, err
+	}
+	args["verify"] = arg5
 	return args, nil
 }
 
@@ -44992,6 +45025,53 @@ func (ec *executionContext) fieldContext_ConsumptionEntry_models(_ context.Conte
 	return fc, nil
 }
 
+func (ec *executionContext) _ConsumptionEntry_modelDetails(ctx context.Context, field graphql.CollectedField, obj *biz.ConsumptionEntry) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ConsumptionEntry_modelDetails,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return obj.ModelDetails(fc.Args["entryIDs"].([]*objects.GUID)), nil
+		},
+		nil,
+		ec.marshalNConsumptionModel2ᚕᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐConsumptionModelᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ConsumptionEntry_modelDetails(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ConsumptionEntry",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "model":
+				return ec.fieldContext_ConsumptionModel_model(ctx, field)
+			case "metrics":
+				return ec.fieldContext_ConsumptionModel_metrics(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type ConsumptionModel", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_ConsumptionEntry_modelDetails_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _ConsumptionGroupOption_id(ctx context.Context, field graphql.CollectedField, obj *biz.ConsumptionGroupOption) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -46456,6 +46536,8 @@ func (ec *executionContext) fieldContext_ConsumptionResult_entries(_ context.Con
 				return ec.fieldContext_ConsumptionEntry_metrics(ctx, field)
 			case "models":
 				return ec.fieldContext_ConsumptionEntry_models(ctx, field)
+			case "modelDetails":
+				return ec.fieldContext_ConsumptionEntry_modelDetails(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type ConsumptionEntry", field.Name)
 		},
@@ -80742,7 +80824,7 @@ func (ec *executionContext) _Query_consumptionSlices(ctx context.Context, field 
 		ec.fieldContext_Query_consumptionSlices,
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.resolvers.Query().ConsumptionSlices(ctx, fc.Args["input"].(biz.ConsumptionFilter), fc.Args["after"].(*time.Time), fc.Args["known"].([]*biz.ConsumptionSliceRevision), fc.Args["asOf"].(*time.Time), fc.Args["verify"].(bool))
+			return ec.resolvers.Query().ConsumptionSlices(ctx, fc.Args["input"].(biz.ConsumptionFilter), fc.Args["after"].(*time.Time), fc.Args["known"].([]*biz.ConsumptionSliceRevision), fc.Args["pendingDates"].([]*time.Time), fc.Args["asOf"].(*time.Time), fc.Args["verify"].(bool))
 		},
 		nil,
 		ec.marshalNConsumptionSlicePage2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐConsumptionSlicePage,
@@ -80803,7 +80885,7 @@ func (ec *executionContext) _Query_usageSlices(ctx context.Context, field graphq
 		ec.fieldContext_Query_usageSlices,
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.resolvers.Query().UsageSlices(ctx, fc.Args["input"].(biz.ConsumptionFilter), fc.Args["after"].(*time.Time), fc.Args["known"].([]*biz.ConsumptionSliceRevision), fc.Args["asOf"].(*time.Time), fc.Args["verify"].(bool))
+			return ec.resolvers.Query().UsageSlices(ctx, fc.Args["input"].(biz.ConsumptionFilter), fc.Args["after"].(*time.Time), fc.Args["known"].([]*biz.ConsumptionSliceRevision), fc.Args["pendingDates"].([]*time.Time), fc.Args["asOf"].(*time.Time), fc.Args["verify"].(bool))
 		},
 		nil,
 		ec.marshalNConsumptionSlicePage2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐConsumptionSlicePage,
@@ -147624,6 +147706,11 @@ func (ec *executionContext) _ConsumptionEntry(ctx context.Context, sel ast.Selec
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "modelDetails":
+			out.Values[i] = ec._ConsumptionEntry_modelDetails(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -180440,6 +180527,28 @@ func (ec *executionContext) marshalNTime2timeᚐTime(ctx context.Context, sel as
 	return res
 }
 
+func (ec *executionContext) unmarshalNTime2ᚖtimeᚐTime(ctx context.Context, v any) (*time.Time, error) {
+	res, err := graphql.UnmarshalTime(v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNTime2ᚖtimeᚐTime(ctx context.Context, sel ast.SelectionSet, v *time.Time) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	_ = sel
+	res := graphql.MarshalTime(*v)
+	if res == graphql.Null {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+	}
+	return res
+}
+
 func (ec *executionContext) marshalNTokenStats2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋgqlᚐTokenStats(ctx context.Context, sel ast.SelectionSet, v TokenStats) graphql.Marshaler {
 	return ec._TokenStats(ctx, sel, &v)
 }
@@ -188987,6 +189096,42 @@ func (ec *executionContext) marshalOTime2ᚕtimeᚐTimeᚄ(ctx context.Context, 
 	ret := make(graphql.Array, len(v))
 	for i := range v {
 		ret[i] = ec.marshalNTime2timeᚐTime(ctx, sel, v[i])
+	}
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) unmarshalOTime2ᚕᚖtimeᚐTimeᚄ(ctx context.Context, v any) ([]*time.Time, error) {
+	if v == nil {
+		return nil, nil
+	}
+	var vSlice []any
+	vSlice = graphql.CoerceList(v)
+	var err error
+	res := make([]*time.Time, len(vSlice))
+	for i := range vSlice {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
+		res[i], err = ec.unmarshalNTime2ᚖtimeᚐTime(ctx, vSlice[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
+}
+
+func (ec *executionContext) marshalOTime2ᚕᚖtimeᚐTimeᚄ(ctx context.Context, sel ast.SelectionSet, v []*time.Time) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	ret := make(graphql.Array, len(v))
+	for i := range v {
+		ret[i] = ec.marshalNTime2ᚖtimeᚐTime(ctx, sel, v[i])
 	}
 
 	for _, e := range ret {

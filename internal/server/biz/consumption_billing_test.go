@@ -2,6 +2,9 @@ package biz
 
 import (
 	"context"
+	"strings"
+
+	"entgo.io/ent/dialect/sql"
 	"testing"
 	"time"
 
@@ -115,6 +118,12 @@ func TestChannelBillingCountsRequestOnceAcrossModels(t *testing.T) {
 			require.Equal(t, lo.Ternary(missing, 0, 1), summary[0].PricedCount)
 			require.Equal(t, lo.Ternary(missing, 1, 0), summary[0].UnpricedCount)
 			require.InDelta(t, lo.Ternary(missing, 0.02, 0.03), summary[0].TotalCost, 1e-12)
+			svc := &ChannelService{AbstractService: &AbstractService{db: f.client}}
+			combined, err := svc.channelUsageWithModels(f.ctx, f.client, []int{other.ID}, start, end)
+			require.NoError(t, err)
+			require.Equal(t, summary[0].PricedCount, combined[0].PricedCount)
+			require.Equal(t, summary[0].UnpricedCount, combined[0].UnpricedCount)
+			require.InDelta(t, summary[0].TotalCost, combined[0].TotalCost, 1e-12)
 			models, err := queryChannelTodayUsageModels(f.ctx, f.client, other.ID, start, end)
 			require.NoError(t, err)
 			require.Len(t, models, 2)
@@ -187,4 +196,49 @@ func TestRequestUsageSummariesUnknownAndZero(t *testing.T) {
 		require.Nil(t, values[req.ID].TotalCost)
 		require.Equal(t, 2, values[req.ID].UnpricedRecords)
 	}
+}
+
+func TestChannelTodayArchivedBillsPostgres(t *testing.T) {
+	f := newStatisticsPostgresFixture(t)
+	req, other := addCrossChannelBilling(t, f, lo.ToPtr(0.02))
+	// Only the retry bill is archived. Both channels must report their own costs.
+	bill := f.client.UsageLog.Query().Where(usagelog.RequestIDEQ(req.ID), usagelog.ChannelIDEQ(other.ID)).
+		Select(ArchivedUsageFields...).OnlyX(f.ctx)
+	require.NoError(t, ArchiveUsageStatistics(f.ctx, f.client, []*ent.UsageLog{bill}))
+	f.client.UsageLog.DeleteOneID(bill.ID).ExecX(f.ctx)
+	start := req.CreatedAt.UTC().Truncate(time.Hour)
+	end := start.Add(2 * time.Hour)
+	require.NoError(t, f.client.Driver().Exec(f.ctx, `INSERT INTO usage_archives
+(kind,source_id,request_id,project_id,model_id,occurred_at) SELECT k,1000000+n,1000000+n,$1,'old',$2
+FROM generate_series(1,20000) n CROSS JOIN (VALUES ('request'),('usage')) kinds(k)`,
+		[]any{f.project.ID, start.AddDate(0, 0, -7)}, nil))
+	require.NoError(t, f.client.Driver().Exec(f.ctx, `INSERT INTO requests
+(created_at,updated_at,project_id,channel_id,api_key_id,model_id,status,request_body)
+SELECT $1,$1,$2,$3,$4,'pending','pending','{}' FROM generate_series(1,256)`,
+		[]any{start, f.project.ID, f.channel.ID, f.key.ID}, nil))
+	for _, stmt := range []string{"ANALYZE requests", "ANALYZE usage_archives"} {
+		require.NoError(t, f.client.Driver().Exec(f.ctx, stmt, []any{}, nil))
+	}
+	ids := []int{f.channel.ID, other.ID}
+	q, args := channelUsageModelAggregate(f.client.Driver().Dialect(), ids, start, end).Query()
+	var cursor sql.Rows
+	require.NoError(t, f.client.Driver().Query(f.ctx, "EXPLAIN (ANALYZE, TIMING OFF) "+q, args, &cursor))
+	var plan []string
+	require.NoError(t, sql.ScanSlice(&cursor, &plan))
+	require.NoError(t, cursor.Close())
+	var indexed []string
+	for _, line := range plan {
+		if strings.Contains(line, "usage_archive_by_request_id") {
+			indexed = append(indexed, strings.TrimSpace(line))
+		}
+	}
+	require.NotEmpty(t, indexed, strings.Join(plan, "\n"))
+	t.Logf("archive rows=40001, indexed bill lookup: %s", strings.Join(indexed, "; "))
+	svc := &ChannelService{AbstractService: &AbstractService{db: f.client}}
+	rows, err := svc.channelUsageWithModels(f.ctx, f.client, ids, start, end)
+	require.NoError(t, err)
+	require.Equal(t, 257, rows[0].RequestCount)
+	require.InDelta(t, 0.03, rows[0].TotalCost, 1e-12)
+	require.Zero(t, rows[1].RequestCount)
+	require.InDelta(t, 0.02, rows[1].TotalCost, 1e-12)
 }

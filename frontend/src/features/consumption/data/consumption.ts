@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import { z } from 'zod';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { graphqlRequest } from '@/gql/graphql';
@@ -60,7 +60,12 @@ const entrySchema = z.object({
   id: z.string(),
   name: z.string(),
   metrics: metricsSchema,
+  modelNames: z.array(z.string()).optional(),
   models: z.array(z.object({ model: z.string(), metrics: metricsSchema })),
+});
+
+const performanceMetrics = metricsSchema.pick({
+  successCount: true, outcomeCount: true, firstTokenSum: true, firstTokenCount: true, speedSum: true, speedSampleCount: true,
 });
 
 const resultSchema = z.object({
@@ -77,7 +82,7 @@ const resultSchema = z.object({
       })
     )
     .default([]),
-  performanceSamples: z.array(z.object({ channelID: z.string(), name: z.string(), model: z.string(), metrics: metricsSchema })).default([]),
+  performanceSamples: z.array(z.object({ channelID: z.string(), model: z.string(), metrics: performanceMetrics })).default([]),
   entries: z.array(entrySchema),
   generatedAt: z.string(),
   resolvedAt: z.string().optional(),
@@ -91,11 +96,18 @@ const modelResultSchema = resultSchema.extend({
   entries: z.array(entrySchema.omit({ models: true })).transform((entries) => entries.map((entry) => ({ ...entry, models: [] }))),
 });
 
+const summaryResultSchema = resultSchema.extend({
+  entries: z.array(entrySchema.extend({
+    models: entrySchema.shape.models.default([]),
+    modelNames: z.array(z.object({ model: z.string() })).transform((rows) => rows.map((row) => row.model)),
+  })),
+});
+
 export type ConsumptionMetrics = z.infer<typeof metricsSchema>;
 export type ConsumptionEntry = z.infer<typeof entrySchema>;
 export type ConsumptionResult = z.infer<typeof resultSchema>;
 
-export function consumptionFields(input: ConsumptionFilter) {
+export function consumptionFields(input: ConsumptionFilter, withDetails = false) {
   const performance = input.dimension === 'MODEL' || (input.dimension === 'CHANNEL' && input.metric === 'COST');
   const metrics = `requestCount totalTokens totalCost unpricedRequestCount pricedRequestCount tokenPricedRequestCount
     cacheRequests cacheReadTokens cacheInputTokens cacheCreationCost cacheHitRate avgCostPerRequest avgCostPerMillionTokens cacheCoefficient
@@ -105,18 +117,23 @@ export function consumptionFields(input: ConsumptionFilter) {
   return `${
     input.dimension === 'MODEL'
       ? `entries: modelEntries { id: model name: model metrics { ${metrics} } }`
-      : `entries { id name channelRemark channelProvider channelTags duplicateName metrics { ${metrics} } models { model metrics { ${metrics} } } }`
+      : `entries { id name channelRemark channelProvider channelTags duplicateName metrics { ${metrics} } modelNames: models { model } ${withDetails ? `models: modelDetails(entryIDs: $entryIDs) { model metrics { ${metrics} } }` : ''} }`
   }
     ${
       input.dimension === 'CHANNEL'
         ? `cacheSamples { channelID model samples eligible theoretical observed }
-      ${performance ? `performanceSamples { channelID name model metrics { ${metrics} } }` : ''}`
+      ${performance ? `performanceSamples { channelID model metrics { successCount outcomeCount firstTokenSum firstTokenCount speedSum speedSampleCount } }` : ''}`
         : ''
     }
     revision generatedAt resolvedAt rangeStart rangeEnd timezone currencyCode`;
 }
 
-export function useConsumption(input: ConsumptionFilter, view: 'leaderboard' | 'usage', currentProjectID?: string | null, enabled = true) {
+export function consumptionQueryInput(input: ConsumptionFilter) {
+  const localSearch = input.dimension === 'API_KEY_GROUP' || input.dimension === 'MODEL' || input.dimension === 'CHANNEL';
+  return { ...input, search: localSearch ? undefined : input.search, groupRef: input.dimension === 'API_KEY_GROUP' ? undefined : input.groupRef };
+}
+
+export function useConsumption(input: ConsumptionFilter, view: 'leaderboard' | 'usage', currentProjectID?: string | null, enabled = true, entryIDs: string[] = [], reuseSelection = false) {
   const client = useQueryClient();
   const { t } = useTranslation();
   const userID = useAuthStore((state) => state.auth.user?.id);
@@ -127,15 +144,9 @@ export function useConsumption(input: ConsumptionFilter, view: 'leaderboard' | '
   // These summaries already contain every matching entity. Keep the complete
   // result in the query cache and derive visible rows without another SQL scan.
   // Key/user searches still run on the server: they also match undisplayed names/email.
-  const localSearch = input.dimension === 'API_KEY_GROUP' || input.dimension === 'MODEL' || input.dimension === 'CHANNEL';
-  const localGroup = input.dimension === 'API_KEY_GROUP';
-  const queryInput = {
-    ...input,
-    search: localSearch ? undefined : input.search,
-    groupRef: localGroup ? undefined : input.groupRef,
-  };
-  const search = localSearch ? input.search?.trim().toLowerCase() : undefined;
-  const groupRef = localGroup ? input.groupRef : undefined;
+  const queryInput = consumptionQueryInput(input);
+  const search = queryInput.search === undefined ? input.search?.trim().toLowerCase() : undefined;
+  const groupRef = input.dimension === 'API_KEY_GROUP' ? input.groupRef : undefined;
   const select = useCallback(
     (result: ConsumptionResult) => {
       if (!search && groupRef == null) return result;
@@ -160,26 +171,36 @@ export function useConsumption(input: ConsumptionFilter, view: 'leaderboard' | '
     },
     [search, groupRef, input.dimension, t]
   );
-  return useQuery({
-    queryKey: ['consumption', view, projectID, userID, accessScope, queryInput],
+  const scopeKey = ['consumption', view, projectID, userID, accessScope];
+  const selectionKey = (ids: string[]) => [...scopeKey, ids, queryInput];
+  const scopeSignature = JSON.stringify([scopeKey, queryInput]);
+  // Retain one verified projection while the next selection is loading.
+  const [previous, setPrevious] = useState<{ scope: string; ids: string[]; data: ConsumptionResult }>();
+  const lastVerified = previous?.scope === scopeSignature ? previous : undefined;
+  const withDetails = entryIDs.length > 0 && input.dimension !== 'MODEL';
+  const result = useQuery({
+    queryKey: selectionKey(entryIDs),
+    placeholderData: (previous, query) =>
+      query && JSON.stringify(query.queryKey.slice(0, -2)) === JSON.stringify(scopeKey) &&
+      JSON.stringify(query.queryKey.at(-1)) === JSON.stringify(queryInput) ? previous : undefined,
     queryFn: async ({ signal }) => {
       const field = view === 'usage' ? 'usageSlices' : 'consumptionSlices';
-      const query = `query Consumption($input: ConsumptionFilter!, $after: Time, $known:[ConsumptionSliceRevisionInput!], $asOf:Time, $verify:Boolean!) { ${field}(input: $input, after: $after, known:$known, asOf:$asOf, verify:$verify) {
-        slices { ${consumptionFields(input)} } days { start revision } pending resolvedAt next rangeStart rangeEnd timezone currencyCode
+      const query = `query Consumption($input: ConsumptionFilter!, $after: Time, $known:[ConsumptionSliceRevisionInput!], $asOf:Time, $verify:Boolean!, $pendingDates:[Time!]${withDetails ? ', $entryIDs:[ID!]!' : ''}) { ${field}(input: $input, after: $after, known:$known, asOf:$asOf, verify:$verify, pendingDates:$pendingDates) {
+        slices { ${consumptionFields(input, withDetails)} } days { start revision } pending resolvedAt next rangeStart rangeEnd timezone currencyCode
       } }`;
       const headers = projectID ? { 'X-Project-ID': projectID } : undefined;
       const { period: _period, startDate: _start, endDate: _end, ...scope } = queryInput;
       return loadConsumptionSlices(
         client,
-        ['consumptionDays', view, projectID, userID, scope, accessScope],
+        ['consumptionDays', view, projectID, userID, scope, accessScope, withDetails ? 'details' : 'summary'],
         input,
-        async (after, known, asOf, verify = false) => {
-          const data = await graphqlRequest<Record<string, unknown>>(query, { input: queryInput, after, known, asOf, verify }, headers, {
+        async (after, known, asOf, verify = false, pendingDates) => {
+          const data = await graphqlRequest<Record<string, unknown>>(query, { input: queryInput, after, known, asOf, verify, pendingDates, entryIDs }, headers, {
             signal,
           });
           return z
             .object({
-              slices: z.array(input.dimension === 'MODEL' ? modelResultSchema : resultSchema),
+              slices: z.array(input.dimension === 'MODEL' ? modelResultSchema : summaryResultSchema),
               next: z.string().nullable(),
               days: z.array(z.object({ start: z.string(), revision: z.string() })),
               pending: z.boolean(),
@@ -192,18 +213,38 @@ export function useConsumption(input: ConsumptionFilter, view: 'leaderboard' | '
             .parse(data[field]);
         },
         signal,
-        false
+        false,
+        withDetails ? JSON.stringify(entryIDs) : undefined
       );
     },
     enabled: enabled && !!userID && (view === 'leaderboard' || !!projectID),
     select,
     refetchInterval: false,
-    refetchOnMount: 'always',
+    refetchOnMount: reuseSelection ? false : 'always',
     refetchOnReconnect: false,
-    staleTime: 0,
-    gcTime: queryInput.search || queryInput.groupRef != null ? 5 * 60_000 : 30 * 60_000,
+    staleTime: reuseSelection ? Infinity : 0,
+    gcTime: withDetails ? 0 : queryInput.search || queryInput.groupRef != null ? 5 * 60_000 : 30 * 60_000,
     refetchOnWindowFocus: false,
   });
+  const changeDetailSelection = (ids: string[], closing: boolean) => {
+    const data = client.getQueryData<ConsumptionResult>(selectionKey(entryIDs));
+    const source = data ? { scope: scopeSignature, ids: entryIDs, data } : lastVerified;
+    if (data && data !== lastVerified?.data) setPrevious(source);
+    if (!closing) return false;
+    const key = selectionKey(ids);
+    if (!source || !ids.every((id) => source.ids.includes(id))) return client.getQueryData(key) !== undefined;
+    const open = new Set(ids);
+    client.setQueryData(key, {
+      ...source.data,
+      entries: source.data.entries.map((entry) => open.has(entry.id) || !entry.models.length ? entry : { ...entry, models: [] }),
+    });
+    return true;
+  };
+  if (withDetails && result.isError && !result.data) {
+    const verified = lastVerified?.data ?? client.getQueryData<ConsumptionResult>(selectionKey([]));
+    if (verified) return { ...result, data: select(verified), changeDetailSelection };
+  }
+  return { ...result, changeDetailSelection };
 }
 
 export function useConsumptionProjects(enabled: boolean) {

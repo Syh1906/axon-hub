@@ -73,6 +73,11 @@ func TestConsumptionGraphQLScheduledRanges(t *testing.T) {
 		RangeStart string
 		Revision   string
 		Entries    []struct {
+			ModelNames []struct{ Model string }
+			Models     []struct {
+				Model   string
+				Metrics struct{ TotalCost float64 }
+			}
 			Metrics struct {
 				RequestCount, TotalTokens int
 				TotalCost                 float64
@@ -95,13 +100,15 @@ func TestConsumptionGraphQLScheduledRanges(t *testing.T) {
 					dimension = "API_KEY"
 					performance = ""
 				}
-				query := fmt.Sprintf(`query($known:[ConsumptionSliceRevisionInput!],$asOf:Time,$verify:Boolean!){
-				 %s(input:{dimension:%s,metric:COST,period:%s},known:$known,asOf:$asOf,verify:$verify){
-				 pending resolvedAt next days{start revision} slices{rangeStart revision entries{metrics{requestCount totalTokens totalCost %s}}}}}`, view, dimension, period, performance)
+				query := fmt.Sprintf(`query($known:[ConsumptionSliceRevisionInput!],$asOf:Time,$verify:Boolean!,$entries:[ID!]!,$pendingDates:[Time!]){
+				 %s(input:{dimension:%s,metric:COST,period:%s},known:$known,asOf:$asOf,verify:$verify,pendingDates:$pendingDates){
+				 pending resolvedAt next days{start revision} slices{rangeStart revision entries{modelNames:models{model} models:modelDetails(entryIDs:$entries){model metrics{totalCost}} metrics{requestCount totalTokens totalCost %s}}}}}`, view, dimension, period, performance)
 				var known []map[string]string
+				var pendingDates []string
+				var expanded []string = []string{}
 				var asOf *string
 				fetch := func(verify bool) page {
-					body, err := json.Marshal(map[string]any{"query": query, "variables": map[string]any{"known": known, "asOf": asOf, "verify": verify}})
+					body, err := json.Marshal(map[string]any{"query": query, "variables": map[string]any{"known": known, "asOf": asOf, "verify": verify, "entries": expanded, "pendingDates": pendingDates}})
 					require.NoError(t, err)
 					req := httptest.NewRequest(http.MethodPost, "/admin/graphql", strings.NewReader(string(body))).WithContext(viewer)
 					req.Header.Set("Content-Type", "application/json")
@@ -164,6 +171,30 @@ func TestConsumptionGraphQLScheduledRanges(t *testing.T) {
 				require.Equal(t, wantCount, count)
 				require.Equal(t, wantCount*200, tokens)
 				require.Equal(t, wantCost, cost)
+				for _, item := range cached {
+					for _, entry := range item.Entries {
+						require.Len(t, entry.ModelNames, 1)
+						require.Empty(t, entry.Models)
+					}
+				}
+				if len(completed.Days) > 0 {
+					target := completed.Days[len(completed.Days)-1]
+					pendingDates = []string{target.Start}
+					known = nil
+					expanded = []string{fmt.Sprintf("gid://axonhub/Channel/%d", channel.ID)}
+					if view == "usageSlices" {
+						expanded = []string{fmt.Sprintf("gid://axonhub/APIKey/%d", key.ID)}
+					}
+					subset := fetch(false)
+					require.False(t, subset.Pending)
+					require.Len(t, subset.Days, 1)
+					require.Equal(t, target, subset.Days[0])
+					require.Len(t, subset.Slices, 1)
+					require.Len(t, subset.Slices[0].Entries, 1)
+					entry := subset.Slices[0].Entries[0]
+					require.Len(t, entry.Models, 1)
+					require.Equal(t, entry.Metrics.TotalCost, entry.Models[0].Metrics.TotalCost)
+				}
 			})
 		}
 	}

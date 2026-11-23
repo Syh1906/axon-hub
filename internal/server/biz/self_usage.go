@@ -284,21 +284,25 @@ func (scope selfUsageScope) join(s *sql.Selector) *sql.SelectTable {
 }
 
 func selfUsageBucket(d string, created string) string {
+	return statisticsTimeBucket(d, created, 900)
+}
+
+func statisticsTimeBucket(d, created string, seconds int) string {
 	switch d {
 	case dialect.SQLite:
 		// Ent stores SQLite timestamps with a Go timezone suffix. The first
 		// 19 characters are the UTC wall clock components (as in dashboard).
-		return fmt.Sprintf("CAST(CAST(strftime('%%s', substr(%s, 1, 19)) AS INTEGER) / 900 AS INTEGER)", created)
+		return fmt.Sprintf("CAST(CAST(strftime('%%s', substr(%s, 1, 19)) AS INTEGER) / %d AS INTEGER)", created, seconds)
 	case dialect.Postgres:
 		// Ent maps field.Time to PostgreSQL timestamptz; EPOCH uses its UTC
 		// instant rather than session-local rendering (unlike timestamp without time zone).
-		return fmt.Sprintf("FLOOR(EXTRACT(EPOCH FROM %s) / 900)", created)
+		return fmt.Sprintf("FLOOR(EXTRACT(EPOCH FROM %s) / %d)", created, seconds)
 	case dialect.MySQL:
 		// The driver writes UTC wall-clock fields and range predicates compare those
 		// same fields; TIMESTAMPDIFF avoids UNIX_TIMESTAMP's session-zone conversion.
-		return fmt.Sprintf("TIMESTAMPDIFF(SECOND, '1970-01-01 00:00:00', %s) DIV 900", created)
+		return fmt.Sprintf("TIMESTAMPDIFF(SECOND, '1970-01-01 00:00:00', %s) DIV %d", created, seconds)
 	default:
-		return fmt.Sprintf("FLOOR(EXTRACT(EPOCH FROM %s) / 900)", created)
+		return fmt.Sprintf("FLOOR(EXTRACT(EPOCH FROM %s) / %d)", created, seconds)
 	}
 }
 

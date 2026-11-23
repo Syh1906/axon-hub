@@ -59,9 +59,31 @@ SELECT id,created_at,updated_at,id,project_id,api_key_id,channel_id,model_id,100
 		Period: ConsumptionPeriodCustom, StartDate: &day, EndDate: &day}
 	f.user.IsOwner = true
 	ctx := contexts.WithUser(f.ctx, f.user)
+	channelService := &ChannelService{AbstractService: &AbstractService{db: counted}, SystemService: f.service.system}
+	for _, phase := range []string{"cold-channel", "unchanged-channel"} {
+		count.Store(0)
+		began := time.Now()
+		rows, err := channelService.channelUsageWithModels(f.ctx, counted, []int{f.channel.ID}, start, start.AddDate(0, 0, 1))
+		t.Logf("phase=%s day=%d queries=%d elapsed=%s", phase, dayCount, count.Load(), time.Since(began))
+		require.NoError(t, err)
+		require.Equal(t, dayCount, rows[0].RequestCount)
+		require.Equal(t, float64(dayCount), rows[0].TotalCost)
+		require.Len(t, rows[0].Models, 4)
+		if phase == "unchanged-channel" {
+			require.EqualValues(t, 1, count.Load(), "repeat reads only the hourly revisions")
+		}
+	}
 	for _, phase := range []string{"cold-day", "unchanged-day", "corrected-hour", "cold-month", "unchanged-month"} {
 		if phase == "corrected-hour" {
 			f.client.UsageLog.UpdateOneID(history + 1).SetTotalCost(2).ExecX(f.ctx)
+		}
+		if phase == "corrected-hour" {
+			count.Store(0)
+			began := time.Now()
+			rows, err := channelService.channelUsageWithModels(f.ctx, counted, []int{f.channel.ID}, start, start.AddDate(0, 0, 1))
+			t.Logf("phase=corrected-channel day=%d queries=%d elapsed=%s", dayCount, count.Load(), time.Since(began))
+			require.NoError(t, err)
+			require.Equal(t, float64(dayCount+1), rows[0].TotalCost)
 		}
 		if strings.Contains(phase, "month") {
 			first := "2026-11-01"
