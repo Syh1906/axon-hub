@@ -1,5 +1,16 @@
 # Fork 维护台账
 
+## rc1-fork.23 统计性能优化正式发布与双站验收（2026-11-23）
+
+[正式版](https://github.com/Syh1906/axon-hub/releases/tag/v1.0.0-rc1-fork.23)对应源码 `237a85ed542e47a269f7d42a94f9d0f42644dc92`。同提交的 [Test](https://github.com/Syh1906/axon-hub/actions/runs/45195525463)、Lint、Build 和 Govulncheck 全部通过。[发布工作流](https://github.com/Syh1906/axon-hub/actions/runs/45196961410)使用 PostgreSQL 验证镜像启动，发布 Linux amd64、arm64 镜像及 `release.json`。两站均由 fork.22 更新至固定镜像摘要 `sha256:ed5582bb58e577f3c6daf92ceff6bf170d94228394ba9e908d78107912b5cd0c`。
+
+| 站点 | 恢复健康（新加坡时间） | 重建应用并等待健康 | 切换前采到的在途请求 | 恢复后新建的 API 请求 |
+| --- | --- | --- | --- | --- |
+| 云悠 | 22:48:30 | 7.170 秒 | 0 笔 | 截至 22:50:45，9 笔完成 |
+| 泉哥 | 22:50:10 | 7.173 秒 | 3 笔，其中 2 笔失败、1 笔取消 | 截至 22:50:47，8 笔完成、3 笔处理中 |
+
+两站的本机及公网健康接口均返回正式版本和源码提交，初始化状态、各 34 项前端资源、匿名鉴权和跨域预检通过。两站均确认归档表已建立按请求编号查询的有效索引 `usage_archive_by_request_id`，无需数据回填。PostgreSQL 容器 ID 保持一致，应用意外重启 0 次。本次临时配置副本已清理，保留 fork.22 镜像供回退。此次部署验收未测量登录后台后渠道今日用量、用量统计和消耗排行榜的端到端刷新耗时。
+
 ## rc1-fork.22 精简正式发布与双站验收（2026-11-23）
 
 - [正式版](https://github.com/Syh1906/axon-hub/releases/tag/v1.0.0-rc1-fork.22)对应源码 `6d01957e8f9bde6cef64144652eadf1feb317583`。维护分支同提交的 [Test](https://github.com/Syh1906/axon-hub/actions/runs/45112485140)、[Build](https://github.com/Syh1906/axon-hub/actions/runs/45112485073)、[Lint](https://github.com/Syh1906/axon-hub/actions/runs/45112485182) 和 [Govulncheck](https://github.com/Syh1906/axon-hub/actions/runs/45112485058) 均通过。[发布工作流](https://github.com/Syh1906/axon-hub/actions/runs/45113311482)验证了 PostgreSQL 启动并发布 Linux amd64、arm64 镜像和 `release.json`。两站使用同一固定摘要 `sha256:f17bb02cb7bae91de2dd82c0cdd1e3a47f897c570a20b332b55e10144b506ce6`。
