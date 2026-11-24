@@ -1,5 +1,7 @@
 # Independent releases and upstream maintenance
 
+On November 24, 2026, both production sites upgraded to [fork.26](https://github.com/Syh1906/axon-hub/releases/tag/v1.0.0-rc1-fork.26). This version improves Responses WebSocket reuse and updates key-scoped channel rate displays and the Codex model catalog. Upgrading from fork.25 requires no database migration. Switch timings, in-flight request outcomes and deployment checks are recorded in the [maintenance ledger](../../fork-maintenance.md).
+
 On 2026-11-24, both production sites upgraded from fork.24 to [fork.25](https://github.com/Syh1906/axon-hub/releases/tag/v1.0.0-rc1-fork.25). Each site verified the new channel rate tables, billing columns and indexes, and checked a pre-upgrade usage record. The applications took 6.855 and 42.433 seconds to rebuild and report healthy. The [maintenance ledger](../../fork-maintenance.md) records the outcomes of in-flight requests and the conditions for rolling back.
 
 Both production sites upgraded to [fork.24](https://github.com/Syh1906/axon-hub/releases/tag/v1.0.0-rc1-fork.24) on 2026-11-24. The release aligns refresh behavior on the API key and group usage pages and requires no database migration. The [maintenance ledger](../../fork-maintenance.md) records the pinned image digest, health checks and request counts after each switch.

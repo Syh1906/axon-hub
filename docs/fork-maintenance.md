@@ -6,6 +6,17 @@
 
 HTTP 入站转 WS 时，分别判断上游连接是否可用、上一轮历史是否能作为本轮前缀。同步上游时核对握手能力声明、历史改写后的全量发送、旧响应编号的连接归属、写后禁止重放，以及分段日志的 WS 消息大小。双网关回归覆盖 HTTP → WS → HTTP，核对改写历史后沿用连接，追加带状态的上一轮回答后仅转发增量，并由末级网关向 HTTP 上游还原正确历史。未知能力端点另覆盖同会话并发改写和无法比较历史时的重连。[接入说明](zh/guides/codex-integration.md) · [双网关回归](../internal/server/api/responses_two_gateways_test.go)
 
+[fork.26 正式版](https://github.com/Syh1906/axon-hub/releases/tag/v1.0.0-rc1-fork.26) 对应源码 `4d95921cf6b8dbf7621b4346edb16cecc4c71f22`。同一提交的 [Test](https://github.com/Syh1906/axon-hub/actions/runs/45382598501)、[Build](https://github.com/Syh1906/axon-hub/actions/runs/45382598695)、[Lint](https://github.com/Syh1906/axon-hub/actions/runs/45382598838) 和 [Govulncheck](https://github.com/Syh1906/axon-hub/actions/runs/45382598518) 均通过。[发布流程](https://github.com/Syh1906/axon-hub/actions/runs/45383761567) 完成 Linux amd64、arm64 镜像合成与临时 PostgreSQL 启动验证。两站均按发布清单中的固定摘要 `sha256:d5611f319985c3d42bb5ae447992de6ca8f6527117918a0d286b1049f4bee4f8` 部署。
+
+| 站点 | 恢复健康（11 月 24 日，新加坡时间） | 应用重建至健康 | 切换前在途请求的结果 | 恢复后至 19:35:20 的自然 API 请求 |
+| --- | --- | --- | --- | --- |
+| 云悠 | 19:32:13 | 8.78 秒 | 0 笔 | 11 完成、1 失败 |
+| 泉哥 | 19:33:59 | 9.01 秒 | 6 笔中 1 完成、4 失败、1 取消 | 39 完成、1 失败、1 取消、5 处理中 |
+
+云悠观察期内的 1 笔失败经过魔影渠道，发生在泉哥切换窗口。双站就绪后另核实云悠经魔影完成了 4 笔 WS 执行。上述请求计数不用于估算连接复用率或首字改善，效果评估需要更长的同口径样本。
+
+两站均通过本机和公网健康、版本与源码提交、初始化状态、34 个首页静态资源及模型接口鉴权检查。应用重启计数为 0，PostgreSQL 容器与启动时间保持原值。两站均已清理本轮临时配置副本，保留 fork.25 镜像用于应用回退。
+
 ## rc1-fork.25 统计交互、渠道倍率与 Responses 传输（2026-11-24）
 
 本次从 fork.24 升级。项目用量和排行榜的可见行随附模型明细，大榜单按期间排名分页。启动时自动新增分组和密钥渠道倍率表、计费快照与相应索引。部署时核对结构、旧账保留和默认继承行为。

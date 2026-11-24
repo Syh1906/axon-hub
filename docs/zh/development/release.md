@@ -1,5 +1,7 @@
 # 独立维护、同步上游与发版
 
+2026-11-24，云悠和泉哥均已升级至 [fork.26 正式版](https://github.com/Syh1906/axon-hub/releases/tag/v1.0.0-rc1-fork.26)。本版优化 Responses WS 连接复用，更新密钥渠道倍率展示和 Codex 模型目录。从 fork.25 升级无需数据库迁移。切换耗时、在途请求结果和验收范围见[维护台账](../../fork-maintenance.md)。
+
 2026-11-24，云悠、泉哥从 fork.24 更新至 [fork.25 正式版](https://github.com/Syh1906/axon-hub/releases/tag/v1.0.0-rc1-fork.25)。两站已核对新增的渠道倍率表、计费字段、索引与各一笔旧用量。应用重建至健康分别用时 6.855 秒和 42.433 秒。切换期间的请求结果及回退条件见[维护台账](../../fork-maintenance.md)。
 
 2026-11-24，云悠、泉哥已部署 [fork.24 正式版](https://github.com/Syh1906/axon-hub/releases/tag/v1.0.0-rc1-fork.24)。本次对齐个人和分组用量页的请求日志刷新，无数据库迁移。固定镜像摘要、双站恢复健康时间和业务请求采样见[维护台账](../../fork-maintenance.md)。
