@@ -92,7 +92,11 @@ func (s *SelfUsageService) requestChannelDisplays(ctx context.Context, ids []int
 		if q.Dialect() == "postgres" {
 			appliedPath = "applied,value"
 		}
-		q.AppendSelectAs(jsonText(snapshot, appliedPath), "multiplier")
+		billingPath := "billing.rate"
+		if q.Dialect() == "postgres" {
+			billingPath = "billing,rate"
+		}
+		q.AppendSelectAs("COALESCE("+jsonText(snapshot, billingPath)+","+jsonText(snapshot, appliedPath)+")", "multiplier")
 	}).Scan(ctx, &rows)
 	if err != nil {
 		return nil, fmt.Errorf("query self usage channel display: %w", err)

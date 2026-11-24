@@ -100,6 +100,11 @@ func upstreamStateFromSnapshots(ch *ent.Channel, rows []*ent.ChannelUpstreamStat
 		}
 	}
 	state := &objects.ChannelUpstreamState{ChannelID: objects.GUID{ID: ch.ID, Type: ent.TypeChannel}, Settings: ch.Settings.UpstreamSettings(), ManualMultiplier: channelManualMultiplier(ch), Provider: objects.UpstreamProviderUnknown, Keys: []*objects.ChannelUpstreamKeyState{}, KeySessionReuse: ch.Settings == nil || !ch.Settings.DisableKeySessionReuse}
+	state.EnabledCredentialCount = len(lo.Uniq(ch.Credentials.GetEnabledCredentialRefs(ch.DisabledAPIKeys)))
+	if ch.Type == channel.TypeAnthropicGcp && ch.Credentials.GCP != nil && ch.Credentials.GCP.JSONData != "" {
+		// This channel authenticates with the service account instead of rotating API keys.
+		state.EnabledCredentialCount = 1
+	}
 	enabled := ch.Credentials.GetEnabledAPIKeys(ch.DisabledAPIKeys)
 	for _, key := range lo.Uniq(ch.Credentials.GetAllAPIKeys()) {
 		ref := upstream.KeyRef(key)

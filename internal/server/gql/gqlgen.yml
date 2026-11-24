@@ -37,6 +37,7 @@ schema:
   - usage_cost.graphql
   - analytics.graphql
   - consumption.graphql
+  - key_channel_rate.graphql
   - api_key_group.graphql
   - key_management.graphql
   - budget_types.graphql
@@ -97,6 +98,20 @@ converters:
 
 # This section declares type mapping between the GraphQL and Go type systems.
 models:
+  GroupBillingItem:
+    model: github.com/looplj/axonhub/internal/objects.GroupBillingItem
+  GroupCostEntry:
+    model: github.com/looplj/axonhub/internal/objects.GroupCostEntry
+  GroupCostComparison:
+    model: github.com/looplj/axonhub/internal/objects.GroupCostComparison
+  GroupCostRow:
+    model: github.com/looplj/axonhub/internal/objects.GroupCostRow
+  KeyChannelRates:
+    model: github.com/looplj/axonhub/internal/objects.KeyChannelRates
+  KeyChannelRateInput:
+    model: github.com/looplj/axonhub/internal/objects.KeyChannelRate
+  KeyChannelRate:
+    model: github.com/looplj/axonhub/internal/objects.KeyChannelRate
   ChannelProtocolPolicy:
     model: github.com/looplj/axonhub/internal/objects.ChannelProtocolPolicy
   ChannelProtocolPolicyInput:

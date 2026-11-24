@@ -25,10 +25,11 @@ import (
 )
 
 type firstContentSort struct {
-	ctx     context.Context
-	state   *PersistenceState
-	request *llm.Request
-	session uint64
+	ctx         context.Context
+	state       *PersistenceState
+	request     *llm.Request
+	session     uint64
+	callerRates map[int]string
 }
 
 func currentFirstContentSort(ctx context.Context) *firstContentSort {
@@ -71,7 +72,11 @@ func newFirstContentSort(ctx context.Context, s *PersistenceState, req *llm.Requ
 	if !ok {
 		return nil
 	}
-	return &firstContentSort{ctx, s, req, session}
+	rates, err := s.RequestService.CallerRatesForRouting(ctx, s.APIKey)
+	if err != nil {
+		return nil
+	}
+	return &firstContentSort{ctx: ctx, state: s, request: req, session: session, callerRates: rates}
 }
 
 func (s *PersistenceState) contentRoute(ctx context.Context, c *ChannelModelsCandidate, req *llm.Request, size int, source string) (firstContentRoute, bool) {
@@ -178,7 +183,7 @@ func (s *firstContentSort) selectChannel(n int, at func(int) (*ChannelModelsCand
 			continue
 		}
 		key, ok := s.channelKey(c)
-		if !ok || key.work != baseKey.work || !base.Channel.SameFirstContentPrice(c.Channel, key.work.model, base.ModelCard, c.ModelCard) ||
+		if !ok || s.callerRates[c.Channel.ID] != s.callerRates[base.Channel.ID] || key.work != baseKey.work || !base.Channel.SameFirstContentPrice(c.Channel, key.work.model, base.ModelCard, c.ModelCard) ||
 			!sameFirstContentSettings(base.Channel.Settings, c.Channel.Settings) {
 			continue
 		}

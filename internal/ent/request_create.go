@@ -58,6 +58,20 @@ func (_c *RequestCreate) SetNillableUpdatedAt(v *time.Time) *RequestCreate {
 	return _c
 }
 
+// SetRestoreRef sets the "restore_ref" field.
+func (_c *RequestCreate) SetRestoreRef(v string) *RequestCreate {
+	_c.mutation.SetRestoreRef(v)
+	return _c
+}
+
+// SetNillableRestoreRef sets the "restore_ref" field if the given value is not nil.
+func (_c *RequestCreate) SetNillableRestoreRef(v *string) *RequestCreate {
+	if v != nil {
+		_c.SetRestoreRef(*v)
+	}
+	return _c
+}
+
 // SetAPIKeyID sets the "api_key_id" field.
 func (_c *RequestCreate) SetAPIKeyID(v int) *RequestCreate {
 	_c.mutation.SetAPIKeyID(v)
@@ -82,6 +96,20 @@ func (_c *RequestCreate) SetUserID(v int) *RequestCreate {
 func (_c *RequestCreate) SetNillableUserID(v *int) *RequestCreate {
 	if v != nil {
 		_c.SetUserID(*v)
+	}
+	return _c
+}
+
+// SetBillingGroupRef sets the "billing_group_ref" field.
+func (_c *RequestCreate) SetBillingGroupRef(v int) *RequestCreate {
+	_c.mutation.SetBillingGroupRef(v)
+	return _c
+}
+
+// SetNillableBillingGroupRef sets the "billing_group_ref" field if the given value is not nil.
+func (_c *RequestCreate) SetNillableBillingGroupRef(v *int) *RequestCreate {
+	if v != nil {
+		_c.SetBillingGroupRef(*v)
 	}
 	return _c
 }
@@ -593,6 +621,11 @@ func (_c *RequestCreate) defaults() error {
 
 // check runs all checks and user-defined validators on the builder.
 func (_c *RequestCreate) check() error {
+	if v, ok := _c.mutation.RestoreRef(); ok {
+		if err := request.RestoreRefValidator(v); err != nil {
+			return &ValidationError{Name: "restore_ref", err: fmt.Errorf(`ent: validator failed for field "Request.restore_ref": %w`, err)}
+		}
+	}
 	if _, ok := _c.mutation.ProjectID(); !ok {
 		return &ValidationError{Name: "project_id", err: errors.New(`ent: missing required field "Request.project_id"`)}
 	}
@@ -686,9 +719,17 @@ func (_c *RequestCreate) createSpec() (*Request, *sqlgraph.CreateSpec) {
 		_spec.SetField(request.FieldUpdatedAt, field.TypeTime, value)
 		_node.UpdatedAt = value
 	}
+	if value, ok := _c.mutation.RestoreRef(); ok {
+		_spec.SetField(request.FieldRestoreRef, field.TypeString, value)
+		_node.RestoreRef = &value
+	}
 	if value, ok := _c.mutation.UserID(); ok {
 		_spec.SetField(request.FieldUserID, field.TypeInt, value)
 		_node.UserID = &value
+	}
+	if value, ok := _c.mutation.BillingGroupRef(); ok {
+		_spec.SetField(request.FieldBillingGroupRef, field.TypeInt, value)
+		_node.BillingGroupRef = &value
 	}
 	if value, ok := _c.mutation.ClientSessionID(); ok {
 		_spec.SetField(request.FieldClientSessionID, field.TypeString, value)
@@ -980,6 +1021,30 @@ func (u *RequestUpsert) SetUpdatedAt(v time.Time) *RequestUpsert {
 // UpdateUpdatedAt sets the "updated_at" field to the value that was provided on create.
 func (u *RequestUpsert) UpdateUpdatedAt() *RequestUpsert {
 	u.SetExcluded(request.FieldUpdatedAt)
+	return u
+}
+
+// SetBillingGroupRef sets the "billing_group_ref" field.
+func (u *RequestUpsert) SetBillingGroupRef(v int) *RequestUpsert {
+	u.Set(request.FieldBillingGroupRef, v)
+	return u
+}
+
+// UpdateBillingGroupRef sets the "billing_group_ref" field to the value that was provided on create.
+func (u *RequestUpsert) UpdateBillingGroupRef() *RequestUpsert {
+	u.SetExcluded(request.FieldBillingGroupRef)
+	return u
+}
+
+// AddBillingGroupRef adds v to the "billing_group_ref" field.
+func (u *RequestUpsert) AddBillingGroupRef(v int) *RequestUpsert {
+	u.Add(request.FieldBillingGroupRef, v)
+	return u
+}
+
+// ClearBillingGroupRef clears the value of the "billing_group_ref" field.
+func (u *RequestUpsert) ClearBillingGroupRef() *RequestUpsert {
+	u.SetNull(request.FieldBillingGroupRef)
 	return u
 }
 
@@ -1399,6 +1464,9 @@ func (u *RequestUpsertOne) UpdateNewValues() *RequestUpsertOne {
 		if _, exists := u.create.mutation.CreatedAt(); exists {
 			s.SetIgnore(request.FieldCreatedAt)
 		}
+		if _, exists := u.create.mutation.RestoreRef(); exists {
+			s.SetIgnore(request.FieldRestoreRef)
+		}
 		if _, exists := u.create.mutation.APIKeyID(); exists {
 			s.SetIgnore(request.FieldAPIKeyID)
 		}
@@ -1480,6 +1548,34 @@ func (u *RequestUpsertOne) SetUpdatedAt(v time.Time) *RequestUpsertOne {
 func (u *RequestUpsertOne) UpdateUpdatedAt() *RequestUpsertOne {
 	return u.Update(func(s *RequestUpsert) {
 		s.UpdateUpdatedAt()
+	})
+}
+
+// SetBillingGroupRef sets the "billing_group_ref" field.
+func (u *RequestUpsertOne) SetBillingGroupRef(v int) *RequestUpsertOne {
+	return u.Update(func(s *RequestUpsert) {
+		s.SetBillingGroupRef(v)
+	})
+}
+
+// AddBillingGroupRef adds v to the "billing_group_ref" field.
+func (u *RequestUpsertOne) AddBillingGroupRef(v int) *RequestUpsertOne {
+	return u.Update(func(s *RequestUpsert) {
+		s.AddBillingGroupRef(v)
+	})
+}
+
+// UpdateBillingGroupRef sets the "billing_group_ref" field to the value that was provided on create.
+func (u *RequestUpsertOne) UpdateBillingGroupRef() *RequestUpsertOne {
+	return u.Update(func(s *RequestUpsert) {
+		s.UpdateBillingGroupRef()
+	})
+}
+
+// ClearBillingGroupRef clears the value of the "billing_group_ref" field.
+func (u *RequestUpsertOne) ClearBillingGroupRef() *RequestUpsertOne {
+	return u.Update(func(s *RequestUpsert) {
+		s.ClearBillingGroupRef()
 	})
 }
 
@@ -2131,6 +2227,9 @@ func (u *RequestUpsertBulk) UpdateNewValues() *RequestUpsertBulk {
 			if _, exists := b.mutation.CreatedAt(); exists {
 				s.SetIgnore(request.FieldCreatedAt)
 			}
+			if _, exists := b.mutation.RestoreRef(); exists {
+				s.SetIgnore(request.FieldRestoreRef)
+			}
 			if _, exists := b.mutation.APIKeyID(); exists {
 				s.SetIgnore(request.FieldAPIKeyID)
 			}
@@ -2213,6 +2312,34 @@ func (u *RequestUpsertBulk) SetUpdatedAt(v time.Time) *RequestUpsertBulk {
 func (u *RequestUpsertBulk) UpdateUpdatedAt() *RequestUpsertBulk {
 	return u.Update(func(s *RequestUpsert) {
 		s.UpdateUpdatedAt()
+	})
+}
+
+// SetBillingGroupRef sets the "billing_group_ref" field.
+func (u *RequestUpsertBulk) SetBillingGroupRef(v int) *RequestUpsertBulk {
+	return u.Update(func(s *RequestUpsert) {
+		s.SetBillingGroupRef(v)
+	})
+}
+
+// AddBillingGroupRef adds v to the "billing_group_ref" field.
+func (u *RequestUpsertBulk) AddBillingGroupRef(v int) *RequestUpsertBulk {
+	return u.Update(func(s *RequestUpsert) {
+		s.AddBillingGroupRef(v)
+	})
+}
+
+// UpdateBillingGroupRef sets the "billing_group_ref" field to the value that was provided on create.
+func (u *RequestUpsertBulk) UpdateBillingGroupRef() *RequestUpsertBulk {
+	return u.Update(func(s *RequestUpsert) {
+		s.UpdateBillingGroupRef()
+	})
+}
+
+// ClearBillingGroupRef clears the value of the "billing_group_ref" field.
+func (u *RequestUpsertBulk) ClearBillingGroupRef() *RequestUpsertBulk {
+	return u.Update(func(s *RequestUpsert) {
+		s.ClearBillingGroupRef()
 	})
 }
 

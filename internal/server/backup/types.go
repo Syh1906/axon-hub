@@ -2,6 +2,7 @@ package backup
 
 import (
 	"encoding/json"
+	"github.com/shopspring/decimal"
 	"time"
 
 	"github.com/looplj/axonhub/internal/ent"
@@ -28,6 +29,7 @@ type BackupData struct {
 	APIKeys            []*BackupAPIKey            `json:"api_keys,omitempty"`
 	APIKeyGroups       []*BackupAPIKeyGroup       `json:"api_key_groups,omitempty"`
 	UsageRequests      []*BackupUsageRequest      `json:"usage_requests,omitempty"`
+	UsageArchives      []*BackupUsageArchive      `json:"usage_archives,omitempty"`
 	UsageLogs          []*BackupUsageLog          `json:"usage_logs,omitempty"`
 }
 
@@ -54,7 +56,14 @@ type BackupModel struct {
 	ent.Model
 }
 
+type BackupChannelRate struct {
+	ChannelID   int             `json:"channel_id"`
+	ChannelName string          `json:"channel_name"`
+	Multiplier  decimal.Decimal `json:"multiplier"`
+}
+
 type BackupAPIKey struct {
+	ChannelRates []BackupChannelRate `json:"channel_rates"`
 	ent.APIKey
 
 	ProjectName string `json:"project_name"`
@@ -62,11 +71,12 @@ type BackupAPIKey struct {
 }
 
 type BackupAPIKeyGroup struct {
-	ProjectName            string `json:"project_name"`
-	Name                   string `json:"name"`
-	Note                   string `json:"note"`
-	Enabled                bool   `json:"enabled"`
-	ShowChannelInSelfUsage bool   `json:"show_channel_in_self_usage"`
+	ChannelRates           []BackupChannelRate `json:"channel_rates"`
+	ProjectName            string              `json:"project_name"`
+	Name                   string              `json:"name"`
+	Note                   string              `json:"note"`
+	Enabled                bool                `json:"enabled"`
+	ShowChannelInSelfUsage bool                `json:"show_channel_in_self_usage"`
 }
 
 type BackupChannelModelPrice struct {
@@ -87,6 +97,7 @@ type BackupUsageRequest struct {
 
 func (r BackupUsageRequest) MarshalJSON() ([]byte, error) {
 	type requestData struct {
+		RestoreRef                 *string                      `json:"restore_ref,omitempty"`
 		ID                         int                          `json:"id,omitempty"`
 		CreatedAt                  time.Time                    `json:"created_at,omitzero"`
 		UpdatedAt                  time.Time                    `json:"updated_at,omitzero"`
@@ -118,7 +129,7 @@ func (r BackupUsageRequest) MarshalJSON() ([]byte, error) {
 		APIKeyKey                  string                       `json:"api_key_key,omitempty"`
 	}
 
-	return json.Marshal(requestData{
+	return json.Marshal(requestData{RestoreRef: r.RestoreRef,
 		ID:                         r.ID,
 		CreatedAt:                  r.CreatedAt,
 		UpdatedAt:                  r.UpdatedAt,
@@ -152,6 +163,7 @@ func (r BackupUsageRequest) MarshalJSON() ([]byte, error) {
 }
 
 type BackupUsageLog struct {
+	BillingGroupName string `json:"billing_group_name,omitempty"`
 	ent.UsageLog
 
 	ProjectName string `json:"project_name,omitempty"`
@@ -161,6 +173,12 @@ type BackupUsageLog struct {
 
 func (l BackupUsageLog) MarshalJSON() ([]byte, error) {
 	type usageLogData struct {
+		RestoreRef                         *string                      `json:"restore_ref,omitempty"`
+		BillingGroupName                   string                       `json:"billing_group_name,omitempty"`
+		BillingGroupID                     *int                         `json:"billing_group_id,omitempty"`
+		BilledCost                         *float64                     `json:"billed_cost,omitempty"`
+		BilledItems                        []objects.CostItem           `json:"billed_items,omitempty"`
+		BillingEstimated                   bool                         `json:"billing_estimated,omitempty"`
 		ID                                 int                          `json:"id,omitempty"`
 		CreatedAt                          time.Time                    `json:"created_at,omitzero"`
 		UpdatedAt                          time.Time                    `json:"updated_at,omitzero"`
@@ -191,7 +209,7 @@ func (l BackupUsageLog) MarshalJSON() ([]byte, error) {
 		APIKeyKey                          string                       `json:"api_key_key,omitempty"`
 	}
 
-	return json.Marshal(usageLogData{
+	return json.Marshal(usageLogData{RestoreRef: l.RestoreRef, BillingGroupName: l.BillingGroupName, BillingGroupID: l.BillingGroupID, BilledCost: l.BilledCost, BilledItems: l.BilledItems, BillingEstimated: l.BillingEstimated,
 		ID:                                 l.ID,
 		CreatedAt:                          l.CreatedAt,
 		UpdatedAt:                          l.UpdatedAt,

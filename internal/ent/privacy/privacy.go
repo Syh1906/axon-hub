@@ -135,6 +135,30 @@ func (f APIKeyMutationRuleFunc) EvalMutation(ctx context.Context, m ent.Mutation
 	return Denyf("ent/privacy: unexpected mutation type %T, expect *ent.APIKeyMutation", m)
 }
 
+// The APIKeyChannelRateQueryRuleFunc type is an adapter to allow the use of ordinary
+// functions as a query rule.
+type APIKeyChannelRateQueryRuleFunc func(context.Context, *ent.APIKeyChannelRateQuery) error
+
+// EvalQuery return f(ctx, q).
+func (f APIKeyChannelRateQueryRuleFunc) EvalQuery(ctx context.Context, q ent.Query) error {
+	if q, ok := q.(*ent.APIKeyChannelRateQuery); ok {
+		return f(ctx, q)
+	}
+	return Denyf("ent/privacy: unexpected query type %T, expect *ent.APIKeyChannelRateQuery", q)
+}
+
+// The APIKeyChannelRateMutationRuleFunc type is an adapter to allow the use of ordinary
+// functions as a mutation rule.
+type APIKeyChannelRateMutationRuleFunc func(context.Context, *ent.APIKeyChannelRateMutation) error
+
+// EvalMutation calls f(ctx, m).
+func (f APIKeyChannelRateMutationRuleFunc) EvalMutation(ctx context.Context, m ent.Mutation) error {
+	if m, ok := m.(*ent.APIKeyChannelRateMutation); ok {
+		return f(ctx, m)
+	}
+	return Denyf("ent/privacy: unexpected mutation type %T, expect *ent.APIKeyChannelRateMutation", m)
+}
+
 // The APIKeyGroupQueryRuleFunc type is an adapter to allow the use of ordinary
 // functions as a query rule.
 type APIKeyGroupQueryRuleFunc func(context.Context, *ent.APIKeyGroupQuery) error
@@ -157,6 +181,30 @@ func (f APIKeyGroupMutationRuleFunc) EvalMutation(ctx context.Context, m ent.Mut
 		return f(ctx, m)
 	}
 	return Denyf("ent/privacy: unexpected mutation type %T, expect *ent.APIKeyGroupMutation", m)
+}
+
+// The APIKeyGroupChannelRateQueryRuleFunc type is an adapter to allow the use of ordinary
+// functions as a query rule.
+type APIKeyGroupChannelRateQueryRuleFunc func(context.Context, *ent.APIKeyGroupChannelRateQuery) error
+
+// EvalQuery return f(ctx, q).
+func (f APIKeyGroupChannelRateQueryRuleFunc) EvalQuery(ctx context.Context, q ent.Query) error {
+	if q, ok := q.(*ent.APIKeyGroupChannelRateQuery); ok {
+		return f(ctx, q)
+	}
+	return Denyf("ent/privacy: unexpected query type %T, expect *ent.APIKeyGroupChannelRateQuery", q)
+}
+
+// The APIKeyGroupChannelRateMutationRuleFunc type is an adapter to allow the use of ordinary
+// functions as a mutation rule.
+type APIKeyGroupChannelRateMutationRuleFunc func(context.Context, *ent.APIKeyGroupChannelRateMutation) error
+
+// EvalMutation calls f(ctx, m).
+func (f APIKeyGroupChannelRateMutationRuleFunc) EvalMutation(ctx context.Context, m ent.Mutation) error {
+	if m, ok := m.(*ent.APIKeyGroupChannelRateMutation); ok {
+		return f(ctx, m)
+	}
+	return Denyf("ent/privacy: unexpected mutation type %T, expect *ent.APIKeyGroupChannelRateMutation", m)
 }
 
 // The APIKeyOperationQueryRuleFunc type is an adapter to allow the use of ordinary
@@ -1108,7 +1156,11 @@ func queryFilter(q ent.Query) (Filter, error) {
 	switch q := q.(type) {
 	case *ent.APIKeyQuery:
 		return q.Filter(), nil
+	case *ent.APIKeyChannelRateQuery:
+		return q.Filter(), nil
 	case *ent.APIKeyGroupQuery:
+		return q.Filter(), nil
+	case *ent.APIKeyGroupChannelRateQuery:
 		return q.Filter(), nil
 	case *ent.APIKeyOperationQuery:
 		return q.Filter(), nil
@@ -1195,7 +1247,11 @@ func mutationFilter(m ent.Mutation) (Filter, error) {
 	switch m := m.(type) {
 	case *ent.APIKeyMutation:
 		return m.Filter(), nil
+	case *ent.APIKeyChannelRateMutation:
+		return m.Filter(), nil
 	case *ent.APIKeyGroupMutation:
+		return m.Filter(), nil
+	case *ent.APIKeyGroupChannelRateMutation:
 		return m.Filter(), nil
 	case *ent.APIKeyOperationMutation:
 		return m.Filter(), nil

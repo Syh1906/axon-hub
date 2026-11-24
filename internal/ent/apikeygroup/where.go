@@ -385,6 +385,29 @@ func ProjectIDNotIn(vs ...int) predicate.APIKeyGroup {
 	return predicate.APIKeyGroup(sql.FieldNotIn(FieldProjectID, vs...))
 }
 
+// HasChannelRates applies the HasEdge predicate on the "channel_rates" edge.
+func HasChannelRates() predicate.APIKeyGroup {
+	return predicate.APIKeyGroup(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, ChannelRatesTable, ChannelRatesColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasChannelRatesWith applies the HasEdge predicate on the "channel_rates" edge with a given conditions (other predicates).
+func HasChannelRatesWith(preds ...predicate.APIKeyGroupChannelRate) predicate.APIKeyGroup {
+	return predicate.APIKeyGroup(func(s *sql.Selector) {
+		step := newChannelRatesStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
 // HasProject applies the HasEdge predicate on the "project" edge.
 func HasProject() predicate.APIKeyGroup {
 	return predicate.APIKeyGroup(func(s *sql.Selector) {

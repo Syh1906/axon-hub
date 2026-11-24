@@ -98,6 +98,9 @@ func (s *UsageLogService) InjectUsageCost(ctx context.Context, channelID int, mo
 		return
 	}
 
+	if len(snapshots) > 0 {
+		snapshots = []*objects.RequestCostSnapshot{snapshots[0].BilledPrice()}
+	}
 	_, totalCost, _ := s.computeUsageCost(ctx, channelID, modelID, usage, snapshots...)
 	usage.Cost = totalCost
 }
@@ -212,11 +215,33 @@ func (s *UsageLogService) saveUsageLog(ctx context.Context, params CreateUsageLo
 		priceReferenceID string
 	)
 
-	if providerUsage != nil || existing == nil || existing.TotalTokens == 0 && NeedsUsageLogWithoutTokens(params.CostSnapshot) {
+	recalculate := providerUsage != nil || existing == nil || existing.TotalTokens == 0 && NeedsUsageLogWithoutTokens(params.CostSnapshot)
+	if recalculate {
 		costItems, totalCost, priceReferenceID = s.computeUsageCost(ctx, params.ChannelID, params.ActualModelID, providerUsage, params.CostSnapshot)
 		mut.SetCostItems(costItems)
 	}
-	if params.SettledCost != nil {
+	billing := params.CostSnapshot
+	if billing != nil && billing.Billing != nil {
+		mut.SetBillingGroupID(lo.FromPtr(billing.Billing.GroupID))
+		if recalculate {
+			mut.SetBillingEstimated(usedEstimate(billing, costItems))
+		}
+		billed := totalCost
+		if billing.Billing.Rate != nil && recalculate {
+			items, amount, _ := s.computeSnapshotUsageCost(ctx, providerUsage, billing.BilledPrice())
+			billed = amount
+			mut.SetBilledItems(items)
+		}
+		if params.SettledCost != nil {
+			billed = lo.ToPtr(params.SettledCost.Decimal().InexactFloat64())
+		}
+		if billed != nil {
+			mut.SetBilledCost(*billed)
+		}
+		if billing.Billing.Rate == nil && params.SettledCost != nil {
+			totalCost = billed
+		}
+	} else if params.SettledCost != nil {
 		totalCost = lo.ToPtr(params.SettledCost.Decimal().InexactFloat64())
 	}
 	if params.CostSnapshot != nil {

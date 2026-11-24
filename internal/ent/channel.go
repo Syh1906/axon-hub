@@ -78,6 +78,10 @@ type Channel struct {
 
 // ChannelEdges holds the relations/edges for other nodes in the graph.
 type ChannelEdges struct {
+	// KeyRates holds the value of the key_rates edge.
+	KeyRates []*APIKeyChannelRate `json:"key_rates,omitempty"`
+	// GroupRates holds the value of the group_rates edge.
+	GroupRates []*APIKeyGroupChannelRate `json:"group_rates,omitempty"`
 	// UpstreamStatuses holds the value of the upstream_statuses edge.
 	UpstreamStatuses []*ChannelUpstreamStatus `json:"upstream_statuses,omitempty"`
 	// Requests holds the value of the requests edge.
@@ -94,10 +98,12 @@ type ChannelEdges struct {
 	ProviderQuotaStatus *ProviderQuotaStatus `json:"provider_quota_status,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [7]bool
+	loadedTypes [9]bool
 	// totalCount holds the count of the edges above.
 	totalCount [6]map[string]int
 
+	namedKeyRates           map[string][]*APIKeyChannelRate
+	namedGroupRates         map[string][]*APIKeyGroupChannelRate
 	namedUpstreamStatuses   map[string][]*ChannelUpstreamStatus
 	namedRequests           map[string][]*Request
 	namedExecutions         map[string][]*RequestExecution
@@ -106,10 +112,28 @@ type ChannelEdges struct {
 	namedChannelModelPrices map[string][]*ChannelModelPrice
 }
 
+// KeyRatesOrErr returns the KeyRates value or an error if the edge
+// was not loaded in eager-loading.
+func (e ChannelEdges) KeyRatesOrErr() ([]*APIKeyChannelRate, error) {
+	if e.loadedTypes[0] {
+		return e.KeyRates, nil
+	}
+	return nil, &NotLoadedError{edge: "key_rates"}
+}
+
+// GroupRatesOrErr returns the GroupRates value or an error if the edge
+// was not loaded in eager-loading.
+func (e ChannelEdges) GroupRatesOrErr() ([]*APIKeyGroupChannelRate, error) {
+	if e.loadedTypes[1] {
+		return e.GroupRates, nil
+	}
+	return nil, &NotLoadedError{edge: "group_rates"}
+}
+
 // UpstreamStatusesOrErr returns the UpstreamStatuses value or an error if the edge
 // was not loaded in eager-loading.
 func (e ChannelEdges) UpstreamStatusesOrErr() ([]*ChannelUpstreamStatus, error) {
-	if e.loadedTypes[0] {
+	if e.loadedTypes[2] {
 		return e.UpstreamStatuses, nil
 	}
 	return nil, &NotLoadedError{edge: "upstream_statuses"}
@@ -118,7 +142,7 @@ func (e ChannelEdges) UpstreamStatusesOrErr() ([]*ChannelUpstreamStatus, error) 
 // RequestsOrErr returns the Requests value or an error if the edge
 // was not loaded in eager-loading.
 func (e ChannelEdges) RequestsOrErr() ([]*Request, error) {
-	if e.loadedTypes[1] {
+	if e.loadedTypes[3] {
 		return e.Requests, nil
 	}
 	return nil, &NotLoadedError{edge: "requests"}
@@ -127,7 +151,7 @@ func (e ChannelEdges) RequestsOrErr() ([]*Request, error) {
 // ExecutionsOrErr returns the Executions value or an error if the edge
 // was not loaded in eager-loading.
 func (e ChannelEdges) ExecutionsOrErr() ([]*RequestExecution, error) {
-	if e.loadedTypes[2] {
+	if e.loadedTypes[4] {
 		return e.Executions, nil
 	}
 	return nil, &NotLoadedError{edge: "executions"}
@@ -136,7 +160,7 @@ func (e ChannelEdges) ExecutionsOrErr() ([]*RequestExecution, error) {
 // UsageLogsOrErr returns the UsageLogs value or an error if the edge
 // was not loaded in eager-loading.
 func (e ChannelEdges) UsageLogsOrErr() ([]*UsageLog, error) {
-	if e.loadedTypes[3] {
+	if e.loadedTypes[5] {
 		return e.UsageLogs, nil
 	}
 	return nil, &NotLoadedError{edge: "usage_logs"}
@@ -145,7 +169,7 @@ func (e ChannelEdges) UsageLogsOrErr() ([]*UsageLog, error) {
 // ChannelProbesOrErr returns the ChannelProbes value or an error if the edge
 // was not loaded in eager-loading.
 func (e ChannelEdges) ChannelProbesOrErr() ([]*ChannelProbe, error) {
-	if e.loadedTypes[4] {
+	if e.loadedTypes[6] {
 		return e.ChannelProbes, nil
 	}
 	return nil, &NotLoadedError{edge: "channel_probes"}
@@ -154,7 +178,7 @@ func (e ChannelEdges) ChannelProbesOrErr() ([]*ChannelProbe, error) {
 // ChannelModelPricesOrErr returns the ChannelModelPrices value or an error if the edge
 // was not loaded in eager-loading.
 func (e ChannelEdges) ChannelModelPricesOrErr() ([]*ChannelModelPrice, error) {
-	if e.loadedTypes[5] {
+	if e.loadedTypes[7] {
 		return e.ChannelModelPrices, nil
 	}
 	return nil, &NotLoadedError{edge: "channel_model_prices"}
@@ -165,7 +189,7 @@ func (e ChannelEdges) ChannelModelPricesOrErr() ([]*ChannelModelPrice, error) {
 func (e ChannelEdges) ProviderQuotaStatusOrErr() (*ProviderQuotaStatus, error) {
 	if e.ProviderQuotaStatus != nil {
 		return e.ProviderQuotaStatus, nil
-	} else if e.loadedTypes[6] {
+	} else if e.loadedTypes[8] {
 		return nil, &NotFoundError{label: providerquotastatus.Label}
 	}
 	return nil, &NotLoadedError{edge: "provider_quota_status"}
@@ -392,6 +416,16 @@ func (_m *Channel) Value(name string) (ent.Value, error) {
 	return _m.selectValues.Get(name)
 }
 
+// QueryKeyRates queries the "key_rates" edge of the Channel entity.
+func (_m *Channel) QueryKeyRates() *APIKeyChannelRateQuery {
+	return NewChannelClient(_m.config).QueryKeyRates(_m)
+}
+
+// QueryGroupRates queries the "group_rates" edge of the Channel entity.
+func (_m *Channel) QueryGroupRates() *APIKeyGroupChannelRateQuery {
+	return NewChannelClient(_m.config).QueryGroupRates(_m)
+}
+
 // QueryUpstreamStatuses queries the "upstream_statuses" edge of the Channel entity.
 func (_m *Channel) QueryUpstreamStatuses() *ChannelUpstreamStatusQuery {
 	return NewChannelClient(_m.config).QueryUpstreamStatuses(_m)
@@ -531,6 +565,54 @@ func (_m *Channel) String() string {
 	builder.WriteString(fmt.Sprintf("%v", _m.Endpoints))
 	builder.WriteByte(')')
 	return builder.String()
+}
+
+// NamedKeyRates returns the KeyRates named value or an error if the edge was not
+// loaded in eager-loading with this name.
+func (_m *Channel) NamedKeyRates(name string) ([]*APIKeyChannelRate, error) {
+	if _m.Edges.namedKeyRates == nil {
+		return nil, &NotLoadedError{edge: name}
+	}
+	nodes, ok := _m.Edges.namedKeyRates[name]
+	if !ok {
+		return nil, &NotLoadedError{edge: name}
+	}
+	return nodes, nil
+}
+
+func (_m *Channel) appendNamedKeyRates(name string, edges ...*APIKeyChannelRate) {
+	if _m.Edges.namedKeyRates == nil {
+		_m.Edges.namedKeyRates = make(map[string][]*APIKeyChannelRate)
+	}
+	if len(edges) == 0 {
+		_m.Edges.namedKeyRates[name] = []*APIKeyChannelRate{}
+	} else {
+		_m.Edges.namedKeyRates[name] = append(_m.Edges.namedKeyRates[name], edges...)
+	}
+}
+
+// NamedGroupRates returns the GroupRates named value or an error if the edge was not
+// loaded in eager-loading with this name.
+func (_m *Channel) NamedGroupRates(name string) ([]*APIKeyGroupChannelRate, error) {
+	if _m.Edges.namedGroupRates == nil {
+		return nil, &NotLoadedError{edge: name}
+	}
+	nodes, ok := _m.Edges.namedGroupRates[name]
+	if !ok {
+		return nil, &NotLoadedError{edge: name}
+	}
+	return nodes, nil
+}
+
+func (_m *Channel) appendNamedGroupRates(name string, edges ...*APIKeyGroupChannelRate) {
+	if _m.Edges.namedGroupRates == nil {
+		_m.Edges.namedGroupRates = make(map[string][]*APIKeyGroupChannelRate)
+	}
+	if len(edges) == 0 {
+		_m.Edges.namedGroupRates[name] = []*APIKeyGroupChannelRate{}
+	} else {
+		_m.Edges.namedGroupRates[name] = append(_m.Edges.namedGroupRates[name], edges...)
+	}
 }
 
 // NamedUpstreamStatuses returns the UpstreamStatuses named value or an error if the edge was not

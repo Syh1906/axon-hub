@@ -1,3 +1,7 @@
+import { useState } from 'react';
+import { usePermissions } from '@/hooks/usePermissions';
+import { extractNumberIDAsNumber } from '@/lib/utils';
+import { ChannelRateDialog } from './channel-rate-dialog';
 import { MoreHorizontal, Trash2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { currencyFractionDigits } from '@/utils/currency-display';
@@ -41,6 +45,8 @@ export function MemberRow({
   writable: boolean;
 }) {
   const { t, i18n } = useTranslation();
+  const [showRates,setShowRates]=useState(false);
+  const {channelPermissions}=usePermissions();
   const currencyDisplayDecimals = useCurrencyDisplayDecimals();
   const { data: settings } = useGeneralSettings();
   const target = { ...keyQuickTarget(member), budget: budget.data };
@@ -117,7 +123,7 @@ export function MemberRow({
           <Button size='sm' variant='outline' disabled={!writable} onClick={onEdit}>
             {t('kg.settings')}
           </Button>
-          <DropdownMenu>
+          <DropdownMenu modal={false}>
             <DropdownMenuTrigger asChild>
               <Button variant='ghost' size='icon' aria-label={t('kg.quick.advanced') + ' ' + member.name}>
                 <MoreHorizontal />
@@ -125,10 +131,12 @@ export function MemberRow({
             </DropdownMenuTrigger>
             <DropdownMenuContent align='end'>
               <DropdownMenuGroup>
+                {writable && channelPermissions.canWrite && <DropdownMenuItem onSelect={()=>setShowRates(true)}>{t('kg.rate.menu')}</DropdownMenuItem>}
                 <DropdownMenuItem onSelect={onBudget}>{t('kg.quick.advanced')}</DropdownMenuItem>
               </DropdownMenuGroup>
             </DropdownMenuContent>
           </DropdownMenu>
+          {showRates && <ChannelRateDialog target={{keyID:extractNumberIDAsNumber(member.id),name:member.name}} onClose={()=>setShowRates(false)}/>}
           {writable && (
             <Button size='sm' variant='outline' className='text-destructive' onClick={onDelete}>
               <Trash2 className='size-4' />

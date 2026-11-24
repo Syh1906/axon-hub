@@ -65,6 +65,11 @@ func UpdatedAt(v time.Time) predicate.UsageLog {
 	return predicate.UsageLog(sql.FieldEQ(FieldUpdatedAt, v))
 }
 
+// RestoreRef applies equality check predicate on the "restore_ref" field. It's identical to RestoreRefEQ.
+func RestoreRef(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldEQ(FieldRestoreRef, v))
+}
+
 // RequestID applies equality check predicate on the "request_id" field. It's identical to RequestIDEQ.
 func RequestID(v int) predicate.UsageLog {
 	return predicate.UsageLog(sql.FieldEQ(FieldRequestID, v))
@@ -190,6 +195,21 @@ func StatisticsVersion(v int64) predicate.UsageLog {
 	return predicate.UsageLog(sql.FieldEQ(FieldStatisticsVersion, v))
 }
 
+// BillingGroupID applies equality check predicate on the "billing_group_id" field. It's identical to BillingGroupIDEQ.
+func BillingGroupID(v int) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldEQ(FieldBillingGroupID, v))
+}
+
+// BilledCost applies equality check predicate on the "billed_cost" field. It's identical to BilledCostEQ.
+func BilledCost(v float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldEQ(FieldBilledCost, v))
+}
+
+// BillingEstimated applies equality check predicate on the "billing_estimated" field. It's identical to BillingEstimatedEQ.
+func BillingEstimated(v bool) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldEQ(FieldBillingEstimated, v))
+}
+
 // TotalCost applies equality check predicate on the "total_cost" field. It's identical to TotalCostEQ.
 func TotalCost(v float64) predicate.UsageLog {
 	return predicate.UsageLog(sql.FieldEQ(FieldTotalCost, v))
@@ -278,6 +298,81 @@ func UpdatedAtLT(v time.Time) predicate.UsageLog {
 // UpdatedAtLTE applies the LTE predicate on the "updated_at" field.
 func UpdatedAtLTE(v time.Time) predicate.UsageLog {
 	return predicate.UsageLog(sql.FieldLTE(FieldUpdatedAt, v))
+}
+
+// RestoreRefEQ applies the EQ predicate on the "restore_ref" field.
+func RestoreRefEQ(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldEQ(FieldRestoreRef, v))
+}
+
+// RestoreRefNEQ applies the NEQ predicate on the "restore_ref" field.
+func RestoreRefNEQ(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNEQ(FieldRestoreRef, v))
+}
+
+// RestoreRefIn applies the In predicate on the "restore_ref" field.
+func RestoreRefIn(vs ...string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldIn(FieldRestoreRef, vs...))
+}
+
+// RestoreRefNotIn applies the NotIn predicate on the "restore_ref" field.
+func RestoreRefNotIn(vs ...string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNotIn(FieldRestoreRef, vs...))
+}
+
+// RestoreRefGT applies the GT predicate on the "restore_ref" field.
+func RestoreRefGT(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldGT(FieldRestoreRef, v))
+}
+
+// RestoreRefGTE applies the GTE predicate on the "restore_ref" field.
+func RestoreRefGTE(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldGTE(FieldRestoreRef, v))
+}
+
+// RestoreRefLT applies the LT predicate on the "restore_ref" field.
+func RestoreRefLT(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldLT(FieldRestoreRef, v))
+}
+
+// RestoreRefLTE applies the LTE predicate on the "restore_ref" field.
+func RestoreRefLTE(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldLTE(FieldRestoreRef, v))
+}
+
+// RestoreRefContains applies the Contains predicate on the "restore_ref" field.
+func RestoreRefContains(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldContains(FieldRestoreRef, v))
+}
+
+// RestoreRefHasPrefix applies the HasPrefix predicate on the "restore_ref" field.
+func RestoreRefHasPrefix(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldHasPrefix(FieldRestoreRef, v))
+}
+
+// RestoreRefHasSuffix applies the HasSuffix predicate on the "restore_ref" field.
+func RestoreRefHasSuffix(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldHasSuffix(FieldRestoreRef, v))
+}
+
+// RestoreRefIsNil applies the IsNil predicate on the "restore_ref" field.
+func RestoreRefIsNil() predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldIsNull(FieldRestoreRef))
+}
+
+// RestoreRefNotNil applies the NotNil predicate on the "restore_ref" field.
+func RestoreRefNotNil() predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNotNull(FieldRestoreRef))
+}
+
+// RestoreRefEqualFold applies the EqualFold predicate on the "restore_ref" field.
+func RestoreRefEqualFold(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldEqualFold(FieldRestoreRef, v))
+}
+
+// RestoreRefContainsFold applies the ContainsFold predicate on the "restore_ref" field.
+func RestoreRefContainsFold(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldContainsFold(FieldRestoreRef, v))
 }
 
 // RequestIDEQ applies the EQ predicate on the "request_id" field.
@@ -1428,6 +1523,126 @@ func CostSnapshotIsNil() predicate.UsageLog {
 // CostSnapshotNotNil applies the NotNil predicate on the "cost_snapshot" field.
 func CostSnapshotNotNil() predicate.UsageLog {
 	return predicate.UsageLog(sql.FieldNotNull(FieldCostSnapshot))
+}
+
+// BillingGroupIDEQ applies the EQ predicate on the "billing_group_id" field.
+func BillingGroupIDEQ(v int) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldEQ(FieldBillingGroupID, v))
+}
+
+// BillingGroupIDNEQ applies the NEQ predicate on the "billing_group_id" field.
+func BillingGroupIDNEQ(v int) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNEQ(FieldBillingGroupID, v))
+}
+
+// BillingGroupIDIn applies the In predicate on the "billing_group_id" field.
+func BillingGroupIDIn(vs ...int) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldIn(FieldBillingGroupID, vs...))
+}
+
+// BillingGroupIDNotIn applies the NotIn predicate on the "billing_group_id" field.
+func BillingGroupIDNotIn(vs ...int) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNotIn(FieldBillingGroupID, vs...))
+}
+
+// BillingGroupIDGT applies the GT predicate on the "billing_group_id" field.
+func BillingGroupIDGT(v int) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldGT(FieldBillingGroupID, v))
+}
+
+// BillingGroupIDGTE applies the GTE predicate on the "billing_group_id" field.
+func BillingGroupIDGTE(v int) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldGTE(FieldBillingGroupID, v))
+}
+
+// BillingGroupIDLT applies the LT predicate on the "billing_group_id" field.
+func BillingGroupIDLT(v int) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldLT(FieldBillingGroupID, v))
+}
+
+// BillingGroupIDLTE applies the LTE predicate on the "billing_group_id" field.
+func BillingGroupIDLTE(v int) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldLTE(FieldBillingGroupID, v))
+}
+
+// BillingGroupIDIsNil applies the IsNil predicate on the "billing_group_id" field.
+func BillingGroupIDIsNil() predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldIsNull(FieldBillingGroupID))
+}
+
+// BillingGroupIDNotNil applies the NotNil predicate on the "billing_group_id" field.
+func BillingGroupIDNotNil() predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNotNull(FieldBillingGroupID))
+}
+
+// BilledCostEQ applies the EQ predicate on the "billed_cost" field.
+func BilledCostEQ(v float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldEQ(FieldBilledCost, v))
+}
+
+// BilledCostNEQ applies the NEQ predicate on the "billed_cost" field.
+func BilledCostNEQ(v float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNEQ(FieldBilledCost, v))
+}
+
+// BilledCostIn applies the In predicate on the "billed_cost" field.
+func BilledCostIn(vs ...float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldIn(FieldBilledCost, vs...))
+}
+
+// BilledCostNotIn applies the NotIn predicate on the "billed_cost" field.
+func BilledCostNotIn(vs ...float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNotIn(FieldBilledCost, vs...))
+}
+
+// BilledCostGT applies the GT predicate on the "billed_cost" field.
+func BilledCostGT(v float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldGT(FieldBilledCost, v))
+}
+
+// BilledCostGTE applies the GTE predicate on the "billed_cost" field.
+func BilledCostGTE(v float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldGTE(FieldBilledCost, v))
+}
+
+// BilledCostLT applies the LT predicate on the "billed_cost" field.
+func BilledCostLT(v float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldLT(FieldBilledCost, v))
+}
+
+// BilledCostLTE applies the LTE predicate on the "billed_cost" field.
+func BilledCostLTE(v float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldLTE(FieldBilledCost, v))
+}
+
+// BilledCostIsNil applies the IsNil predicate on the "billed_cost" field.
+func BilledCostIsNil() predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldIsNull(FieldBilledCost))
+}
+
+// BilledCostNotNil applies the NotNil predicate on the "billed_cost" field.
+func BilledCostNotNil() predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNotNull(FieldBilledCost))
+}
+
+// BillingEstimatedEQ applies the EQ predicate on the "billing_estimated" field.
+func BillingEstimatedEQ(v bool) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldEQ(FieldBillingEstimated, v))
+}
+
+// BillingEstimatedNEQ applies the NEQ predicate on the "billing_estimated" field.
+func BillingEstimatedNEQ(v bool) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNEQ(FieldBillingEstimated, v))
+}
+
+// BilledItemsIsNil applies the IsNil predicate on the "billed_items" field.
+func BilledItemsIsNil() predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldIsNull(FieldBilledItems))
+}
+
+// BilledItemsNotNil applies the NotNil predicate on the "billed_items" field.
+func BilledItemsNotNil() predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNotNull(FieldBilledItems))
 }
 
 // TotalCostEQ applies the EQ predicate on the "total_cost" field.

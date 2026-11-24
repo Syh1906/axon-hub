@@ -3,6 +3,7 @@
 package ent
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -10,6 +11,7 @@ import (
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
 	"github.com/looplj/axonhub/internal/ent/usagearchive"
+	"github.com/looplj/axonhub/internal/objects"
 )
 
 // UsageArchive is the model entity for the UsageArchive schema.
@@ -21,6 +23,8 @@ type UsageArchive struct {
 	Kind usagearchive.Kind `json:"kind,omitempty"`
 	// SourceID holds the value of the "source_id" field.
 	SourceID int `json:"source_id,omitempty"`
+	// RestoreRef holds the value of the "restore_ref" field.
+	RestoreRef *string `json:"restore_ref,omitempty"`
 	// RequestID holds the value of the "request_id" field.
 	RequestID int `json:"request_id,omitempty"`
 	// ProjectID holds the value of the "project_id" field.
@@ -41,6 +45,14 @@ type UsageArchive struct {
 	RequestSource string `json:"request_source,omitempty"`
 	// OccurredAt holds the value of the "occurred_at" field.
 	OccurredAt time.Time `json:"occurred_at,omitempty"`
+	// BillingGroupID holds the value of the "billing_group_id" field.
+	BillingGroupID *int `json:"billing_group_id,omitempty"`
+	// BillingEvidence holds the value of the "billing_evidence" field.
+	BillingEvidence *objects.GroupBillingEvidence `json:"billing_evidence,omitempty"`
+	// BilledCost holds the value of the "billed_cost" field.
+	BilledCost *float64 `json:"billed_cost,omitempty"`
+	// BillingEstimated holds the value of the "billing_estimated" field.
+	BillingEstimated bool `json:"billing_estimated,omitempty"`
 	// TotalCost holds the value of the "total_cost" field.
 	TotalCost *float64 `json:"total_cost,omitempty"`
 	// CacheCreationCost holds the value of the "cache_creation_cost" field.
@@ -87,13 +99,15 @@ func (*UsageArchive) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case usagearchive.FieldPricingComplete:
+		case usagearchive.FieldBillingEvidence:
+			values[i] = new([]byte)
+		case usagearchive.FieldBillingEstimated, usagearchive.FieldPricingComplete:
 			values[i] = new(sql.NullBool)
-		case usagearchive.FieldTotalCost, usagearchive.FieldCacheCreationCost, usagearchive.FieldFirstTokenSum, usagearchive.FieldSpeedSum:
+		case usagearchive.FieldBilledCost, usagearchive.FieldTotalCost, usagearchive.FieldCacheCreationCost, usagearchive.FieldFirstTokenSum, usagearchive.FieldSpeedSum:
 			values[i] = new(sql.NullFloat64)
-		case usagearchive.FieldID, usagearchive.FieldSourceID, usagearchive.FieldRequestID, usagearchive.FieldProjectID, usagearchive.FieldAPIKeyID, usagearchive.FieldChannelID, usagearchive.FieldSpeedVersion, usagearchive.FieldBillingVersion, usagearchive.FieldPromptTokens, usagearchive.FieldCompletionTokens, usagearchive.FieldTotalTokens, usagearchive.FieldPromptCachedTokens, usagearchive.FieldPromptWriteCachedTokens, usagearchive.FieldCompletionReasoningTokens, usagearchive.FieldCacheRequests, usagearchive.FieldCacheInput, usagearchive.FieldSuccessCount, usagearchive.FieldOutcomeCount, usagearchive.FieldFirstTokenCount, usagearchive.FieldSpeedCount:
+		case usagearchive.FieldID, usagearchive.FieldSourceID, usagearchive.FieldRequestID, usagearchive.FieldProjectID, usagearchive.FieldAPIKeyID, usagearchive.FieldChannelID, usagearchive.FieldBillingGroupID, usagearchive.FieldSpeedVersion, usagearchive.FieldBillingVersion, usagearchive.FieldPromptTokens, usagearchive.FieldCompletionTokens, usagearchive.FieldTotalTokens, usagearchive.FieldPromptCachedTokens, usagearchive.FieldPromptWriteCachedTokens, usagearchive.FieldCompletionReasoningTokens, usagearchive.FieldCacheRequests, usagearchive.FieldCacheInput, usagearchive.FieldSuccessCount, usagearchive.FieldOutcomeCount, usagearchive.FieldFirstTokenCount, usagearchive.FieldSpeedCount:
 			values[i] = new(sql.NullInt64)
-		case usagearchive.FieldKind, usagearchive.FieldClientSessionID, usagearchive.FieldModelID, usagearchive.FieldRequestModelID, usagearchive.FieldRequestStatus, usagearchive.FieldRequestSource:
+		case usagearchive.FieldKind, usagearchive.FieldRestoreRef, usagearchive.FieldClientSessionID, usagearchive.FieldModelID, usagearchive.FieldRequestModelID, usagearchive.FieldRequestStatus, usagearchive.FieldRequestSource:
 			values[i] = new(sql.NullString)
 		case usagearchive.FieldOccurredAt:
 			values[i] = new(sql.NullTime)
@@ -129,6 +143,13 @@ func (_m *UsageArchive) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field source_id", values[i])
 			} else if value.Valid {
 				_m.SourceID = int(value.Int64)
+			}
+		case usagearchive.FieldRestoreRef:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field restore_ref", values[i])
+			} else if value.Valid {
+				_m.RestoreRef = new(string)
+				*_m.RestoreRef = value.String
 			}
 		case usagearchive.FieldRequestID:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
@@ -190,6 +211,34 @@ func (_m *UsageArchive) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field occurred_at", values[i])
 			} else if value.Valid {
 				_m.OccurredAt = value.Time
+			}
+		case usagearchive.FieldBillingGroupID:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field billing_group_id", values[i])
+			} else if value.Valid {
+				_m.BillingGroupID = new(int)
+				*_m.BillingGroupID = int(value.Int64)
+			}
+		case usagearchive.FieldBillingEvidence:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field billing_evidence", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.BillingEvidence); err != nil {
+					return fmt.Errorf("unmarshal field billing_evidence: %w", err)
+				}
+			}
+		case usagearchive.FieldBilledCost:
+			if value, ok := values[i].(*sql.NullFloat64); !ok {
+				return fmt.Errorf("unexpected type %T for field billed_cost", values[i])
+			} else if value.Valid {
+				_m.BilledCost = new(float64)
+				*_m.BilledCost = value.Float64
+			}
+		case usagearchive.FieldBillingEstimated:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field billing_estimated", values[i])
+			} else if value.Valid {
+				_m.BillingEstimated = value.Bool
 			}
 		case usagearchive.FieldTotalCost:
 			if value, ok := values[i].(*sql.NullFloat64); !ok {
@@ -349,6 +398,11 @@ func (_m *UsageArchive) String() string {
 	builder.WriteString("source_id=")
 	builder.WriteString(fmt.Sprintf("%v", _m.SourceID))
 	builder.WriteString(", ")
+	if v := _m.RestoreRef; v != nil {
+		builder.WriteString("restore_ref=")
+		builder.WriteString(*v)
+	}
+	builder.WriteString(", ")
 	builder.WriteString("request_id=")
 	builder.WriteString(fmt.Sprintf("%v", _m.RequestID))
 	builder.WriteString(", ")
@@ -380,6 +434,22 @@ func (_m *UsageArchive) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("occurred_at=")
 	builder.WriteString(_m.OccurredAt.Format(time.ANSIC))
+	builder.WriteString(", ")
+	if v := _m.BillingGroupID; v != nil {
+		builder.WriteString("billing_group_id=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	builder.WriteString("billing_evidence=")
+	builder.WriteString(fmt.Sprintf("%v", _m.BillingEvidence))
+	builder.WriteString(", ")
+	if v := _m.BilledCost; v != nil {
+		builder.WriteString("billed_cost=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	builder.WriteString("billing_estimated=")
+	builder.WriteString(fmt.Sprintf("%v", _m.BillingEstimated))
 	builder.WriteString(", ")
 	if v := _m.TotalCost; v != nil {
 		builder.WriteString("total_cost=")

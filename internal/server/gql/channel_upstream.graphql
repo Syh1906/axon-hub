@@ -105,6 +105,7 @@ type ChannelUpstreamKeyState {
 }
 
 type ChannelUpstreamState {
+  enabledCredentialCount: Int!
   channelId: ID!
   settings: ChannelUpstreamSettings!
   manualMultiplier: Decimal!

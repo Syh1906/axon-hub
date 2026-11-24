@@ -40,6 +40,33 @@ func (_u *RequestUpdate) SetUpdatedAt(v time.Time) *RequestUpdate {
 	return _u
 }
 
+// SetBillingGroupRef sets the "billing_group_ref" field.
+func (_u *RequestUpdate) SetBillingGroupRef(v int) *RequestUpdate {
+	_u.mutation.ResetBillingGroupRef()
+	_u.mutation.SetBillingGroupRef(v)
+	return _u
+}
+
+// SetNillableBillingGroupRef sets the "billing_group_ref" field if the given value is not nil.
+func (_u *RequestUpdate) SetNillableBillingGroupRef(v *int) *RequestUpdate {
+	if v != nil {
+		_u.SetBillingGroupRef(*v)
+	}
+	return _u
+}
+
+// AddBillingGroupRef adds value to the "billing_group_ref" field.
+func (_u *RequestUpdate) AddBillingGroupRef(v int) *RequestUpdate {
+	_u.mutation.AddBillingGroupRef(v)
+	return _u
+}
+
+// ClearBillingGroupRef clears the value of the "billing_group_ref" field.
+func (_u *RequestUpdate) ClearBillingGroupRef() *RequestUpdate {
+	_u.mutation.ClearBillingGroupRef()
+	return _u
+}
+
 // SetClientSessionID sets the "client_session_id" field.
 func (_u *RequestUpdate) SetClientSessionID(v string) *RequestUpdate {
 	_u.mutation.SetClientSessionID(v)
@@ -637,8 +664,20 @@ func (_u *RequestUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(request.FieldUpdatedAt, field.TypeTime, value)
 	}
+	if _u.mutation.RestoreRefCleared() {
+		_spec.ClearField(request.FieldRestoreRef, field.TypeString)
+	}
 	if _u.mutation.UserIDCleared() {
 		_spec.ClearField(request.FieldUserID, field.TypeInt)
+	}
+	if value, ok := _u.mutation.BillingGroupRef(); ok {
+		_spec.SetField(request.FieldBillingGroupRef, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedBillingGroupRef(); ok {
+		_spec.AddField(request.FieldBillingGroupRef, field.TypeInt, value)
+	}
+	if _u.mutation.BillingGroupRefCleared() {
+		_spec.ClearField(request.FieldBillingGroupRef, field.TypeInt)
 	}
 	if value, ok := _u.mutation.ClientSessionID(); ok {
 		_spec.SetField(request.FieldClientSessionID, field.TypeString, value)
@@ -939,6 +978,33 @@ type RequestUpdateOne struct {
 // SetUpdatedAt sets the "updated_at" field.
 func (_u *RequestUpdateOne) SetUpdatedAt(v time.Time) *RequestUpdateOne {
 	_u.mutation.SetUpdatedAt(v)
+	return _u
+}
+
+// SetBillingGroupRef sets the "billing_group_ref" field.
+func (_u *RequestUpdateOne) SetBillingGroupRef(v int) *RequestUpdateOne {
+	_u.mutation.ResetBillingGroupRef()
+	_u.mutation.SetBillingGroupRef(v)
+	return _u
+}
+
+// SetNillableBillingGroupRef sets the "billing_group_ref" field if the given value is not nil.
+func (_u *RequestUpdateOne) SetNillableBillingGroupRef(v *int) *RequestUpdateOne {
+	if v != nil {
+		_u.SetBillingGroupRef(*v)
+	}
+	return _u
+}
+
+// AddBillingGroupRef adds value to the "billing_group_ref" field.
+func (_u *RequestUpdateOne) AddBillingGroupRef(v int) *RequestUpdateOne {
+	_u.mutation.AddBillingGroupRef(v)
+	return _u
+}
+
+// ClearBillingGroupRef clears the value of the "billing_group_ref" field.
+func (_u *RequestUpdateOne) ClearBillingGroupRef() *RequestUpdateOne {
+	_u.mutation.ClearBillingGroupRef()
 	return _u
 }
 
@@ -1569,8 +1635,20 @@ func (_u *RequestUpdateOne) sqlSave(ctx context.Context) (_node *Request, err er
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(request.FieldUpdatedAt, field.TypeTime, value)
 	}
+	if _u.mutation.RestoreRefCleared() {
+		_spec.ClearField(request.FieldRestoreRef, field.TypeString)
+	}
 	if _u.mutation.UserIDCleared() {
 		_spec.ClearField(request.FieldUserID, field.TypeInt)
+	}
+	if value, ok := _u.mutation.BillingGroupRef(); ok {
+		_spec.SetField(request.FieldBillingGroupRef, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedBillingGroupRef(); ok {
+		_spec.AddField(request.FieldBillingGroupRef, field.TypeInt, value)
+	}
+	if _u.mutation.BillingGroupRefCleared() {
+		_spec.ClearField(request.FieldBillingGroupRef, field.TypeInt)
 	}
 	if value, ok := _u.mutation.ClientSessionID(); ok {
 		_spec.SetField(request.FieldClientSessionID, field.TypeString, value)

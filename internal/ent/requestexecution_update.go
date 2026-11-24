@@ -37,6 +37,20 @@ func (_u *RequestExecutionUpdate) SetUpdatedAt(v time.Time) *RequestExecutionUpd
 	return _u
 }
 
+// SetBillingDispatched sets the "billing_dispatched" field.
+func (_u *RequestExecutionUpdate) SetBillingDispatched(v bool) *RequestExecutionUpdate {
+	_u.mutation.SetBillingDispatched(v)
+	return _u
+}
+
+// SetNillableBillingDispatched sets the "billing_dispatched" field if the given value is not nil.
+func (_u *RequestExecutionUpdate) SetNillableBillingDispatched(v *bool) *RequestExecutionUpdate {
+	if v != nil {
+		_u.SetBillingDispatched(*v)
+	}
+	return _u
+}
+
 // SetStatisticsReady sets the "statistics_ready" field.
 func (_u *RequestExecutionUpdate) SetStatisticsReady(v bool) *RequestExecutionUpdate {
 	_u.mutation.SetStatisticsReady(v)
@@ -217,6 +231,18 @@ func (_u *RequestExecutionUpdate) SetNillableUpstreamModelID(v *string) *Request
 // ClearUpstreamModelID clears the value of the "upstream_model_id" field.
 func (_u *RequestExecutionUpdate) ClearUpstreamModelID() *RequestExecutionUpdate {
 	_u.mutation.ClearUpstreamModelID()
+	return _u
+}
+
+// SetCostSnapshot sets the "cost_snapshot" field.
+func (_u *RequestExecutionUpdate) SetCostSnapshot(v *objects.RequestCostSnapshot) *RequestExecutionUpdate {
+	_u.mutation.SetCostSnapshot(v)
+	return _u
+}
+
+// ClearCostSnapshot clears the value of the "cost_snapshot" field.
+func (_u *RequestExecutionUpdate) ClearCostSnapshot() *RequestExecutionUpdate {
+	_u.mutation.ClearCostSnapshot()
 	return _u
 }
 
@@ -699,6 +725,9 @@ func (_u *RequestExecutionUpdate) sqlSave(ctx context.Context) (_node int, err e
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(requestexecution.FieldUpdatedAt, field.TypeTime, value)
 	}
+	if value, ok := _u.mutation.BillingDispatched(); ok {
+		_spec.SetField(requestexecution.FieldBillingDispatched, field.TypeBool, value)
+	}
 	if value, ok := _u.mutation.StatisticsReady(); ok {
 		_spec.SetField(requestexecution.FieldStatisticsReady, field.TypeBool, value)
 	}
@@ -758,6 +787,9 @@ func (_u *RequestExecutionUpdate) sqlSave(ctx context.Context) (_node int, err e
 	}
 	if _u.mutation.UpstreamModelIDCleared() {
 		_spec.ClearField(requestexecution.FieldUpstreamModelID, field.TypeString)
+	}
+	if value, ok := _u.mutation.CostSnapshot(); ok {
+		_spec.SetField(requestexecution.FieldCostSnapshot, field.TypeJSON, value)
 	}
 	if _u.mutation.CostSnapshotCleared() {
 		_spec.ClearField(requestexecution.FieldCostSnapshot, field.TypeJSON)
@@ -957,6 +989,20 @@ func (_u *RequestExecutionUpdateOne) SetUpdatedAt(v time.Time) *RequestExecution
 	return _u
 }
 
+// SetBillingDispatched sets the "billing_dispatched" field.
+func (_u *RequestExecutionUpdateOne) SetBillingDispatched(v bool) *RequestExecutionUpdateOne {
+	_u.mutation.SetBillingDispatched(v)
+	return _u
+}
+
+// SetNillableBillingDispatched sets the "billing_dispatched" field if the given value is not nil.
+func (_u *RequestExecutionUpdateOne) SetNillableBillingDispatched(v *bool) *RequestExecutionUpdateOne {
+	if v != nil {
+		_u.SetBillingDispatched(*v)
+	}
+	return _u
+}
+
 // SetStatisticsReady sets the "statistics_ready" field.
 func (_u *RequestExecutionUpdateOne) SetStatisticsReady(v bool) *RequestExecutionUpdateOne {
 	_u.mutation.SetStatisticsReady(v)
@@ -1137,6 +1183,18 @@ func (_u *RequestExecutionUpdateOne) SetNillableUpstreamModelID(v *string) *Requ
 // ClearUpstreamModelID clears the value of the "upstream_model_id" field.
 func (_u *RequestExecutionUpdateOne) ClearUpstreamModelID() *RequestExecutionUpdateOne {
 	_u.mutation.ClearUpstreamModelID()
+	return _u
+}
+
+// SetCostSnapshot sets the "cost_snapshot" field.
+func (_u *RequestExecutionUpdateOne) SetCostSnapshot(v *objects.RequestCostSnapshot) *RequestExecutionUpdateOne {
+	_u.mutation.SetCostSnapshot(v)
+	return _u
+}
+
+// ClearCostSnapshot clears the value of the "cost_snapshot" field.
+func (_u *RequestExecutionUpdateOne) ClearCostSnapshot() *RequestExecutionUpdateOne {
+	_u.mutation.ClearCostSnapshot()
 	return _u
 }
 
@@ -1649,6 +1707,9 @@ func (_u *RequestExecutionUpdateOne) sqlSave(ctx context.Context) (_node *Reques
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(requestexecution.FieldUpdatedAt, field.TypeTime, value)
 	}
+	if value, ok := _u.mutation.BillingDispatched(); ok {
+		_spec.SetField(requestexecution.FieldBillingDispatched, field.TypeBool, value)
+	}
 	if value, ok := _u.mutation.StatisticsReady(); ok {
 		_spec.SetField(requestexecution.FieldStatisticsReady, field.TypeBool, value)
 	}
@@ -1708,6 +1769,9 @@ func (_u *RequestExecutionUpdateOne) sqlSave(ctx context.Context) (_node *Reques
 	}
 	if _u.mutation.UpstreamModelIDCleared() {
 		_spec.ClearField(requestexecution.FieldUpstreamModelID, field.TypeString)
+	}
+	if value, ok := _u.mutation.CostSnapshot(); ok {
+		_spec.SetField(requestexecution.FieldCostSnapshot, field.TypeJSON, value)
 	}
 	if _u.mutation.CostSnapshotCleared() {
 		_spec.ClearField(requestexecution.FieldCostSnapshot, field.TypeJSON)

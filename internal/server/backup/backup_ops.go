@@ -284,7 +284,7 @@ func (svc *BackupService) streamChannelModelPrices(ctx context.Context, o *objWr
 func (svc *BackupService) streamAPIKeys(ctx context.Context, o *objWriter, opts BackupOptions) error {
 	return streamArrayField(o, "api_keys", opts.IncludeAPIKeys, true,
 		func(lastID int) ([]*ent.APIKey, int, error) {
-			rows, err := backupAPIKeys(svc.db).
+			rows, err := backupAPIKeys(svc.db).WithChannelRates(func(q *ent.APIKeyChannelRateQuery) { q.WithChannel() }).
 				WithProject().
 				Where(apikey.IDGT(lastID)).
 				Order(ent.Asc(apikey.FieldID)).
@@ -316,8 +316,15 @@ func (svc *BackupService) streamAPIKeys(ctx context.Context, o *objWriter, opts 
 			}
 			copy := *ak
 			copy.GroupRef = nil
+			copy.Edges.ChannelRates = nil
+			rates := []BackupChannelRate{}
+			for _, r := range ak.Edges.ChannelRates {
+				if c := r.Edges.Channel; c != nil && c.DeletedAt == 0 {
+					rates = append(rates, BackupChannelRate{r.ChannelID, c.Name, r.Multiplier})
+				}
+			}
 			b, err := json.Marshal(&BackupAPIKey{
-				APIKey:      copy,
+				APIKey: copy, ChannelRates: rates,
 				GroupName:   groupName,
 				ProjectName: projectName,
 			})
@@ -370,6 +377,19 @@ func (svc *BackupService) streamUsageLogs(ctx context.Context, o *objWriter, opt
 			apiKeyKeys[ak.ID] = ak.Key
 		}
 	}
+	groupNames := map[int]string{}
+	if opts.IncludeUsageStats {
+		groups, err := svc.db.APIKeyGroup.Query().Select(apikeygroup.FieldName).All(ctx)
+		if err != nil {
+			return err
+		}
+		for _, g := range groups {
+			groupNames[g.ID] = g.Name
+		}
+	}
+	if err := svc.streamUsageArchives(ctx, o, opts, apiKeyKeys, groupNames); err != nil {
+		return err
+	}
 	return streamArrayField(o, "usage_logs", opts.IncludeUsageStats, true,
 		func(lastID int) ([]*ent.UsageLog, int, error) {
 			rows, err := svc.db.UsageLog.Query().
@@ -382,6 +402,14 @@ func (svc *BackupService) streamUsageLogs(ctx context.Context, o *objWriter, opt
 			if err != nil {
 				return nil, 0, err
 			}
+			if err := attachLegacyBilling(ctx, svc.db, rows, func(r *ent.UsageLog) billIdentity { return billIdentity{r.ProjectID, r.RequestID, r.ID} }, func(r *ent.UsageLog, group int) {
+				if r.BillingGroupID == nil {
+					r.BillingGroupID = &group
+					r.BilledCost = r.TotalCost
+				}
+			}); err != nil {
+				return nil, 0, err
+			}
 			nextID := 0
 			if len(rows) > 0 {
 				nextID = rows[len(rows)-1].ID
@@ -389,7 +417,11 @@ func (svc *BackupService) streamUsageLogs(ctx context.Context, o *objWriter, opt
 			return rows, nextID, nil
 		},
 		func(ul *ent.UsageLog) ([]byte, bool, error) {
-			b, err := json.Marshal(backupUsageLog(ul, apiKeyKeys))
+			record := backupUsageLog(ul, apiKeyKeys)
+			if ul.BillingGroupID != nil {
+				record.BillingGroupName = groupNames[*ul.BillingGroupID]
+			}
+			b, err := json.Marshal(record)
 			return b, true, err
 		},
 	)

@@ -22,10 +22,14 @@ const (
 	FieldCreatedAt = "created_at"
 	// FieldUpdatedAt holds the string denoting the updated_at field in the database.
 	FieldUpdatedAt = "updated_at"
+	// FieldRestoreRef holds the string denoting the restore_ref field in the database.
+	FieldRestoreRef = "restore_ref"
 	// FieldAPIKeyID holds the string denoting the api_key_id field in the database.
 	FieldAPIKeyID = "api_key_id"
 	// FieldUserID holds the string denoting the user_id field in the database.
 	FieldUserID = "user_id"
+	// FieldBillingGroupRef holds the string denoting the billing_group_ref field in the database.
+	FieldBillingGroupRef = "billing_group_ref"
 	// FieldProjectID holds the string denoting the project_id field in the database.
 	FieldProjectID = "project_id"
 	// FieldTraceID holds the string denoting the trace_id field in the database.
@@ -162,8 +166,10 @@ var Columns = []string{
 	FieldID,
 	FieldCreatedAt,
 	FieldUpdatedAt,
+	FieldRestoreRef,
 	FieldAPIKeyID,
 	FieldUserID,
+	FieldBillingGroupRef,
 	FieldProjectID,
 	FieldTraceID,
 	FieldClientSessionID,
@@ -222,6 +228,8 @@ var (
 	DefaultUpdatedAt func() time.Time
 	// UpdateDefaultUpdatedAt holds the default value on update for the "updated_at" field.
 	UpdateDefaultUpdatedAt func() time.Time
+	// RestoreRefValidator is a validator for the "restore_ref" field. It is called by the builders before save.
+	RestoreRefValidator func(string) error
 	// DefaultProjectID holds the default value on creation for the "project_id" field.
 	DefaultProjectID int
 	// ClientSessionIDValidator is a validator for the "client_session_id" field. It is called by the builders before save.
@@ -313,6 +321,11 @@ func ByUpdatedAt(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldUpdatedAt, opts...).ToFunc()
 }
 
+// ByRestoreRef orders the results by the restore_ref field.
+func ByRestoreRef(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldRestoreRef, opts...).ToFunc()
+}
+
 // ByAPIKeyID orders the results by the api_key_id field.
 func ByAPIKeyID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldAPIKeyID, opts...).ToFunc()
@@ -321,6 +334,11 @@ func ByAPIKeyID(opts ...sql.OrderTermOption) OrderOption {
 // ByUserID orders the results by the user_id field.
 func ByUserID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldUserID, opts...).ToFunc()
+}
+
+// ByBillingGroupRef orders the results by the billing_group_ref field.
+func ByBillingGroupRef(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldBillingGroupRef, opts...).ToFunc()
 }
 
 // ByProjectID orders the results by the project_id field.

@@ -12,6 +12,7 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/looplj/axonhub/internal/ent/apikey"
+	"github.com/looplj/axonhub/internal/ent/apikeychannelrate"
 	"github.com/looplj/axonhub/internal/ent/project"
 	"github.com/looplj/axonhub/internal/ent/request"
 	"github.com/looplj/axonhub/internal/ent/user"
@@ -166,6 +167,21 @@ func (_c *APIKeyCreate) SetProfiles(v *objects.APIKeyProfiles) *APIKeyCreate {
 func (_c *APIKeyCreate) SetAllowedIps(v []string) *APIKeyCreate {
 	_c.mutation.SetAllowedIps(v)
 	return _c
+}
+
+// AddChannelRateIDs adds the "channel_rates" edge to the APIKeyChannelRate entity by IDs.
+func (_c *APIKeyCreate) AddChannelRateIDs(ids ...int) *APIKeyCreate {
+	_c.mutation.AddChannelRateIDs(ids...)
+	return _c
+}
+
+// AddChannelRates adds the "channel_rates" edges to the APIKeyChannelRate entity.
+func (_c *APIKeyCreate) AddChannelRates(v ...*APIKeyChannelRate) *APIKeyCreate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddChannelRateIDs(ids...)
 }
 
 // SetUser sets the "user" edge to the User entity.
@@ -378,6 +394,22 @@ func (_c *APIKeyCreate) createSpec() (*APIKey, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.AllowedIps(); ok {
 		_spec.SetField(apikey.FieldAllowedIps, field.TypeJSON, value)
 		_node.AllowedIps = value
+	}
+	if nodes := _c.mutation.ChannelRatesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   apikey.ChannelRatesTable,
+			Columns: []string{apikey.ChannelRatesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(apikeychannelrate.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
 	}
 	if nodes := _c.mutation.UserIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{

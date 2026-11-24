@@ -26,6 +26,8 @@ type RequestExecution struct {
 	CreatedAt time.Time `json:"created_at,omitempty"`
 	// UpdatedAt holds the value of the "updated_at" field.
 	UpdatedAt time.Time `json:"updated_at,omitempty"`
+	// BillingDispatched holds the value of the "billing_dispatched" field.
+	BillingDispatched bool `json:"billing_dispatched,omitempty"`
 	// StatisticsReady holds the value of the "statistics_ready" field.
 	StatisticsReady bool `json:"statistics_ready,omitempty"`
 	// StatisticsVersion holds the value of the "statistics_version" field.
@@ -173,7 +175,7 @@ func (*RequestExecution) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case requestexecution.FieldCostSnapshot, requestexecution.FieldReasoningEvidence, requestexecution.FieldRequestBody, requestexecution.FieldResponseHeaders, requestexecution.FieldResponseBody, requestexecution.FieldResponseChunks, requestexecution.FieldSelection, requestexecution.FieldFailure, requestexecution.FieldRequestHeaders:
 			values[i] = new([]byte)
-		case requestexecution.FieldStatisticsReady, requestexecution.FieldStream, requestexecution.FieldMetricsFirstByteRecorded, requestexecution.FieldPassThroughApplied:
+		case requestexecution.FieldBillingDispatched, requestexecution.FieldStatisticsReady, requestexecution.FieldStream, requestexecution.FieldMetricsFirstByteRecorded, requestexecution.FieldPassThroughApplied:
 			values[i] = new(sql.NullBool)
 		case requestexecution.FieldStatisticsOutcome, requestexecution.FieldStatisticsChannelOutcome, requestexecution.FieldStatisticsFirstTokenMs, requestexecution.FieldStatisticsOutputSpeed:
 			values[i] = new(sql.NullFloat64)
@@ -215,6 +217,12 @@ func (_m *RequestExecution) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field updated_at", values[i])
 			} else if value.Valid {
 				_m.UpdatedAt = value.Time
+			}
+		case requestexecution.FieldBillingDispatched:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field billing_dispatched", values[i])
+			} else if value.Valid {
+				_m.BillingDispatched = value.Bool
 			}
 		case requestexecution.FieldStatisticsReady:
 			if value, ok := values[i].(*sql.NullBool); !ok {
@@ -566,6 +574,9 @@ func (_m *RequestExecution) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("updated_at=")
 	builder.WriteString(_m.UpdatedAt.Format(time.ANSIC))
+	builder.WriteString(", ")
+	builder.WriteString("billing_dispatched=")
+	builder.WriteString(fmt.Sprintf("%v", _m.BillingDispatched))
 	builder.WriteString(", ")
 	builder.WriteString("statistics_ready=")
 	builder.WriteString(fmt.Sprintf("%v", _m.StatisticsReady))

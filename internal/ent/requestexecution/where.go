@@ -65,6 +65,11 @@ func UpdatedAt(v time.Time) predicate.RequestExecution {
 	return predicate.RequestExecution(sql.FieldEQ(FieldUpdatedAt, v))
 }
 
+// BillingDispatched applies equality check predicate on the "billing_dispatched" field. It's identical to BillingDispatchedEQ.
+func BillingDispatched(v bool) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldEQ(FieldBillingDispatched, v))
+}
+
 // StatisticsReady applies equality check predicate on the "statistics_ready" field. It's identical to StatisticsReadyEQ.
 func StatisticsReady(v bool) predicate.RequestExecution {
 	return predicate.RequestExecution(sql.FieldEQ(FieldStatisticsReady, v))
@@ -308,6 +313,16 @@ func UpdatedAtLT(v time.Time) predicate.RequestExecution {
 // UpdatedAtLTE applies the LTE predicate on the "updated_at" field.
 func UpdatedAtLTE(v time.Time) predicate.RequestExecution {
 	return predicate.RequestExecution(sql.FieldLTE(FieldUpdatedAt, v))
+}
+
+// BillingDispatchedEQ applies the EQ predicate on the "billing_dispatched" field.
+func BillingDispatchedEQ(v bool) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldEQ(FieldBillingDispatched, v))
+}
+
+// BillingDispatchedNEQ applies the NEQ predicate on the "billing_dispatched" field.
+func BillingDispatchedNEQ(v bool) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldNEQ(FieldBillingDispatched, v))
 }
 
 // StatisticsReadyEQ applies the EQ predicate on the "statistics_ready" field.

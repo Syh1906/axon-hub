@@ -69,6 +69,10 @@ const (
 	FieldRemark = "remark"
 	// FieldEndpoints holds the string denoting the endpoints field in the database.
 	FieldEndpoints = "endpoints"
+	// EdgeKeyRates holds the string denoting the key_rates edge name in mutations.
+	EdgeKeyRates = "key_rates"
+	// EdgeGroupRates holds the string denoting the group_rates edge name in mutations.
+	EdgeGroupRates = "group_rates"
 	// EdgeUpstreamStatuses holds the string denoting the upstream_statuses edge name in mutations.
 	EdgeUpstreamStatuses = "upstream_statuses"
 	// EdgeRequests holds the string denoting the requests edge name in mutations.
@@ -85,6 +89,20 @@ const (
 	EdgeProviderQuotaStatus = "provider_quota_status"
 	// Table holds the table name of the channel in the database.
 	Table = "channels"
+	// KeyRatesTable is the table that holds the key_rates relation/edge.
+	KeyRatesTable = "api_key_channel_rates"
+	// KeyRatesInverseTable is the table name for the APIKeyChannelRate entity.
+	// It exists in this package in order to avoid circular dependency with the "apikeychannelrate" package.
+	KeyRatesInverseTable = "api_key_channel_rates"
+	// KeyRatesColumn is the table column denoting the key_rates relation/edge.
+	KeyRatesColumn = "channel_id"
+	// GroupRatesTable is the table that holds the group_rates relation/edge.
+	GroupRatesTable = "api_key_group_channel_rates"
+	// GroupRatesInverseTable is the table name for the APIKeyGroupChannelRate entity.
+	// It exists in this package in order to avoid circular dependency with the "apikeygroupchannelrate" package.
+	GroupRatesInverseTable = "api_key_group_channel_rates"
+	// GroupRatesColumn is the table column denoting the group_rates relation/edge.
+	GroupRatesColumn = "channel_id"
 	// UpstreamStatusesTable is the table that holds the upstream_statuses relation/edge.
 	UpstreamStatusesTable = "channel_upstream_status"
 	// UpstreamStatusesInverseTable is the table name for the ChannelUpstreamStatus entity.
@@ -426,6 +444,34 @@ func ByRemark(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldRemark, opts...).ToFunc()
 }
 
+// ByKeyRatesCount orders the results by key_rates count.
+func ByKeyRatesCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newKeyRatesStep(), opts...)
+	}
+}
+
+// ByKeyRates orders the results by key_rates terms.
+func ByKeyRates(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newKeyRatesStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+
+// ByGroupRatesCount orders the results by group_rates count.
+func ByGroupRatesCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newGroupRatesStep(), opts...)
+	}
+}
+
+// ByGroupRates orders the results by group_rates terms.
+func ByGroupRates(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newGroupRatesStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+
 // ByUpstreamStatusesCount orders the results by upstream_statuses count.
 func ByUpstreamStatusesCount(opts ...sql.OrderTermOption) OrderOption {
 	return func(s *sql.Selector) {
@@ -515,6 +561,20 @@ func ByProviderQuotaStatusField(field string, opts ...sql.OrderTermOption) Order
 	return func(s *sql.Selector) {
 		sqlgraph.OrderByNeighborTerms(s, newProviderQuotaStatusStep(), sql.OrderByField(field, opts...))
 	}
+}
+func newKeyRatesStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(KeyRatesInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, KeyRatesTable, KeyRatesColumn),
+	)
+}
+func newGroupRatesStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(GroupRatesInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, GroupRatesTable, GroupRatesColumn),
+	)
 }
 func newUpstreamStatusesStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(

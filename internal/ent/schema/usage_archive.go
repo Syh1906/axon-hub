@@ -8,6 +8,7 @@ import (
 	"entgo.io/ent/schema/field"
 	"entgo.io/ent/schema/index"
 
+	"github.com/looplj/axonhub/internal/objects"
 	"github.com/looplj/axonhub/internal/scopes"
 )
 
@@ -20,6 +21,7 @@ func (UsageArchive) Fields() []ent.Field {
 	fields := []ent.Field{
 		field.Enum("kind").Values("request", "usage", "execution").Immutable(),
 		field.Int("source_id").Immutable(),
+		field.String("restore_ref").MaxLen(64).Optional().Nillable().Immutable().Annotations(entgql.Skip()),
 		field.Int("request_id").Immutable(),
 		field.Int("project_id").Immutable(),
 		field.String("client_session_id").MaxLen(256).Optional().Nillable().
@@ -32,6 +34,10 @@ func (UsageArchive) Fields() []ent.Field {
 		field.String("request_status").MaxLen(16).Default("").Immutable(),
 		field.String("request_source").MaxLen(16).Default("api").Immutable(),
 		field.Time("occurred_at").Immutable(),
+		field.Int("billing_group_id").Optional().Nillable().Annotations(entgql.Skip()),
+		field.JSON("billing_evidence", &objects.GroupBillingEvidence{}).Optional().Annotations(entgql.Skip()),
+		field.Float("billed_cost").Optional().Nillable().Annotations(entgql.Skip()),
+		field.Bool("billing_estimated").Default(false).Annotations(entgql.Skip()),
 		field.Float("total_cost").Optional().Nillable(),
 		field.Float("cache_creation_cost").Default(0),
 		field.Float("first_token_sum").Default(0),
@@ -50,6 +56,8 @@ func (UsageArchive) Fields() []ent.Field {
 
 func (UsageArchive) Indexes() []ent.Index {
 	return []ent.Index{
+		index.Fields("restore_ref").Unique().StorageKey("usage_archives_by_restore_ref"),
+		index.Fields("project_id", "billing_group_id", "occurred_at").StorageKey("usage_archive_by_billing_group_time"),
 		index.Fields("kind", "source_id").Unique().StorageKey("usage_archive_by_source"),
 		index.Fields("request_id").StorageKey("usage_archive_by_request_id"),
 		index.Fields("kind", "occurred_at").StorageKey("usage_archive_by_kind_time"),

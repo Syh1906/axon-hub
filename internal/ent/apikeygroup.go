@@ -42,11 +42,24 @@ type APIKeyGroup struct {
 
 // APIKeyGroupEdges holds the relations/edges for other nodes in the graph.
 type APIKeyGroupEdges struct {
+	// ChannelRates holds the value of the channel_rates edge.
+	ChannelRates []*APIKeyGroupChannelRate `json:"channel_rates,omitempty"`
 	// Project holds the value of the project edge.
 	Project *Project `json:"project,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [1]bool
+	loadedTypes [2]bool
+
+	namedChannelRates map[string][]*APIKeyGroupChannelRate
+}
+
+// ChannelRatesOrErr returns the ChannelRates value or an error if the edge
+// was not loaded in eager-loading.
+func (e APIKeyGroupEdges) ChannelRatesOrErr() ([]*APIKeyGroupChannelRate, error) {
+	if e.loadedTypes[0] {
+		return e.ChannelRates, nil
+	}
+	return nil, &NotLoadedError{edge: "channel_rates"}
 }
 
 // ProjectOrErr returns the Project value or an error if the edge
@@ -54,7 +67,7 @@ type APIKeyGroupEdges struct {
 func (e APIKeyGroupEdges) ProjectOrErr() (*Project, error) {
 	if e.Project != nil {
 		return e.Project, nil
-	} else if e.loadedTypes[0] {
+	} else if e.loadedTypes[1] {
 		return nil, &NotFoundError{label: project.Label}
 	}
 	return nil, &NotLoadedError{edge: "project"}
@@ -155,6 +168,11 @@ func (_m *APIKeyGroup) Value(name string) (ent.Value, error) {
 	return _m.selectValues.Get(name)
 }
 
+// QueryChannelRates queries the "channel_rates" edge of the APIKeyGroup entity.
+func (_m *APIKeyGroup) QueryChannelRates() *APIKeyGroupChannelRateQuery {
+	return NewAPIKeyGroupClient(_m.config).QueryChannelRates(_m)
+}
+
 // QueryProject queries the "project" edge of the APIKeyGroup entity.
 func (_m *APIKeyGroup) QueryProject() *ProjectQuery {
 	return NewAPIKeyGroupClient(_m.config).QueryProject(_m)
@@ -208,6 +226,30 @@ func (_m *APIKeyGroup) String() string {
 	builder.WriteString(fmt.Sprintf("%v", _m.ProjectID))
 	builder.WriteByte(')')
 	return builder.String()
+}
+
+// NamedChannelRates returns the ChannelRates named value or an error if the edge was not
+// loaded in eager-loading with this name.
+func (_m *APIKeyGroup) NamedChannelRates(name string) ([]*APIKeyGroupChannelRate, error) {
+	if _m.Edges.namedChannelRates == nil {
+		return nil, &NotLoadedError{edge: name}
+	}
+	nodes, ok := _m.Edges.namedChannelRates[name]
+	if !ok {
+		return nil, &NotLoadedError{edge: name}
+	}
+	return nodes, nil
+}
+
+func (_m *APIKeyGroup) appendNamedChannelRates(name string, edges ...*APIKeyGroupChannelRate) {
+	if _m.Edges.namedChannelRates == nil {
+		_m.Edges.namedChannelRates = make(map[string][]*APIKeyGroupChannelRate)
+	}
+	if len(edges) == 0 {
+		_m.Edges.namedChannelRates[name] = []*APIKeyGroupChannelRate{}
+	} else {
+		_m.Edges.namedChannelRates[name] = append(_m.Edges.namedChannelRates[name], edges...)
+	}
 }
 
 // APIKeyGroups is a parsable slice of APIKeyGroup.

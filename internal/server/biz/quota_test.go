@@ -484,4 +484,17 @@ func TestQuotaService_CalendarDay_CostExceeded(t *testing.T) {
 	require.NoError(t, err)
 	require.False(t, res.Allowed)
 	require.Contains(t, res.Message, "cost quota exceeded")
+	// The previous log has no billing version and retains its historical cost.
+	client.UsageLog.Query().OnlyX(ctx).Update().SetTotalCost(6.5).SetBillingGroupID(1).SetBilledCost(6).ExecX(ctx)
+	for _, tokens := range []*int64{nil, lo.ToPtr(int64(100))} {
+		quota.TotalTokens = tokens
+		quota.Cost = lo.ToPtr(decimal.RequireFromString("6.25"))
+		result, err := svc.CheckAPIKeyQuota(ctx, apiKeyID, quota)
+		require.NoError(t, err)
+		require.True(t, result.Allowed)
+		quota.Cost = lo.ToPtr(decimal.NewFromInt(5))
+		result, err = svc.CheckAPIKeyQuota(ctx, apiKeyID, quota)
+		require.NoError(t, err)
+		require.Equal(t, "cost quota exceeded: 6/5", result.Message)
+	}
 }

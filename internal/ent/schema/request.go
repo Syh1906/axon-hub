@@ -25,6 +25,7 @@ func (Request) Mixin() []ent.Mixin {
 
 func (Request) Indexes() []ent.Index {
 	return []ent.Index{
+		index.Fields("restore_ref").Unique().StorageKey("requests_by_restore_ref"),
 		index.Fields("api_key_id", "created_at").
 			StorageKey("requests_by_api_key_id_created_at"),
 		index.Fields("project_id", "created_at").
@@ -50,6 +51,7 @@ func (Request) Indexes() []ent.Index {
 
 func (Request) Fields() []ent.Field {
 	return []ent.Field{
+		field.String("restore_ref").MaxLen(64).Optional().Nillable().Immutable().Annotations(entgql.Skip()),
 		field.Int("api_key_id").
 			Optional().
 			Immutable().
@@ -65,6 +67,7 @@ func (Request) Fields() []ent.Field {
 				entgql.SkipMutationUpdateInput,
 			)).
 			Comment("User ID of the Playground request creator"),
+		field.Int("billing_group_ref").Optional().Nillable().Annotations(entgql.Skip()),
 		field.Int("project_id").
 			Immutable().
 			Default(1).

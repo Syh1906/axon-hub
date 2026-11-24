@@ -32,7 +32,9 @@ func (APIKeyGroup) Indexes() []ent.Index {
 }
 
 func (APIKeyGroup) Edges() []ent.Edge {
-	return []ent.Edge{edge.From("project", Project.Type).Ref("api_key_groups").Field("project_id").Unique().Required().Immutable().Annotations(entsql.OnDelete(entsql.Cascade), entgql.Skip(entgql.SkipAll))}
+	return []ent.Edge{
+		edge.To("channel_rates", APIKeyGroupChannelRate.Type).Annotations(entgql.Skip()),
+		edge.From("project", Project.Type).Ref("api_key_groups").Field("project_id").Unique().Required().Immutable().Annotations(entsql.OnDelete(entsql.Cascade), entgql.Skip(entgql.SkipAll))}
 }
 func (APIKeyGroup) Annotations() []schema.Annotation {
 	return []schema.Annotation{entgql.Skip(entgql.SkipAll)}

@@ -12,7 +12,9 @@ import (
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
 	"github.com/looplj/axonhub/internal/ent/apikey"
+	"github.com/looplj/axonhub/internal/ent/apikeychannelrate"
 	"github.com/looplj/axonhub/internal/ent/apikeygroup"
+	"github.com/looplj/axonhub/internal/ent/apikeygroupchannelrate"
 	"github.com/looplj/axonhub/internal/ent/apikeyoperation"
 	"github.com/looplj/axonhub/internal/ent/apikeyprofiletemplate"
 	"github.com/looplj/axonhub/internal/ent/budgetaccount"
@@ -55,6 +57,7 @@ import (
 	"github.com/looplj/axonhub/internal/objects"
 	"github.com/looplj/axonhub/internal/pkg/budget"
 	"github.com/looplj/axonhub/llm"
+	"github.com/shopspring/decimal"
 )
 
 const (
@@ -67,7 +70,9 @@ const (
 
 	// Node types.
 	TypeAPIKey                   = "APIKey"
+	TypeAPIKeyChannelRate        = "APIKeyChannelRate"
 	TypeAPIKeyGroup              = "APIKeyGroup"
+	TypeAPIKeyGroupChannelRate   = "APIKeyGroupChannelRate"
 	TypeAPIKeyOperation          = "APIKeyOperation"
 	TypeAPIKeyProfileTemplate    = "APIKeyProfileTemplate"
 	TypeBudgetAccount            = "BudgetAccount"
@@ -111,35 +116,38 @@ const (
 // APIKeyMutation represents an operation that mutates the APIKey nodes in the graph.
 type APIKeyMutation struct {
 	config
-	op                Op
-	typ               string
-	id                *int
-	created_at        *time.Time
-	updated_at        *time.Time
-	deleted_at        *int
-	adddeleted_at     *int
-	group_ref         *int
-	addgroup_ref      *int
-	key               *string
-	name              *string
-	_type             *apikey.Type
-	status            *apikey.Status
-	scopes            *[]string
-	appendscopes      []string
-	profiles          **objects.APIKeyProfiles
-	allowed_ips       *[]string
-	appendallowed_ips []string
-	clearedFields     map[string]struct{}
-	user              *int
-	cleareduser       bool
-	project           *int
-	clearedproject    bool
-	requests          map[int]struct{}
-	removedrequests   map[int]struct{}
-	clearedrequests   bool
-	done              bool
-	oldValue          func(context.Context) (*APIKey, error)
-	predicates        []predicate.APIKey
+	op                   Op
+	typ                  string
+	id                   *int
+	created_at           *time.Time
+	updated_at           *time.Time
+	deleted_at           *int
+	adddeleted_at        *int
+	group_ref            *int
+	addgroup_ref         *int
+	key                  *string
+	name                 *string
+	_type                *apikey.Type
+	status               *apikey.Status
+	scopes               *[]string
+	appendscopes         []string
+	profiles             **objects.APIKeyProfiles
+	allowed_ips          *[]string
+	appendallowed_ips    []string
+	clearedFields        map[string]struct{}
+	channel_rates        map[int]struct{}
+	removedchannel_rates map[int]struct{}
+	clearedchannel_rates bool
+	user                 *int
+	cleareduser          bool
+	project              *int
+	clearedproject       bool
+	requests             map[int]struct{}
+	removedrequests      map[int]struct{}
+	clearedrequests      bool
+	done                 bool
+	oldValue             func(context.Context) (*APIKey, error)
+	predicates           []predicate.APIKey
 }
 
 var _ ent.Mutation = (*APIKeyMutation)(nil)
@@ -846,6 +854,60 @@ func (m *APIKeyMutation) ResetAllowedIps() {
 	delete(m.clearedFields, apikey.FieldAllowedIps)
 }
 
+// AddChannelRateIDs adds the "channel_rates" edge to the APIKeyChannelRate entity by ids.
+func (m *APIKeyMutation) AddChannelRateIDs(ids ...int) {
+	if m.channel_rates == nil {
+		m.channel_rates = make(map[int]struct{})
+	}
+	for i := range ids {
+		m.channel_rates[ids[i]] = struct{}{}
+	}
+}
+
+// ClearChannelRates clears the "channel_rates" edge to the APIKeyChannelRate entity.
+func (m *APIKeyMutation) ClearChannelRates() {
+	m.clearedchannel_rates = true
+}
+
+// ChannelRatesCleared reports if the "channel_rates" edge to the APIKeyChannelRate entity was cleared.
+func (m *APIKeyMutation) ChannelRatesCleared() bool {
+	return m.clearedchannel_rates
+}
+
+// RemoveChannelRateIDs removes the "channel_rates" edge to the APIKeyChannelRate entity by IDs.
+func (m *APIKeyMutation) RemoveChannelRateIDs(ids ...int) {
+	if m.removedchannel_rates == nil {
+		m.removedchannel_rates = make(map[int]struct{})
+	}
+	for i := range ids {
+		delete(m.channel_rates, ids[i])
+		m.removedchannel_rates[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedChannelRates returns the removed IDs of the "channel_rates" edge to the APIKeyChannelRate entity.
+func (m *APIKeyMutation) RemovedChannelRatesIDs() (ids []int) {
+	for id := range m.removedchannel_rates {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ChannelRatesIDs returns the "channel_rates" edge IDs in the mutation.
+func (m *APIKeyMutation) ChannelRatesIDs() (ids []int) {
+	for id := range m.channel_rates {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetChannelRates resets all changes to the "channel_rates" edge.
+func (m *APIKeyMutation) ResetChannelRates() {
+	m.channel_rates = nil
+	m.clearedchannel_rates = false
+	m.removedchannel_rates = nil
+}
+
 // ClearUser clears the "user" edge to the User entity.
 func (m *APIKeyMutation) ClearUser() {
 	m.cleareduser = true
@@ -1351,7 +1413,10 @@ func (m *APIKeyMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *APIKeyMutation) AddedEdges() []string {
-	edges := make([]string, 0, 3)
+	edges := make([]string, 0, 4)
+	if m.channel_rates != nil {
+		edges = append(edges, apikey.EdgeChannelRates)
+	}
 	if m.user != nil {
 		edges = append(edges, apikey.EdgeUser)
 	}
@@ -1368,6 +1433,12 @@ func (m *APIKeyMutation) AddedEdges() []string {
 // name in this mutation.
 func (m *APIKeyMutation) AddedIDs(name string) []ent.Value {
 	switch name {
+	case apikey.EdgeChannelRates:
+		ids := make([]ent.Value, 0, len(m.channel_rates))
+		for id := range m.channel_rates {
+			ids = append(ids, id)
+		}
+		return ids
 	case apikey.EdgeUser:
 		if id := m.user; id != nil {
 			return []ent.Value{*id}
@@ -1388,7 +1459,10 @@ func (m *APIKeyMutation) AddedIDs(name string) []ent.Value {
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *APIKeyMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 3)
+	edges := make([]string, 0, 4)
+	if m.removedchannel_rates != nil {
+		edges = append(edges, apikey.EdgeChannelRates)
+	}
 	if m.removedrequests != nil {
 		edges = append(edges, apikey.EdgeRequests)
 	}
@@ -1399,6 +1473,12 @@ func (m *APIKeyMutation) RemovedEdges() []string {
 // the given name in this mutation.
 func (m *APIKeyMutation) RemovedIDs(name string) []ent.Value {
 	switch name {
+	case apikey.EdgeChannelRates:
+		ids := make([]ent.Value, 0, len(m.removedchannel_rates))
+		for id := range m.removedchannel_rates {
+			ids = append(ids, id)
+		}
+		return ids
 	case apikey.EdgeRequests:
 		ids := make([]ent.Value, 0, len(m.removedrequests))
 		for id := range m.removedrequests {
@@ -1411,7 +1491,10 @@ func (m *APIKeyMutation) RemovedIDs(name string) []ent.Value {
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *APIKeyMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 3)
+	edges := make([]string, 0, 4)
+	if m.clearedchannel_rates {
+		edges = append(edges, apikey.EdgeChannelRates)
+	}
 	if m.cleareduser {
 		edges = append(edges, apikey.EdgeUser)
 	}
@@ -1428,6 +1511,8 @@ func (m *APIKeyMutation) ClearedEdges() []string {
 // was cleared in this mutation.
 func (m *APIKeyMutation) EdgeCleared(name string) bool {
 	switch name {
+	case apikey.EdgeChannelRates:
+		return m.clearedchannel_rates
 	case apikey.EdgeUser:
 		return m.cleareduser
 	case apikey.EdgeProject:
@@ -1456,6 +1541,9 @@ func (m *APIKeyMutation) ClearEdge(name string) error {
 // It returns an error if the edge is not defined in the schema.
 func (m *APIKeyMutation) ResetEdge(name string) error {
 	switch name {
+	case apikey.EdgeChannelRates:
+		m.ResetChannelRates()
+		return nil
 	case apikey.EdgeUser:
 		m.ResetUser()
 		return nil
@@ -1467,6 +1555,543 @@ func (m *APIKeyMutation) ResetEdge(name string) error {
 		return nil
 	}
 	return fmt.Errorf("unknown APIKey edge %s", name)
+}
+
+// APIKeyChannelRateMutation represents an operation that mutates the APIKeyChannelRate nodes in the graph.
+type APIKeyChannelRateMutation struct {
+	config
+	op             Op
+	typ            string
+	id             *int
+	multiplier     *decimal.Decimal
+	clearedFields  map[string]struct{}
+	key            *int
+	clearedkey     bool
+	channel        *int
+	clearedchannel bool
+	done           bool
+	oldValue       func(context.Context) (*APIKeyChannelRate, error)
+	predicates     []predicate.APIKeyChannelRate
+}
+
+var _ ent.Mutation = (*APIKeyChannelRateMutation)(nil)
+
+// apikeychannelrateOption allows management of the mutation configuration using functional options.
+type apikeychannelrateOption func(*APIKeyChannelRateMutation)
+
+// newAPIKeyChannelRateMutation creates new mutation for the APIKeyChannelRate entity.
+func newAPIKeyChannelRateMutation(c config, op Op, opts ...apikeychannelrateOption) *APIKeyChannelRateMutation {
+	m := &APIKeyChannelRateMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeAPIKeyChannelRate,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withAPIKeyChannelRateID sets the ID field of the mutation.
+func withAPIKeyChannelRateID(id int) apikeychannelrateOption {
+	return func(m *APIKeyChannelRateMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *APIKeyChannelRate
+		)
+		m.oldValue = func(ctx context.Context) (*APIKeyChannelRate, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().APIKeyChannelRate.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withAPIKeyChannelRate sets the old APIKeyChannelRate of the mutation.
+func withAPIKeyChannelRate(node *APIKeyChannelRate) apikeychannelrateOption {
+	return func(m *APIKeyChannelRateMutation) {
+		m.oldValue = func(context.Context) (*APIKeyChannelRate, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m APIKeyChannelRateMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m APIKeyChannelRateMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *APIKeyChannelRateMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *APIKeyChannelRateMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().APIKeyChannelRate.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetKeyID sets the "key_id" field.
+func (m *APIKeyChannelRateMutation) SetKeyID(i int) {
+	m.key = &i
+}
+
+// KeyID returns the value of the "key_id" field in the mutation.
+func (m *APIKeyChannelRateMutation) KeyID() (r int, exists bool) {
+	v := m.key
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldKeyID returns the old "key_id" field's value of the APIKeyChannelRate entity.
+// If the APIKeyChannelRate object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *APIKeyChannelRateMutation) OldKeyID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldKeyID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldKeyID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldKeyID: %w", err)
+	}
+	return oldValue.KeyID, nil
+}
+
+// ResetKeyID resets all changes to the "key_id" field.
+func (m *APIKeyChannelRateMutation) ResetKeyID() {
+	m.key = nil
+}
+
+// SetChannelID sets the "channel_id" field.
+func (m *APIKeyChannelRateMutation) SetChannelID(i int) {
+	m.channel = &i
+}
+
+// ChannelID returns the value of the "channel_id" field in the mutation.
+func (m *APIKeyChannelRateMutation) ChannelID() (r int, exists bool) {
+	v := m.channel
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldChannelID returns the old "channel_id" field's value of the APIKeyChannelRate entity.
+// If the APIKeyChannelRate object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *APIKeyChannelRateMutation) OldChannelID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldChannelID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldChannelID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldChannelID: %w", err)
+	}
+	return oldValue.ChannelID, nil
+}
+
+// ResetChannelID resets all changes to the "channel_id" field.
+func (m *APIKeyChannelRateMutation) ResetChannelID() {
+	m.channel = nil
+}
+
+// SetMultiplier sets the "multiplier" field.
+func (m *APIKeyChannelRateMutation) SetMultiplier(d decimal.Decimal) {
+	m.multiplier = &d
+}
+
+// Multiplier returns the value of the "multiplier" field in the mutation.
+func (m *APIKeyChannelRateMutation) Multiplier() (r decimal.Decimal, exists bool) {
+	v := m.multiplier
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldMultiplier returns the old "multiplier" field's value of the APIKeyChannelRate entity.
+// If the APIKeyChannelRate object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *APIKeyChannelRateMutation) OldMultiplier(ctx context.Context) (v decimal.Decimal, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldMultiplier is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldMultiplier requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldMultiplier: %w", err)
+	}
+	return oldValue.Multiplier, nil
+}
+
+// ResetMultiplier resets all changes to the "multiplier" field.
+func (m *APIKeyChannelRateMutation) ResetMultiplier() {
+	m.multiplier = nil
+}
+
+// ClearKey clears the "key" edge to the APIKey entity.
+func (m *APIKeyChannelRateMutation) ClearKey() {
+	m.clearedkey = true
+	m.clearedFields[apikeychannelrate.FieldKeyID] = struct{}{}
+}
+
+// KeyCleared reports if the "key" edge to the APIKey entity was cleared.
+func (m *APIKeyChannelRateMutation) KeyCleared() bool {
+	return m.clearedkey
+}
+
+// KeyIDs returns the "key" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// KeyID instead. It exists only for internal usage by the builders.
+func (m *APIKeyChannelRateMutation) KeyIDs() (ids []int) {
+	if id := m.key; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetKey resets all changes to the "key" edge.
+func (m *APIKeyChannelRateMutation) ResetKey() {
+	m.key = nil
+	m.clearedkey = false
+}
+
+// ClearChannel clears the "channel" edge to the Channel entity.
+func (m *APIKeyChannelRateMutation) ClearChannel() {
+	m.clearedchannel = true
+	m.clearedFields[apikeychannelrate.FieldChannelID] = struct{}{}
+}
+
+// ChannelCleared reports if the "channel" edge to the Channel entity was cleared.
+func (m *APIKeyChannelRateMutation) ChannelCleared() bool {
+	return m.clearedchannel
+}
+
+// ChannelIDs returns the "channel" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// ChannelID instead. It exists only for internal usage by the builders.
+func (m *APIKeyChannelRateMutation) ChannelIDs() (ids []int) {
+	if id := m.channel; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetChannel resets all changes to the "channel" edge.
+func (m *APIKeyChannelRateMutation) ResetChannel() {
+	m.channel = nil
+	m.clearedchannel = false
+}
+
+// Where appends a list predicates to the APIKeyChannelRateMutation builder.
+func (m *APIKeyChannelRateMutation) Where(ps ...predicate.APIKeyChannelRate) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the APIKeyChannelRateMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *APIKeyChannelRateMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.APIKeyChannelRate, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *APIKeyChannelRateMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *APIKeyChannelRateMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (APIKeyChannelRate).
+func (m *APIKeyChannelRateMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *APIKeyChannelRateMutation) Fields() []string {
+	fields := make([]string, 0, 3)
+	if m.key != nil {
+		fields = append(fields, apikeychannelrate.FieldKeyID)
+	}
+	if m.channel != nil {
+		fields = append(fields, apikeychannelrate.FieldChannelID)
+	}
+	if m.multiplier != nil {
+		fields = append(fields, apikeychannelrate.FieldMultiplier)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *APIKeyChannelRateMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case apikeychannelrate.FieldKeyID:
+		return m.KeyID()
+	case apikeychannelrate.FieldChannelID:
+		return m.ChannelID()
+	case apikeychannelrate.FieldMultiplier:
+		return m.Multiplier()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *APIKeyChannelRateMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case apikeychannelrate.FieldKeyID:
+		return m.OldKeyID(ctx)
+	case apikeychannelrate.FieldChannelID:
+		return m.OldChannelID(ctx)
+	case apikeychannelrate.FieldMultiplier:
+		return m.OldMultiplier(ctx)
+	}
+	return nil, fmt.Errorf("unknown APIKeyChannelRate field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *APIKeyChannelRateMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case apikeychannelrate.FieldKeyID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetKeyID(v)
+		return nil
+	case apikeychannelrate.FieldChannelID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetChannelID(v)
+		return nil
+	case apikeychannelrate.FieldMultiplier:
+		v, ok := value.(decimal.Decimal)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetMultiplier(v)
+		return nil
+	}
+	return fmt.Errorf("unknown APIKeyChannelRate field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *APIKeyChannelRateMutation) AddedFields() []string {
+	var fields []string
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *APIKeyChannelRateMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *APIKeyChannelRateMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	}
+	return fmt.Errorf("unknown APIKeyChannelRate numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *APIKeyChannelRateMutation) ClearedFields() []string {
+	return nil
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *APIKeyChannelRateMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *APIKeyChannelRateMutation) ClearField(name string) error {
+	return fmt.Errorf("unknown APIKeyChannelRate nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *APIKeyChannelRateMutation) ResetField(name string) error {
+	switch name {
+	case apikeychannelrate.FieldKeyID:
+		m.ResetKeyID()
+		return nil
+	case apikeychannelrate.FieldChannelID:
+		m.ResetChannelID()
+		return nil
+	case apikeychannelrate.FieldMultiplier:
+		m.ResetMultiplier()
+		return nil
+	}
+	return fmt.Errorf("unknown APIKeyChannelRate field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *APIKeyChannelRateMutation) AddedEdges() []string {
+	edges := make([]string, 0, 2)
+	if m.key != nil {
+		edges = append(edges, apikeychannelrate.EdgeKey)
+	}
+	if m.channel != nil {
+		edges = append(edges, apikeychannelrate.EdgeChannel)
+	}
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *APIKeyChannelRateMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case apikeychannelrate.EdgeKey:
+		if id := m.key; id != nil {
+			return []ent.Value{*id}
+		}
+	case apikeychannelrate.EdgeChannel:
+		if id := m.channel; id != nil {
+			return []ent.Value{*id}
+		}
+	}
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *APIKeyChannelRateMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 2)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *APIKeyChannelRateMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *APIKeyChannelRateMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 2)
+	if m.clearedkey {
+		edges = append(edges, apikeychannelrate.EdgeKey)
+	}
+	if m.clearedchannel {
+		edges = append(edges, apikeychannelrate.EdgeChannel)
+	}
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *APIKeyChannelRateMutation) EdgeCleared(name string) bool {
+	switch name {
+	case apikeychannelrate.EdgeKey:
+		return m.clearedkey
+	case apikeychannelrate.EdgeChannel:
+		return m.clearedchannel
+	}
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *APIKeyChannelRateMutation) ClearEdge(name string) error {
+	switch name {
+	case apikeychannelrate.EdgeKey:
+		m.ClearKey()
+		return nil
+	case apikeychannelrate.EdgeChannel:
+		m.ClearChannel()
+		return nil
+	}
+	return fmt.Errorf("unknown APIKeyChannelRate unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *APIKeyChannelRateMutation) ResetEdge(name string) error {
+	switch name {
+	case apikeychannelrate.EdgeKey:
+		m.ResetKey()
+		return nil
+	case apikeychannelrate.EdgeChannel:
+		m.ResetChannel()
+		return nil
+	}
+	return fmt.Errorf("unknown APIKeyChannelRate edge %s", name)
 }
 
 // APIKeyGroupMutation represents an operation that mutates the APIKeyGroup nodes in the graph.
@@ -1484,6 +2109,9 @@ type APIKeyGroupMutation struct {
 	revision                   *int
 	addrevision                *int
 	clearedFields              map[string]struct{}
+	channel_rates              map[int]struct{}
+	removedchannel_rates       map[int]struct{}
+	clearedchannel_rates       bool
 	project                    *int
 	clearedproject             bool
 	done                       bool
@@ -1897,6 +2525,60 @@ func (m *APIKeyGroupMutation) ResetProjectID() {
 	m.project = nil
 }
 
+// AddChannelRateIDs adds the "channel_rates" edge to the APIKeyGroupChannelRate entity by ids.
+func (m *APIKeyGroupMutation) AddChannelRateIDs(ids ...int) {
+	if m.channel_rates == nil {
+		m.channel_rates = make(map[int]struct{})
+	}
+	for i := range ids {
+		m.channel_rates[ids[i]] = struct{}{}
+	}
+}
+
+// ClearChannelRates clears the "channel_rates" edge to the APIKeyGroupChannelRate entity.
+func (m *APIKeyGroupMutation) ClearChannelRates() {
+	m.clearedchannel_rates = true
+}
+
+// ChannelRatesCleared reports if the "channel_rates" edge to the APIKeyGroupChannelRate entity was cleared.
+func (m *APIKeyGroupMutation) ChannelRatesCleared() bool {
+	return m.clearedchannel_rates
+}
+
+// RemoveChannelRateIDs removes the "channel_rates" edge to the APIKeyGroupChannelRate entity by IDs.
+func (m *APIKeyGroupMutation) RemoveChannelRateIDs(ids ...int) {
+	if m.removedchannel_rates == nil {
+		m.removedchannel_rates = make(map[int]struct{})
+	}
+	for i := range ids {
+		delete(m.channel_rates, ids[i])
+		m.removedchannel_rates[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedChannelRates returns the removed IDs of the "channel_rates" edge to the APIKeyGroupChannelRate entity.
+func (m *APIKeyGroupMutation) RemovedChannelRatesIDs() (ids []int) {
+	for id := range m.removedchannel_rates {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ChannelRatesIDs returns the "channel_rates" edge IDs in the mutation.
+func (m *APIKeyGroupMutation) ChannelRatesIDs() (ids []int) {
+	for id := range m.channel_rates {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetChannelRates resets all changes to the "channel_rates" edge.
+func (m *APIKeyGroupMutation) ResetChannelRates() {
+	m.channel_rates = nil
+	m.clearedchannel_rates = false
+	m.removedchannel_rates = nil
+}
+
 // ClearProject clears the "project" edge to the Project entity.
 func (m *APIKeyGroupMutation) ClearProject() {
 	m.clearedproject = true
@@ -2191,7 +2873,10 @@ func (m *APIKeyGroupMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *APIKeyGroupMutation) AddedEdges() []string {
-	edges := make([]string, 0, 1)
+	edges := make([]string, 0, 2)
+	if m.channel_rates != nil {
+		edges = append(edges, apikeygroup.EdgeChannelRates)
+	}
 	if m.project != nil {
 		edges = append(edges, apikeygroup.EdgeProject)
 	}
@@ -2202,6 +2887,12 @@ func (m *APIKeyGroupMutation) AddedEdges() []string {
 // name in this mutation.
 func (m *APIKeyGroupMutation) AddedIDs(name string) []ent.Value {
 	switch name {
+	case apikeygroup.EdgeChannelRates:
+		ids := make([]ent.Value, 0, len(m.channel_rates))
+		for id := range m.channel_rates {
+			ids = append(ids, id)
+		}
+		return ids
 	case apikeygroup.EdgeProject:
 		if id := m.project; id != nil {
 			return []ent.Value{*id}
@@ -2212,19 +2903,33 @@ func (m *APIKeyGroupMutation) AddedIDs(name string) []ent.Value {
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *APIKeyGroupMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 1)
+	edges := make([]string, 0, 2)
+	if m.removedchannel_rates != nil {
+		edges = append(edges, apikeygroup.EdgeChannelRates)
+	}
 	return edges
 }
 
 // RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
 // the given name in this mutation.
 func (m *APIKeyGroupMutation) RemovedIDs(name string) []ent.Value {
+	switch name {
+	case apikeygroup.EdgeChannelRates:
+		ids := make([]ent.Value, 0, len(m.removedchannel_rates))
+		for id := range m.removedchannel_rates {
+			ids = append(ids, id)
+		}
+		return ids
+	}
 	return nil
 }
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *APIKeyGroupMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 1)
+	edges := make([]string, 0, 2)
+	if m.clearedchannel_rates {
+		edges = append(edges, apikeygroup.EdgeChannelRates)
+	}
 	if m.clearedproject {
 		edges = append(edges, apikeygroup.EdgeProject)
 	}
@@ -2235,6 +2940,8 @@ func (m *APIKeyGroupMutation) ClearedEdges() []string {
 // was cleared in this mutation.
 func (m *APIKeyGroupMutation) EdgeCleared(name string) bool {
 	switch name {
+	case apikeygroup.EdgeChannelRates:
+		return m.clearedchannel_rates
 	case apikeygroup.EdgeProject:
 		return m.clearedproject
 	}
@@ -2256,11 +2963,551 @@ func (m *APIKeyGroupMutation) ClearEdge(name string) error {
 // It returns an error if the edge is not defined in the schema.
 func (m *APIKeyGroupMutation) ResetEdge(name string) error {
 	switch name {
+	case apikeygroup.EdgeChannelRates:
+		m.ResetChannelRates()
+		return nil
 	case apikeygroup.EdgeProject:
 		m.ResetProject()
 		return nil
 	}
 	return fmt.Errorf("unknown APIKeyGroup edge %s", name)
+}
+
+// APIKeyGroupChannelRateMutation represents an operation that mutates the APIKeyGroupChannelRate nodes in the graph.
+type APIKeyGroupChannelRateMutation struct {
+	config
+	op             Op
+	typ            string
+	id             *int
+	multiplier     *decimal.Decimal
+	clearedFields  map[string]struct{}
+	group          *int
+	clearedgroup   bool
+	channel        *int
+	clearedchannel bool
+	done           bool
+	oldValue       func(context.Context) (*APIKeyGroupChannelRate, error)
+	predicates     []predicate.APIKeyGroupChannelRate
+}
+
+var _ ent.Mutation = (*APIKeyGroupChannelRateMutation)(nil)
+
+// apikeygroupchannelrateOption allows management of the mutation configuration using functional options.
+type apikeygroupchannelrateOption func(*APIKeyGroupChannelRateMutation)
+
+// newAPIKeyGroupChannelRateMutation creates new mutation for the APIKeyGroupChannelRate entity.
+func newAPIKeyGroupChannelRateMutation(c config, op Op, opts ...apikeygroupchannelrateOption) *APIKeyGroupChannelRateMutation {
+	m := &APIKeyGroupChannelRateMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeAPIKeyGroupChannelRate,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withAPIKeyGroupChannelRateID sets the ID field of the mutation.
+func withAPIKeyGroupChannelRateID(id int) apikeygroupchannelrateOption {
+	return func(m *APIKeyGroupChannelRateMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *APIKeyGroupChannelRate
+		)
+		m.oldValue = func(ctx context.Context) (*APIKeyGroupChannelRate, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().APIKeyGroupChannelRate.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withAPIKeyGroupChannelRate sets the old APIKeyGroupChannelRate of the mutation.
+func withAPIKeyGroupChannelRate(node *APIKeyGroupChannelRate) apikeygroupchannelrateOption {
+	return func(m *APIKeyGroupChannelRateMutation) {
+		m.oldValue = func(context.Context) (*APIKeyGroupChannelRate, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m APIKeyGroupChannelRateMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m APIKeyGroupChannelRateMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *APIKeyGroupChannelRateMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *APIKeyGroupChannelRateMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().APIKeyGroupChannelRate.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetGroupID sets the "group_id" field.
+func (m *APIKeyGroupChannelRateMutation) SetGroupID(i int) {
+	m.group = &i
+}
+
+// GroupID returns the value of the "group_id" field in the mutation.
+func (m *APIKeyGroupChannelRateMutation) GroupID() (r int, exists bool) {
+	v := m.group
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldGroupID returns the old "group_id" field's value of the APIKeyGroupChannelRate entity.
+// If the APIKeyGroupChannelRate object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *APIKeyGroupChannelRateMutation) OldGroupID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldGroupID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldGroupID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldGroupID: %w", err)
+	}
+	return oldValue.GroupID, nil
+}
+
+// ResetGroupID resets all changes to the "group_id" field.
+func (m *APIKeyGroupChannelRateMutation) ResetGroupID() {
+	m.group = nil
+}
+
+// SetChannelID sets the "channel_id" field.
+func (m *APIKeyGroupChannelRateMutation) SetChannelID(i int) {
+	m.channel = &i
+}
+
+// ChannelID returns the value of the "channel_id" field in the mutation.
+func (m *APIKeyGroupChannelRateMutation) ChannelID() (r int, exists bool) {
+	v := m.channel
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldChannelID returns the old "channel_id" field's value of the APIKeyGroupChannelRate entity.
+// If the APIKeyGroupChannelRate object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *APIKeyGroupChannelRateMutation) OldChannelID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldChannelID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldChannelID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldChannelID: %w", err)
+	}
+	return oldValue.ChannelID, nil
+}
+
+// ResetChannelID resets all changes to the "channel_id" field.
+func (m *APIKeyGroupChannelRateMutation) ResetChannelID() {
+	m.channel = nil
+}
+
+// SetMultiplier sets the "multiplier" field.
+func (m *APIKeyGroupChannelRateMutation) SetMultiplier(d decimal.Decimal) {
+	m.multiplier = &d
+}
+
+// Multiplier returns the value of the "multiplier" field in the mutation.
+func (m *APIKeyGroupChannelRateMutation) Multiplier() (r decimal.Decimal, exists bool) {
+	v := m.multiplier
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldMultiplier returns the old "multiplier" field's value of the APIKeyGroupChannelRate entity.
+// If the APIKeyGroupChannelRate object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *APIKeyGroupChannelRateMutation) OldMultiplier(ctx context.Context) (v decimal.Decimal, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldMultiplier is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldMultiplier requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldMultiplier: %w", err)
+	}
+	return oldValue.Multiplier, nil
+}
+
+// ResetMultiplier resets all changes to the "multiplier" field.
+func (m *APIKeyGroupChannelRateMutation) ResetMultiplier() {
+	m.multiplier = nil
+}
+
+// ClearGroup clears the "group" edge to the APIKeyGroup entity.
+func (m *APIKeyGroupChannelRateMutation) ClearGroup() {
+	m.clearedgroup = true
+	m.clearedFields[apikeygroupchannelrate.FieldGroupID] = struct{}{}
+}
+
+// GroupCleared reports if the "group" edge to the APIKeyGroup entity was cleared.
+func (m *APIKeyGroupChannelRateMutation) GroupCleared() bool {
+	return m.clearedgroup
+}
+
+// GroupIDs returns the "group" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// GroupID instead. It exists only for internal usage by the builders.
+func (m *APIKeyGroupChannelRateMutation) GroupIDs() (ids []int) {
+	if id := m.group; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetGroup resets all changes to the "group" edge.
+func (m *APIKeyGroupChannelRateMutation) ResetGroup() {
+	m.group = nil
+	m.clearedgroup = false
+}
+
+// ClearChannel clears the "channel" edge to the Channel entity.
+func (m *APIKeyGroupChannelRateMutation) ClearChannel() {
+	m.clearedchannel = true
+	m.clearedFields[apikeygroupchannelrate.FieldChannelID] = struct{}{}
+}
+
+// ChannelCleared reports if the "channel" edge to the Channel entity was cleared.
+func (m *APIKeyGroupChannelRateMutation) ChannelCleared() bool {
+	return m.clearedchannel
+}
+
+// ChannelIDs returns the "channel" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// ChannelID instead. It exists only for internal usage by the builders.
+func (m *APIKeyGroupChannelRateMutation) ChannelIDs() (ids []int) {
+	if id := m.channel; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetChannel resets all changes to the "channel" edge.
+func (m *APIKeyGroupChannelRateMutation) ResetChannel() {
+	m.channel = nil
+	m.clearedchannel = false
+}
+
+// Where appends a list predicates to the APIKeyGroupChannelRateMutation builder.
+func (m *APIKeyGroupChannelRateMutation) Where(ps ...predicate.APIKeyGroupChannelRate) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the APIKeyGroupChannelRateMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *APIKeyGroupChannelRateMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.APIKeyGroupChannelRate, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *APIKeyGroupChannelRateMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *APIKeyGroupChannelRateMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (APIKeyGroupChannelRate).
+func (m *APIKeyGroupChannelRateMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *APIKeyGroupChannelRateMutation) Fields() []string {
+	fields := make([]string, 0, 3)
+	if m.group != nil {
+		fields = append(fields, apikeygroupchannelrate.FieldGroupID)
+	}
+	if m.channel != nil {
+		fields = append(fields, apikeygroupchannelrate.FieldChannelID)
+	}
+	if m.multiplier != nil {
+		fields = append(fields, apikeygroupchannelrate.FieldMultiplier)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *APIKeyGroupChannelRateMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case apikeygroupchannelrate.FieldGroupID:
+		return m.GroupID()
+	case apikeygroupchannelrate.FieldChannelID:
+		return m.ChannelID()
+	case apikeygroupchannelrate.FieldMultiplier:
+		return m.Multiplier()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *APIKeyGroupChannelRateMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case apikeygroupchannelrate.FieldGroupID:
+		return m.OldGroupID(ctx)
+	case apikeygroupchannelrate.FieldChannelID:
+		return m.OldChannelID(ctx)
+	case apikeygroupchannelrate.FieldMultiplier:
+		return m.OldMultiplier(ctx)
+	}
+	return nil, fmt.Errorf("unknown APIKeyGroupChannelRate field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *APIKeyGroupChannelRateMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case apikeygroupchannelrate.FieldGroupID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetGroupID(v)
+		return nil
+	case apikeygroupchannelrate.FieldChannelID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetChannelID(v)
+		return nil
+	case apikeygroupchannelrate.FieldMultiplier:
+		v, ok := value.(decimal.Decimal)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetMultiplier(v)
+		return nil
+	}
+	return fmt.Errorf("unknown APIKeyGroupChannelRate field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *APIKeyGroupChannelRateMutation) AddedFields() []string {
+	var fields []string
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *APIKeyGroupChannelRateMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *APIKeyGroupChannelRateMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	}
+	return fmt.Errorf("unknown APIKeyGroupChannelRate numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *APIKeyGroupChannelRateMutation) ClearedFields() []string {
+	return nil
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *APIKeyGroupChannelRateMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *APIKeyGroupChannelRateMutation) ClearField(name string) error {
+	return fmt.Errorf("unknown APIKeyGroupChannelRate nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *APIKeyGroupChannelRateMutation) ResetField(name string) error {
+	switch name {
+	case apikeygroupchannelrate.FieldGroupID:
+		m.ResetGroupID()
+		return nil
+	case apikeygroupchannelrate.FieldChannelID:
+		m.ResetChannelID()
+		return nil
+	case apikeygroupchannelrate.FieldMultiplier:
+		m.ResetMultiplier()
+		return nil
+	}
+	return fmt.Errorf("unknown APIKeyGroupChannelRate field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *APIKeyGroupChannelRateMutation) AddedEdges() []string {
+	edges := make([]string, 0, 2)
+	if m.group != nil {
+		edges = append(edges, apikeygroupchannelrate.EdgeGroup)
+	}
+	if m.channel != nil {
+		edges = append(edges, apikeygroupchannelrate.EdgeChannel)
+	}
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *APIKeyGroupChannelRateMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case apikeygroupchannelrate.EdgeGroup:
+		if id := m.group; id != nil {
+			return []ent.Value{*id}
+		}
+	case apikeygroupchannelrate.EdgeChannel:
+		if id := m.channel; id != nil {
+			return []ent.Value{*id}
+		}
+	}
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *APIKeyGroupChannelRateMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 2)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *APIKeyGroupChannelRateMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *APIKeyGroupChannelRateMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 2)
+	if m.clearedgroup {
+		edges = append(edges, apikeygroupchannelrate.EdgeGroup)
+	}
+	if m.clearedchannel {
+		edges = append(edges, apikeygroupchannelrate.EdgeChannel)
+	}
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *APIKeyGroupChannelRateMutation) EdgeCleared(name string) bool {
+	switch name {
+	case apikeygroupchannelrate.EdgeGroup:
+		return m.clearedgroup
+	case apikeygroupchannelrate.EdgeChannel:
+		return m.clearedchannel
+	}
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *APIKeyGroupChannelRateMutation) ClearEdge(name string) error {
+	switch name {
+	case apikeygroupchannelrate.EdgeGroup:
+		m.ClearGroup()
+		return nil
+	case apikeygroupchannelrate.EdgeChannel:
+		m.ClearChannel()
+		return nil
+	}
+	return fmt.Errorf("unknown APIKeyGroupChannelRate unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *APIKeyGroupChannelRateMutation) ResetEdge(name string) error {
+	switch name {
+	case apikeygroupchannelrate.EdgeGroup:
+		m.ResetGroup()
+		return nil
+	case apikeygroupchannelrate.EdgeChannel:
+		m.ResetChannel()
+		return nil
+	}
+	return fmt.Errorf("unknown APIKeyGroupChannelRate edge %s", name)
 }
 
 // APIKeyOperationMutation represents an operation that mutates the APIKeyOperation nodes in the graph.
@@ -9827,6 +11074,12 @@ type ChannelMutation struct {
 	endpoints                    *[]objects.ChannelEndpoint
 	appendendpoints              []objects.ChannelEndpoint
 	clearedFields                map[string]struct{}
+	key_rates                    map[int]struct{}
+	removedkey_rates             map[int]struct{}
+	clearedkey_rates             bool
+	group_rates                  map[int]struct{}
+	removedgroup_rates           map[int]struct{}
+	clearedgroup_rates           bool
 	upstream_statuses            map[int]struct{}
 	removedupstream_statuses     map[int]struct{}
 	clearedupstream_statuses     bool
@@ -11151,6 +12404,114 @@ func (m *ChannelMutation) ResetEndpoints() {
 	delete(m.clearedFields, channel.FieldEndpoints)
 }
 
+// AddKeyRateIDs adds the "key_rates" edge to the APIKeyChannelRate entity by ids.
+func (m *ChannelMutation) AddKeyRateIDs(ids ...int) {
+	if m.key_rates == nil {
+		m.key_rates = make(map[int]struct{})
+	}
+	for i := range ids {
+		m.key_rates[ids[i]] = struct{}{}
+	}
+}
+
+// ClearKeyRates clears the "key_rates" edge to the APIKeyChannelRate entity.
+func (m *ChannelMutation) ClearKeyRates() {
+	m.clearedkey_rates = true
+}
+
+// KeyRatesCleared reports if the "key_rates" edge to the APIKeyChannelRate entity was cleared.
+func (m *ChannelMutation) KeyRatesCleared() bool {
+	return m.clearedkey_rates
+}
+
+// RemoveKeyRateIDs removes the "key_rates" edge to the APIKeyChannelRate entity by IDs.
+func (m *ChannelMutation) RemoveKeyRateIDs(ids ...int) {
+	if m.removedkey_rates == nil {
+		m.removedkey_rates = make(map[int]struct{})
+	}
+	for i := range ids {
+		delete(m.key_rates, ids[i])
+		m.removedkey_rates[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedKeyRates returns the removed IDs of the "key_rates" edge to the APIKeyChannelRate entity.
+func (m *ChannelMutation) RemovedKeyRatesIDs() (ids []int) {
+	for id := range m.removedkey_rates {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// KeyRatesIDs returns the "key_rates" edge IDs in the mutation.
+func (m *ChannelMutation) KeyRatesIDs() (ids []int) {
+	for id := range m.key_rates {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetKeyRates resets all changes to the "key_rates" edge.
+func (m *ChannelMutation) ResetKeyRates() {
+	m.key_rates = nil
+	m.clearedkey_rates = false
+	m.removedkey_rates = nil
+}
+
+// AddGroupRateIDs adds the "group_rates" edge to the APIKeyGroupChannelRate entity by ids.
+func (m *ChannelMutation) AddGroupRateIDs(ids ...int) {
+	if m.group_rates == nil {
+		m.group_rates = make(map[int]struct{})
+	}
+	for i := range ids {
+		m.group_rates[ids[i]] = struct{}{}
+	}
+}
+
+// ClearGroupRates clears the "group_rates" edge to the APIKeyGroupChannelRate entity.
+func (m *ChannelMutation) ClearGroupRates() {
+	m.clearedgroup_rates = true
+}
+
+// GroupRatesCleared reports if the "group_rates" edge to the APIKeyGroupChannelRate entity was cleared.
+func (m *ChannelMutation) GroupRatesCleared() bool {
+	return m.clearedgroup_rates
+}
+
+// RemoveGroupRateIDs removes the "group_rates" edge to the APIKeyGroupChannelRate entity by IDs.
+func (m *ChannelMutation) RemoveGroupRateIDs(ids ...int) {
+	if m.removedgroup_rates == nil {
+		m.removedgroup_rates = make(map[int]struct{})
+	}
+	for i := range ids {
+		delete(m.group_rates, ids[i])
+		m.removedgroup_rates[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedGroupRates returns the removed IDs of the "group_rates" edge to the APIKeyGroupChannelRate entity.
+func (m *ChannelMutation) RemovedGroupRatesIDs() (ids []int) {
+	for id := range m.removedgroup_rates {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// GroupRatesIDs returns the "group_rates" edge IDs in the mutation.
+func (m *ChannelMutation) GroupRatesIDs() (ids []int) {
+	for id := range m.group_rates {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetGroupRates resets all changes to the "group_rates" edge.
+func (m *ChannelMutation) ResetGroupRates() {
+	m.group_rates = nil
+	m.clearedgroup_rates = false
+	m.removedgroup_rates = nil
+}
+
 // AddUpstreamStatusIDs adds the "upstream_statuses" edge to the ChannelUpstreamStatus entity by ids.
 func (m *ChannelMutation) AddUpstreamStatusIDs(ids ...int) {
 	if m.upstream_statuses == nil {
@@ -12169,7 +13530,13 @@ func (m *ChannelMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *ChannelMutation) AddedEdges() []string {
-	edges := make([]string, 0, 7)
+	edges := make([]string, 0, 9)
+	if m.key_rates != nil {
+		edges = append(edges, channel.EdgeKeyRates)
+	}
+	if m.group_rates != nil {
+		edges = append(edges, channel.EdgeGroupRates)
+	}
 	if m.upstream_statuses != nil {
 		edges = append(edges, channel.EdgeUpstreamStatuses)
 	}
@@ -12198,6 +13565,18 @@ func (m *ChannelMutation) AddedEdges() []string {
 // name in this mutation.
 func (m *ChannelMutation) AddedIDs(name string) []ent.Value {
 	switch name {
+	case channel.EdgeKeyRates:
+		ids := make([]ent.Value, 0, len(m.key_rates))
+		for id := range m.key_rates {
+			ids = append(ids, id)
+		}
+		return ids
+	case channel.EdgeGroupRates:
+		ids := make([]ent.Value, 0, len(m.group_rates))
+		for id := range m.group_rates {
+			ids = append(ids, id)
+		}
+		return ids
 	case channel.EdgeUpstreamStatuses:
 		ids := make([]ent.Value, 0, len(m.upstream_statuses))
 		for id := range m.upstream_statuses {
@@ -12244,7 +13623,13 @@ func (m *ChannelMutation) AddedIDs(name string) []ent.Value {
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *ChannelMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 7)
+	edges := make([]string, 0, 9)
+	if m.removedkey_rates != nil {
+		edges = append(edges, channel.EdgeKeyRates)
+	}
+	if m.removedgroup_rates != nil {
+		edges = append(edges, channel.EdgeGroupRates)
+	}
 	if m.removedupstream_statuses != nil {
 		edges = append(edges, channel.EdgeUpstreamStatuses)
 	}
@@ -12270,6 +13655,18 @@ func (m *ChannelMutation) RemovedEdges() []string {
 // the given name in this mutation.
 func (m *ChannelMutation) RemovedIDs(name string) []ent.Value {
 	switch name {
+	case channel.EdgeKeyRates:
+		ids := make([]ent.Value, 0, len(m.removedkey_rates))
+		for id := range m.removedkey_rates {
+			ids = append(ids, id)
+		}
+		return ids
+	case channel.EdgeGroupRates:
+		ids := make([]ent.Value, 0, len(m.removedgroup_rates))
+		for id := range m.removedgroup_rates {
+			ids = append(ids, id)
+		}
+		return ids
 	case channel.EdgeUpstreamStatuses:
 		ids := make([]ent.Value, 0, len(m.removedupstream_statuses))
 		for id := range m.removedupstream_statuses {
@@ -12312,7 +13709,13 @@ func (m *ChannelMutation) RemovedIDs(name string) []ent.Value {
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *ChannelMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 7)
+	edges := make([]string, 0, 9)
+	if m.clearedkey_rates {
+		edges = append(edges, channel.EdgeKeyRates)
+	}
+	if m.clearedgroup_rates {
+		edges = append(edges, channel.EdgeGroupRates)
+	}
 	if m.clearedupstream_statuses {
 		edges = append(edges, channel.EdgeUpstreamStatuses)
 	}
@@ -12341,6 +13744,10 @@ func (m *ChannelMutation) ClearedEdges() []string {
 // was cleared in this mutation.
 func (m *ChannelMutation) EdgeCleared(name string) bool {
 	switch name {
+	case channel.EdgeKeyRates:
+		return m.clearedkey_rates
+	case channel.EdgeGroupRates:
+		return m.clearedgroup_rates
 	case channel.EdgeUpstreamStatuses:
 		return m.clearedupstream_statuses
 	case channel.EdgeRequests:
@@ -12374,6 +13781,12 @@ func (m *ChannelMutation) ClearEdge(name string) error {
 // It returns an error if the edge is not defined in the schema.
 func (m *ChannelMutation) ResetEdge(name string) error {
 	switch name {
+	case channel.EdgeKeyRates:
+		m.ResetKeyRates()
+		return nil
+	case channel.EdgeGroupRates:
+		m.ResetGroupRates()
+		return nil
 	case channel.EdgeUpstreamStatuses:
 		m.ResetUpstreamStatuses()
 		return nil
@@ -29943,8 +31356,11 @@ type RequestMutation struct {
 	id                                *int
 	created_at                        *time.Time
 	updated_at                        *time.Time
+	restore_ref                       *string
 	user_id                           *int
 	adduser_id                        *int
+	billing_group_ref                 *int
+	addbilling_group_ref              *int
 	client_session_id                 *string
 	continuation_key                  *string
 	source                            *request.Source
@@ -30176,6 +31592,55 @@ func (m *RequestMutation) ResetUpdatedAt() {
 	m.updated_at = nil
 }
 
+// SetRestoreRef sets the "restore_ref" field.
+func (m *RequestMutation) SetRestoreRef(s string) {
+	m.restore_ref = &s
+}
+
+// RestoreRef returns the value of the "restore_ref" field in the mutation.
+func (m *RequestMutation) RestoreRef() (r string, exists bool) {
+	v := m.restore_ref
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRestoreRef returns the old "restore_ref" field's value of the Request entity.
+// If the Request object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RequestMutation) OldRestoreRef(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRestoreRef is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRestoreRef requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRestoreRef: %w", err)
+	}
+	return oldValue.RestoreRef, nil
+}
+
+// ClearRestoreRef clears the value of the "restore_ref" field.
+func (m *RequestMutation) ClearRestoreRef() {
+	m.restore_ref = nil
+	m.clearedFields[request.FieldRestoreRef] = struct{}{}
+}
+
+// RestoreRefCleared returns if the "restore_ref" field was cleared in this mutation.
+func (m *RequestMutation) RestoreRefCleared() bool {
+	_, ok := m.clearedFields[request.FieldRestoreRef]
+	return ok
+}
+
+// ResetRestoreRef resets all changes to the "restore_ref" field.
+func (m *RequestMutation) ResetRestoreRef() {
+	m.restore_ref = nil
+	delete(m.clearedFields, request.FieldRestoreRef)
+}
+
 // SetAPIKeyID sets the "api_key_id" field.
 func (m *RequestMutation) SetAPIKeyID(i int) {
 	m.api_key = &i
@@ -30293,6 +31758,76 @@ func (m *RequestMutation) ResetUserID() {
 	m.user_id = nil
 	m.adduser_id = nil
 	delete(m.clearedFields, request.FieldUserID)
+}
+
+// SetBillingGroupRef sets the "billing_group_ref" field.
+func (m *RequestMutation) SetBillingGroupRef(i int) {
+	m.billing_group_ref = &i
+	m.addbilling_group_ref = nil
+}
+
+// BillingGroupRef returns the value of the "billing_group_ref" field in the mutation.
+func (m *RequestMutation) BillingGroupRef() (r int, exists bool) {
+	v := m.billing_group_ref
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldBillingGroupRef returns the old "billing_group_ref" field's value of the Request entity.
+// If the Request object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RequestMutation) OldBillingGroupRef(ctx context.Context) (v *int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldBillingGroupRef is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldBillingGroupRef requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldBillingGroupRef: %w", err)
+	}
+	return oldValue.BillingGroupRef, nil
+}
+
+// AddBillingGroupRef adds i to the "billing_group_ref" field.
+func (m *RequestMutation) AddBillingGroupRef(i int) {
+	if m.addbilling_group_ref != nil {
+		*m.addbilling_group_ref += i
+	} else {
+		m.addbilling_group_ref = &i
+	}
+}
+
+// AddedBillingGroupRef returns the value that was added to the "billing_group_ref" field in this mutation.
+func (m *RequestMutation) AddedBillingGroupRef() (r int, exists bool) {
+	v := m.addbilling_group_ref
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearBillingGroupRef clears the value of the "billing_group_ref" field.
+func (m *RequestMutation) ClearBillingGroupRef() {
+	m.billing_group_ref = nil
+	m.addbilling_group_ref = nil
+	m.clearedFields[request.FieldBillingGroupRef] = struct{}{}
+}
+
+// BillingGroupRefCleared returns if the "billing_group_ref" field was cleared in this mutation.
+func (m *RequestMutation) BillingGroupRefCleared() bool {
+	_, ok := m.clearedFields[request.FieldBillingGroupRef]
+	return ok
+}
+
+// ResetBillingGroupRef resets all changes to the "billing_group_ref" field.
+func (m *RequestMutation) ResetBillingGroupRef() {
+	m.billing_group_ref = nil
+	m.addbilling_group_ref = nil
+	delete(m.clearedFields, request.FieldBillingGroupRef)
 }
 
 // SetProjectID sets the "project_id" field.
@@ -32215,18 +33750,24 @@ func (m *RequestMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *RequestMutation) Fields() []string {
-	fields := make([]string, 0, 36)
+	fields := make([]string, 0, 38)
 	if m.created_at != nil {
 		fields = append(fields, request.FieldCreatedAt)
 	}
 	if m.updated_at != nil {
 		fields = append(fields, request.FieldUpdatedAt)
 	}
+	if m.restore_ref != nil {
+		fields = append(fields, request.FieldRestoreRef)
+	}
 	if m.api_key != nil {
 		fields = append(fields, request.FieldAPIKeyID)
 	}
 	if m.user_id != nil {
 		fields = append(fields, request.FieldUserID)
+	}
+	if m.billing_group_ref != nil {
+		fields = append(fields, request.FieldBillingGroupRef)
 	}
 	if m.project != nil {
 		fields = append(fields, request.FieldProjectID)
@@ -32336,10 +33877,14 @@ func (m *RequestMutation) Field(name string) (ent.Value, bool) {
 		return m.CreatedAt()
 	case request.FieldUpdatedAt:
 		return m.UpdatedAt()
+	case request.FieldRestoreRef:
+		return m.RestoreRef()
 	case request.FieldAPIKeyID:
 		return m.APIKeyID()
 	case request.FieldUserID:
 		return m.UserID()
+	case request.FieldBillingGroupRef:
+		return m.BillingGroupRef()
 	case request.FieldProjectID:
 		return m.ProjectID()
 	case request.FieldTraceID:
@@ -32417,10 +33962,14 @@ func (m *RequestMutation) OldField(ctx context.Context, name string) (ent.Value,
 		return m.OldCreatedAt(ctx)
 	case request.FieldUpdatedAt:
 		return m.OldUpdatedAt(ctx)
+	case request.FieldRestoreRef:
+		return m.OldRestoreRef(ctx)
 	case request.FieldAPIKeyID:
 		return m.OldAPIKeyID(ctx)
 	case request.FieldUserID:
 		return m.OldUserID(ctx)
+	case request.FieldBillingGroupRef:
+		return m.OldBillingGroupRef(ctx)
 	case request.FieldProjectID:
 		return m.OldProjectID(ctx)
 	case request.FieldTraceID:
@@ -32508,6 +34057,13 @@ func (m *RequestMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetUpdatedAt(v)
 		return nil
+	case request.FieldRestoreRef:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRestoreRef(v)
+		return nil
 	case request.FieldAPIKeyID:
 		v, ok := value.(int)
 		if !ok {
@@ -32521,6 +34077,13 @@ func (m *RequestMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetUserID(v)
+		return nil
+	case request.FieldBillingGroupRef:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetBillingGroupRef(v)
 		return nil
 	case request.FieldProjectID:
 		v, ok := value.(int)
@@ -32757,6 +34320,9 @@ func (m *RequestMutation) AddedFields() []string {
 	if m.adduser_id != nil {
 		fields = append(fields, request.FieldUserID)
 	}
+	if m.addbilling_group_ref != nil {
+		fields = append(fields, request.FieldBillingGroupRef)
+	}
 	if m.addresult_execution_id != nil {
 		fields = append(fields, request.FieldResultExecutionID)
 	}
@@ -32785,6 +34351,8 @@ func (m *RequestMutation) AddedField(name string) (ent.Value, bool) {
 	switch name {
 	case request.FieldUserID:
 		return m.AddedUserID()
+	case request.FieldBillingGroupRef:
+		return m.AddedBillingGroupRef()
 	case request.FieldResultExecutionID:
 		return m.AddedResultExecutionID()
 	case request.FieldClientStatusCode:
@@ -32812,6 +34380,13 @@ func (m *RequestMutation) AddField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.AddUserID(v)
+		return nil
+	case request.FieldBillingGroupRef:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddBillingGroupRef(v)
 		return nil
 	case request.FieldResultExecutionID:
 		v, ok := value.(int)
@@ -32863,11 +34438,17 @@ func (m *RequestMutation) AddField(name string, value ent.Value) error {
 // mutation.
 func (m *RequestMutation) ClearedFields() []string {
 	var fields []string
+	if m.FieldCleared(request.FieldRestoreRef) {
+		fields = append(fields, request.FieldRestoreRef)
+	}
 	if m.FieldCleared(request.FieldAPIKeyID) {
 		fields = append(fields, request.FieldAPIKeyID)
 	}
 	if m.FieldCleared(request.FieldUserID) {
 		fields = append(fields, request.FieldUserID)
+	}
+	if m.FieldCleared(request.FieldBillingGroupRef) {
+		fields = append(fields, request.FieldBillingGroupRef)
 	}
 	if m.FieldCleared(request.FieldTraceID) {
 		fields = append(fields, request.FieldTraceID)
@@ -32949,11 +34530,17 @@ func (m *RequestMutation) FieldCleared(name string) bool {
 // error if the field is not defined in the schema.
 func (m *RequestMutation) ClearField(name string) error {
 	switch name {
+	case request.FieldRestoreRef:
+		m.ClearRestoreRef()
+		return nil
 	case request.FieldAPIKeyID:
 		m.ClearAPIKeyID()
 		return nil
 	case request.FieldUserID:
 		m.ClearUserID()
+		return nil
+	case request.FieldBillingGroupRef:
+		m.ClearBillingGroupRef()
 		return nil
 	case request.FieldTraceID:
 		m.ClearTraceID()
@@ -33035,11 +34622,17 @@ func (m *RequestMutation) ResetField(name string) error {
 	case request.FieldUpdatedAt:
 		m.ResetUpdatedAt()
 		return nil
+	case request.FieldRestoreRef:
+		m.ResetRestoreRef()
+		return nil
 	case request.FieldAPIKeyID:
 		m.ResetAPIKeyID()
 		return nil
 	case request.FieldUserID:
 		m.ResetUserID()
+		return nil
+	case request.FieldBillingGroupRef:
+		m.ResetBillingGroupRef()
 		return nil
 	case request.FieldProjectID:
 		m.ResetProjectID()
@@ -33349,6 +34942,7 @@ type RequestExecutionMutation struct {
 	id                                *int
 	created_at                        *time.Time
 	updated_at                        *time.Time
+	billing_dispatched                *bool
 	statistics_ready                  *bool
 	statistics_version                *int64
 	addstatistics_version             *int64
@@ -33589,6 +35183,42 @@ func (m *RequestExecutionMutation) OldUpdatedAt(ctx context.Context) (v time.Tim
 // ResetUpdatedAt resets all changes to the "updated_at" field.
 func (m *RequestExecutionMutation) ResetUpdatedAt() {
 	m.updated_at = nil
+}
+
+// SetBillingDispatched sets the "billing_dispatched" field.
+func (m *RequestExecutionMutation) SetBillingDispatched(b bool) {
+	m.billing_dispatched = &b
+}
+
+// BillingDispatched returns the value of the "billing_dispatched" field in the mutation.
+func (m *RequestExecutionMutation) BillingDispatched() (r bool, exists bool) {
+	v := m.billing_dispatched
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldBillingDispatched returns the old "billing_dispatched" field's value of the RequestExecution entity.
+// If the RequestExecution object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RequestExecutionMutation) OldBillingDispatched(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldBillingDispatched is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldBillingDispatched requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldBillingDispatched: %w", err)
+	}
+	return oldValue.BillingDispatched, nil
+}
+
+// ResetBillingDispatched resets all changes to the "billing_dispatched" field.
+func (m *RequestExecutionMutation) ResetBillingDispatched() {
+	m.billing_dispatched = nil
 }
 
 // SetStatisticsReady sets the "statistics_ready" field.
@@ -36075,12 +37705,15 @@ func (m *RequestExecutionMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *RequestExecutionMutation) Fields() []string {
-	fields := make([]string, 0, 45)
+	fields := make([]string, 0, 46)
 	if m.created_at != nil {
 		fields = append(fields, requestexecution.FieldCreatedAt)
 	}
 	if m.updated_at != nil {
 		fields = append(fields, requestexecution.FieldUpdatedAt)
+	}
+	if m.billing_dispatched != nil {
+		fields = append(fields, requestexecution.FieldBillingDispatched)
 	}
 	if m.statistics_ready != nil {
 		fields = append(fields, requestexecution.FieldStatisticsReady)
@@ -36223,6 +37856,8 @@ func (m *RequestExecutionMutation) Field(name string) (ent.Value, bool) {
 		return m.CreatedAt()
 	case requestexecution.FieldUpdatedAt:
 		return m.UpdatedAt()
+	case requestexecution.FieldBillingDispatched:
+		return m.BillingDispatched()
 	case requestexecution.FieldStatisticsReady:
 		return m.StatisticsReady()
 	case requestexecution.FieldStatisticsVersion:
@@ -36322,6 +37957,8 @@ func (m *RequestExecutionMutation) OldField(ctx context.Context, name string) (e
 		return m.OldCreatedAt(ctx)
 	case requestexecution.FieldUpdatedAt:
 		return m.OldUpdatedAt(ctx)
+	case requestexecution.FieldBillingDispatched:
+		return m.OldBillingDispatched(ctx)
 	case requestexecution.FieldStatisticsReady:
 		return m.OldStatisticsReady(ctx)
 	case requestexecution.FieldStatisticsVersion:
@@ -36430,6 +38067,13 @@ func (m *RequestExecutionMutation) SetField(name string, value ent.Value) error 
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetUpdatedAt(v)
+		return nil
+	case requestexecution.FieldBillingDispatched:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetBillingDispatched(v)
 		return nil
 	case requestexecution.FieldStatisticsReady:
 		v, ok := value.(bool)
@@ -37170,6 +38814,9 @@ func (m *RequestExecutionMutation) ResetField(name string) error {
 		return nil
 	case requestexecution.FieldUpdatedAt:
 		m.ResetUpdatedAt()
+		return nil
+	case requestexecution.FieldBillingDispatched:
+		m.ResetBillingDispatched()
 		return nil
 	case requestexecution.FieldStatisticsReady:
 		m.ResetStatisticsReady()
@@ -42069,6 +43716,7 @@ type UsageArchiveMutation struct {
 	kind                           *usagearchive.Kind
 	source_id                      *int
 	addsource_id                   *int
+	restore_ref                    *string
 	request_id                     *int
 	addrequest_id                  *int
 	project_id                     *int
@@ -42083,6 +43731,12 @@ type UsageArchiveMutation struct {
 	request_status                 *string
 	request_source                 *string
 	occurred_at                    *time.Time
+	billing_group_id               *int
+	addbilling_group_id            *int
+	billing_evidence               **objects.GroupBillingEvidence
+	billed_cost                    *float64
+	addbilled_cost                 *float64
+	billing_estimated              *bool
 	total_cost                     *float64
 	addtotal_cost                  *float64
 	cache_creation_cost            *float64
@@ -42314,6 +43968,55 @@ func (m *UsageArchiveMutation) AddedSourceID() (r int, exists bool) {
 func (m *UsageArchiveMutation) ResetSourceID() {
 	m.source_id = nil
 	m.addsource_id = nil
+}
+
+// SetRestoreRef sets the "restore_ref" field.
+func (m *UsageArchiveMutation) SetRestoreRef(s string) {
+	m.restore_ref = &s
+}
+
+// RestoreRef returns the value of the "restore_ref" field in the mutation.
+func (m *UsageArchiveMutation) RestoreRef() (r string, exists bool) {
+	v := m.restore_ref
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRestoreRef returns the old "restore_ref" field's value of the UsageArchive entity.
+// If the UsageArchive object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UsageArchiveMutation) OldRestoreRef(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRestoreRef is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRestoreRef requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRestoreRef: %w", err)
+	}
+	return oldValue.RestoreRef, nil
+}
+
+// ClearRestoreRef clears the value of the "restore_ref" field.
+func (m *UsageArchiveMutation) ClearRestoreRef() {
+	m.restore_ref = nil
+	m.clearedFields[usagearchive.FieldRestoreRef] = struct{}{}
+}
+
+// RestoreRefCleared returns if the "restore_ref" field was cleared in this mutation.
+func (m *UsageArchiveMutation) RestoreRefCleared() bool {
+	_, ok := m.clearedFields[usagearchive.FieldRestoreRef]
+	return ok
+}
+
+// ResetRestoreRef resets all changes to the "restore_ref" field.
+func (m *UsageArchiveMutation) ResetRestoreRef() {
+	m.restore_ref = nil
+	delete(m.clearedFields, usagearchive.FieldRestoreRef)
 }
 
 // SetRequestID sets the "request_id" field.
@@ -42767,6 +44470,231 @@ func (m *UsageArchiveMutation) OldOccurredAt(ctx context.Context) (v time.Time, 
 // ResetOccurredAt resets all changes to the "occurred_at" field.
 func (m *UsageArchiveMutation) ResetOccurredAt() {
 	m.occurred_at = nil
+}
+
+// SetBillingGroupID sets the "billing_group_id" field.
+func (m *UsageArchiveMutation) SetBillingGroupID(i int) {
+	m.billing_group_id = &i
+	m.addbilling_group_id = nil
+}
+
+// BillingGroupID returns the value of the "billing_group_id" field in the mutation.
+func (m *UsageArchiveMutation) BillingGroupID() (r int, exists bool) {
+	v := m.billing_group_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldBillingGroupID returns the old "billing_group_id" field's value of the UsageArchive entity.
+// If the UsageArchive object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UsageArchiveMutation) OldBillingGroupID(ctx context.Context) (v *int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldBillingGroupID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldBillingGroupID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldBillingGroupID: %w", err)
+	}
+	return oldValue.BillingGroupID, nil
+}
+
+// AddBillingGroupID adds i to the "billing_group_id" field.
+func (m *UsageArchiveMutation) AddBillingGroupID(i int) {
+	if m.addbilling_group_id != nil {
+		*m.addbilling_group_id += i
+	} else {
+		m.addbilling_group_id = &i
+	}
+}
+
+// AddedBillingGroupID returns the value that was added to the "billing_group_id" field in this mutation.
+func (m *UsageArchiveMutation) AddedBillingGroupID() (r int, exists bool) {
+	v := m.addbilling_group_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearBillingGroupID clears the value of the "billing_group_id" field.
+func (m *UsageArchiveMutation) ClearBillingGroupID() {
+	m.billing_group_id = nil
+	m.addbilling_group_id = nil
+	m.clearedFields[usagearchive.FieldBillingGroupID] = struct{}{}
+}
+
+// BillingGroupIDCleared returns if the "billing_group_id" field was cleared in this mutation.
+func (m *UsageArchiveMutation) BillingGroupIDCleared() bool {
+	_, ok := m.clearedFields[usagearchive.FieldBillingGroupID]
+	return ok
+}
+
+// ResetBillingGroupID resets all changes to the "billing_group_id" field.
+func (m *UsageArchiveMutation) ResetBillingGroupID() {
+	m.billing_group_id = nil
+	m.addbilling_group_id = nil
+	delete(m.clearedFields, usagearchive.FieldBillingGroupID)
+}
+
+// SetBillingEvidence sets the "billing_evidence" field.
+func (m *UsageArchiveMutation) SetBillingEvidence(obe *objects.GroupBillingEvidence) {
+	m.billing_evidence = &obe
+}
+
+// BillingEvidence returns the value of the "billing_evidence" field in the mutation.
+func (m *UsageArchiveMutation) BillingEvidence() (r *objects.GroupBillingEvidence, exists bool) {
+	v := m.billing_evidence
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldBillingEvidence returns the old "billing_evidence" field's value of the UsageArchive entity.
+// If the UsageArchive object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UsageArchiveMutation) OldBillingEvidence(ctx context.Context) (v *objects.GroupBillingEvidence, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldBillingEvidence is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldBillingEvidence requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldBillingEvidence: %w", err)
+	}
+	return oldValue.BillingEvidence, nil
+}
+
+// ClearBillingEvidence clears the value of the "billing_evidence" field.
+func (m *UsageArchiveMutation) ClearBillingEvidence() {
+	m.billing_evidence = nil
+	m.clearedFields[usagearchive.FieldBillingEvidence] = struct{}{}
+}
+
+// BillingEvidenceCleared returns if the "billing_evidence" field was cleared in this mutation.
+func (m *UsageArchiveMutation) BillingEvidenceCleared() bool {
+	_, ok := m.clearedFields[usagearchive.FieldBillingEvidence]
+	return ok
+}
+
+// ResetBillingEvidence resets all changes to the "billing_evidence" field.
+func (m *UsageArchiveMutation) ResetBillingEvidence() {
+	m.billing_evidence = nil
+	delete(m.clearedFields, usagearchive.FieldBillingEvidence)
+}
+
+// SetBilledCost sets the "billed_cost" field.
+func (m *UsageArchiveMutation) SetBilledCost(f float64) {
+	m.billed_cost = &f
+	m.addbilled_cost = nil
+}
+
+// BilledCost returns the value of the "billed_cost" field in the mutation.
+func (m *UsageArchiveMutation) BilledCost() (r float64, exists bool) {
+	v := m.billed_cost
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldBilledCost returns the old "billed_cost" field's value of the UsageArchive entity.
+// If the UsageArchive object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UsageArchiveMutation) OldBilledCost(ctx context.Context) (v *float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldBilledCost is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldBilledCost requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldBilledCost: %w", err)
+	}
+	return oldValue.BilledCost, nil
+}
+
+// AddBilledCost adds f to the "billed_cost" field.
+func (m *UsageArchiveMutation) AddBilledCost(f float64) {
+	if m.addbilled_cost != nil {
+		*m.addbilled_cost += f
+	} else {
+		m.addbilled_cost = &f
+	}
+}
+
+// AddedBilledCost returns the value that was added to the "billed_cost" field in this mutation.
+func (m *UsageArchiveMutation) AddedBilledCost() (r float64, exists bool) {
+	v := m.addbilled_cost
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearBilledCost clears the value of the "billed_cost" field.
+func (m *UsageArchiveMutation) ClearBilledCost() {
+	m.billed_cost = nil
+	m.addbilled_cost = nil
+	m.clearedFields[usagearchive.FieldBilledCost] = struct{}{}
+}
+
+// BilledCostCleared returns if the "billed_cost" field was cleared in this mutation.
+func (m *UsageArchiveMutation) BilledCostCleared() bool {
+	_, ok := m.clearedFields[usagearchive.FieldBilledCost]
+	return ok
+}
+
+// ResetBilledCost resets all changes to the "billed_cost" field.
+func (m *UsageArchiveMutation) ResetBilledCost() {
+	m.billed_cost = nil
+	m.addbilled_cost = nil
+	delete(m.clearedFields, usagearchive.FieldBilledCost)
+}
+
+// SetBillingEstimated sets the "billing_estimated" field.
+func (m *UsageArchiveMutation) SetBillingEstimated(b bool) {
+	m.billing_estimated = &b
+}
+
+// BillingEstimated returns the value of the "billing_estimated" field in the mutation.
+func (m *UsageArchiveMutation) BillingEstimated() (r bool, exists bool) {
+	v := m.billing_estimated
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldBillingEstimated returns the old "billing_estimated" field's value of the UsageArchive entity.
+// If the UsageArchive object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UsageArchiveMutation) OldBillingEstimated(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldBillingEstimated is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldBillingEstimated requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldBillingEstimated: %w", err)
+	}
+	return oldValue.BillingEstimated, nil
+}
+
+// ResetBillingEstimated resets all changes to the "billing_estimated" field.
+func (m *UsageArchiveMutation) ResetBillingEstimated() {
+	m.billing_estimated = nil
 }
 
 // SetTotalCost sets the "total_cost" field.
@@ -43874,12 +45802,15 @@ func (m *UsageArchiveMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *UsageArchiveMutation) Fields() []string {
-	fields := make([]string, 0, 31)
+	fields := make([]string, 0, 36)
 	if m.kind != nil {
 		fields = append(fields, usagearchive.FieldKind)
 	}
 	if m.source_id != nil {
 		fields = append(fields, usagearchive.FieldSourceID)
+	}
+	if m.restore_ref != nil {
+		fields = append(fields, usagearchive.FieldRestoreRef)
 	}
 	if m.request_id != nil {
 		fields = append(fields, usagearchive.FieldRequestID)
@@ -43910,6 +45841,18 @@ func (m *UsageArchiveMutation) Fields() []string {
 	}
 	if m.occurred_at != nil {
 		fields = append(fields, usagearchive.FieldOccurredAt)
+	}
+	if m.billing_group_id != nil {
+		fields = append(fields, usagearchive.FieldBillingGroupID)
+	}
+	if m.billing_evidence != nil {
+		fields = append(fields, usagearchive.FieldBillingEvidence)
+	}
+	if m.billed_cost != nil {
+		fields = append(fields, usagearchive.FieldBilledCost)
+	}
+	if m.billing_estimated != nil {
+		fields = append(fields, usagearchive.FieldBillingEstimated)
 	}
 	if m.total_cost != nil {
 		fields = append(fields, usagearchive.FieldTotalCost)
@@ -43980,6 +45923,8 @@ func (m *UsageArchiveMutation) Field(name string) (ent.Value, bool) {
 		return m.Kind()
 	case usagearchive.FieldSourceID:
 		return m.SourceID()
+	case usagearchive.FieldRestoreRef:
+		return m.RestoreRef()
 	case usagearchive.FieldRequestID:
 		return m.RequestID()
 	case usagearchive.FieldProjectID:
@@ -44000,6 +45945,14 @@ func (m *UsageArchiveMutation) Field(name string) (ent.Value, bool) {
 		return m.RequestSource()
 	case usagearchive.FieldOccurredAt:
 		return m.OccurredAt()
+	case usagearchive.FieldBillingGroupID:
+		return m.BillingGroupID()
+	case usagearchive.FieldBillingEvidence:
+		return m.BillingEvidence()
+	case usagearchive.FieldBilledCost:
+		return m.BilledCost()
+	case usagearchive.FieldBillingEstimated:
+		return m.BillingEstimated()
 	case usagearchive.FieldTotalCost:
 		return m.TotalCost()
 	case usagearchive.FieldCacheCreationCost:
@@ -44051,6 +46004,8 @@ func (m *UsageArchiveMutation) OldField(ctx context.Context, name string) (ent.V
 		return m.OldKind(ctx)
 	case usagearchive.FieldSourceID:
 		return m.OldSourceID(ctx)
+	case usagearchive.FieldRestoreRef:
+		return m.OldRestoreRef(ctx)
 	case usagearchive.FieldRequestID:
 		return m.OldRequestID(ctx)
 	case usagearchive.FieldProjectID:
@@ -44071,6 +46026,14 @@ func (m *UsageArchiveMutation) OldField(ctx context.Context, name string) (ent.V
 		return m.OldRequestSource(ctx)
 	case usagearchive.FieldOccurredAt:
 		return m.OldOccurredAt(ctx)
+	case usagearchive.FieldBillingGroupID:
+		return m.OldBillingGroupID(ctx)
+	case usagearchive.FieldBillingEvidence:
+		return m.OldBillingEvidence(ctx)
+	case usagearchive.FieldBilledCost:
+		return m.OldBilledCost(ctx)
+	case usagearchive.FieldBillingEstimated:
+		return m.OldBillingEstimated(ctx)
 	case usagearchive.FieldTotalCost:
 		return m.OldTotalCost(ctx)
 	case usagearchive.FieldCacheCreationCost:
@@ -44131,6 +46094,13 @@ func (m *UsageArchiveMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetSourceID(v)
+		return nil
+	case usagearchive.FieldRestoreRef:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRestoreRef(v)
 		return nil
 	case usagearchive.FieldRequestID:
 		v, ok := value.(int)
@@ -44201,6 +46171,34 @@ func (m *UsageArchiveMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetOccurredAt(v)
+		return nil
+	case usagearchive.FieldBillingGroupID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetBillingGroupID(v)
+		return nil
+	case usagearchive.FieldBillingEvidence:
+		v, ok := value.(*objects.GroupBillingEvidence)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetBillingEvidence(v)
+		return nil
+	case usagearchive.FieldBilledCost:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetBilledCost(v)
+		return nil
+	case usagearchive.FieldBillingEstimated:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetBillingEstimated(v)
 		return nil
 	case usagearchive.FieldTotalCost:
 		v, ok := value.(float64)
@@ -44358,6 +46356,12 @@ func (m *UsageArchiveMutation) AddedFields() []string {
 	if m.addchannel_id != nil {
 		fields = append(fields, usagearchive.FieldChannelID)
 	}
+	if m.addbilling_group_id != nil {
+		fields = append(fields, usagearchive.FieldBillingGroupID)
+	}
+	if m.addbilled_cost != nil {
+		fields = append(fields, usagearchive.FieldBilledCost)
+	}
 	if m.addtotal_cost != nil {
 		fields = append(fields, usagearchive.FieldTotalCost)
 	}
@@ -44430,6 +46434,10 @@ func (m *UsageArchiveMutation) AddedField(name string) (ent.Value, bool) {
 		return m.AddedAPIKeyID()
 	case usagearchive.FieldChannelID:
 		return m.AddedChannelID()
+	case usagearchive.FieldBillingGroupID:
+		return m.AddedBillingGroupID()
+	case usagearchive.FieldBilledCost:
+		return m.AddedBilledCost()
 	case usagearchive.FieldTotalCost:
 		return m.AddedTotalCost()
 	case usagearchive.FieldCacheCreationCost:
@@ -44509,6 +46517,20 @@ func (m *UsageArchiveMutation) AddField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.AddChannelID(v)
+		return nil
+	case usagearchive.FieldBillingGroupID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddBillingGroupID(v)
+		return nil
+	case usagearchive.FieldBilledCost:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddBilledCost(v)
 		return nil
 	case usagearchive.FieldTotalCost:
 		v, ok := value.(float64)
@@ -44644,8 +46666,20 @@ func (m *UsageArchiveMutation) AddField(name string, value ent.Value) error {
 // mutation.
 func (m *UsageArchiveMutation) ClearedFields() []string {
 	var fields []string
+	if m.FieldCleared(usagearchive.FieldRestoreRef) {
+		fields = append(fields, usagearchive.FieldRestoreRef)
+	}
 	if m.FieldCleared(usagearchive.FieldClientSessionID) {
 		fields = append(fields, usagearchive.FieldClientSessionID)
+	}
+	if m.FieldCleared(usagearchive.FieldBillingGroupID) {
+		fields = append(fields, usagearchive.FieldBillingGroupID)
+	}
+	if m.FieldCleared(usagearchive.FieldBillingEvidence) {
+		fields = append(fields, usagearchive.FieldBillingEvidence)
+	}
+	if m.FieldCleared(usagearchive.FieldBilledCost) {
+		fields = append(fields, usagearchive.FieldBilledCost)
 	}
 	if m.FieldCleared(usagearchive.FieldTotalCost) {
 		fields = append(fields, usagearchive.FieldTotalCost)
@@ -44667,8 +46701,20 @@ func (m *UsageArchiveMutation) FieldCleared(name string) bool {
 // error if the field is not defined in the schema.
 func (m *UsageArchiveMutation) ClearField(name string) error {
 	switch name {
+	case usagearchive.FieldRestoreRef:
+		m.ClearRestoreRef()
+		return nil
 	case usagearchive.FieldClientSessionID:
 		m.ClearClientSessionID()
+		return nil
+	case usagearchive.FieldBillingGroupID:
+		m.ClearBillingGroupID()
+		return nil
+	case usagearchive.FieldBillingEvidence:
+		m.ClearBillingEvidence()
+		return nil
+	case usagearchive.FieldBilledCost:
+		m.ClearBilledCost()
 		return nil
 	case usagearchive.FieldTotalCost:
 		m.ClearTotalCost()
@@ -44689,6 +46735,9 @@ func (m *UsageArchiveMutation) ResetField(name string) error {
 		return nil
 	case usagearchive.FieldSourceID:
 		m.ResetSourceID()
+		return nil
+	case usagearchive.FieldRestoreRef:
+		m.ResetRestoreRef()
 		return nil
 	case usagearchive.FieldRequestID:
 		m.ResetRequestID()
@@ -44719,6 +46768,18 @@ func (m *UsageArchiveMutation) ResetField(name string) error {
 		return nil
 	case usagearchive.FieldOccurredAt:
 		m.ResetOccurredAt()
+		return nil
+	case usagearchive.FieldBillingGroupID:
+		m.ResetBillingGroupID()
+		return nil
+	case usagearchive.FieldBillingEvidence:
+		m.ResetBillingEvidence()
+		return nil
+	case usagearchive.FieldBilledCost:
+		m.ResetBilledCost()
+		return nil
+	case usagearchive.FieldBillingEstimated:
+		m.ResetBillingEstimated()
 		return nil
 	case usagearchive.FieldTotalCost:
 		m.ResetTotalCost()
@@ -44837,6 +46898,7 @@ type UsageLogMutation struct {
 	id                                       *int
 	created_at                               *time.Time
 	updated_at                               *time.Time
+	restore_ref                              *string
 	api_key_id                               *int
 	addapi_key_id                            *int
 	model_id                                 *string
@@ -44880,6 +46942,13 @@ type UsageLogMutation struct {
 	statistics_version                       *int64
 	addstatistics_version                    *int64
 	cost_snapshot                            **objects.RequestCostSnapshot
+	billing_group_id                         *int
+	addbilling_group_id                      *int
+	billed_cost                              *float64
+	addbilled_cost                           *float64
+	billing_estimated                        *bool
+	billed_items                             *[]objects.CostItem
+	appendbilled_items                       []objects.CostItem
 	total_cost                               *float64
 	addtotal_cost                            *float64
 	cost_items                               *[]objects.CostItem
@@ -45065,6 +47134,55 @@ func (m *UsageLogMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err e
 // ResetUpdatedAt resets all changes to the "updated_at" field.
 func (m *UsageLogMutation) ResetUpdatedAt() {
 	m.updated_at = nil
+}
+
+// SetRestoreRef sets the "restore_ref" field.
+func (m *UsageLogMutation) SetRestoreRef(s string) {
+	m.restore_ref = &s
+}
+
+// RestoreRef returns the value of the "restore_ref" field in the mutation.
+func (m *UsageLogMutation) RestoreRef() (r string, exists bool) {
+	v := m.restore_ref
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRestoreRef returns the old "restore_ref" field's value of the UsageLog entity.
+// If the UsageLog object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UsageLogMutation) OldRestoreRef(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRestoreRef is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRestoreRef requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRestoreRef: %w", err)
+	}
+	return oldValue.RestoreRef, nil
+}
+
+// ClearRestoreRef clears the value of the "restore_ref" field.
+func (m *UsageLogMutation) ClearRestoreRef() {
+	m.restore_ref = nil
+	m.clearedFields[usagelog.FieldRestoreRef] = struct{}{}
+}
+
+// RestoreRefCleared returns if the "restore_ref" field was cleared in this mutation.
+func (m *UsageLogMutation) RestoreRefCleared() bool {
+	_, ok := m.clearedFields[usagelog.FieldRestoreRef]
+	return ok
+}
+
+// ResetRestoreRef resets all changes to the "restore_ref" field.
+func (m *UsageLogMutation) ResetRestoreRef() {
+	m.restore_ref = nil
+	delete(m.clearedFields, usagelog.FieldRestoreRef)
 }
 
 // SetRequestID sets the "request_id" field.
@@ -46655,6 +48773,247 @@ func (m *UsageLogMutation) ResetCostSnapshot() {
 	delete(m.clearedFields, usagelog.FieldCostSnapshot)
 }
 
+// SetBillingGroupID sets the "billing_group_id" field.
+func (m *UsageLogMutation) SetBillingGroupID(i int) {
+	m.billing_group_id = &i
+	m.addbilling_group_id = nil
+}
+
+// BillingGroupID returns the value of the "billing_group_id" field in the mutation.
+func (m *UsageLogMutation) BillingGroupID() (r int, exists bool) {
+	v := m.billing_group_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldBillingGroupID returns the old "billing_group_id" field's value of the UsageLog entity.
+// If the UsageLog object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UsageLogMutation) OldBillingGroupID(ctx context.Context) (v *int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldBillingGroupID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldBillingGroupID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldBillingGroupID: %w", err)
+	}
+	return oldValue.BillingGroupID, nil
+}
+
+// AddBillingGroupID adds i to the "billing_group_id" field.
+func (m *UsageLogMutation) AddBillingGroupID(i int) {
+	if m.addbilling_group_id != nil {
+		*m.addbilling_group_id += i
+	} else {
+		m.addbilling_group_id = &i
+	}
+}
+
+// AddedBillingGroupID returns the value that was added to the "billing_group_id" field in this mutation.
+func (m *UsageLogMutation) AddedBillingGroupID() (r int, exists bool) {
+	v := m.addbilling_group_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearBillingGroupID clears the value of the "billing_group_id" field.
+func (m *UsageLogMutation) ClearBillingGroupID() {
+	m.billing_group_id = nil
+	m.addbilling_group_id = nil
+	m.clearedFields[usagelog.FieldBillingGroupID] = struct{}{}
+}
+
+// BillingGroupIDCleared returns if the "billing_group_id" field was cleared in this mutation.
+func (m *UsageLogMutation) BillingGroupIDCleared() bool {
+	_, ok := m.clearedFields[usagelog.FieldBillingGroupID]
+	return ok
+}
+
+// ResetBillingGroupID resets all changes to the "billing_group_id" field.
+func (m *UsageLogMutation) ResetBillingGroupID() {
+	m.billing_group_id = nil
+	m.addbilling_group_id = nil
+	delete(m.clearedFields, usagelog.FieldBillingGroupID)
+}
+
+// SetBilledCost sets the "billed_cost" field.
+func (m *UsageLogMutation) SetBilledCost(f float64) {
+	m.billed_cost = &f
+	m.addbilled_cost = nil
+}
+
+// BilledCost returns the value of the "billed_cost" field in the mutation.
+func (m *UsageLogMutation) BilledCost() (r float64, exists bool) {
+	v := m.billed_cost
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldBilledCost returns the old "billed_cost" field's value of the UsageLog entity.
+// If the UsageLog object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UsageLogMutation) OldBilledCost(ctx context.Context) (v *float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldBilledCost is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldBilledCost requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldBilledCost: %w", err)
+	}
+	return oldValue.BilledCost, nil
+}
+
+// AddBilledCost adds f to the "billed_cost" field.
+func (m *UsageLogMutation) AddBilledCost(f float64) {
+	if m.addbilled_cost != nil {
+		*m.addbilled_cost += f
+	} else {
+		m.addbilled_cost = &f
+	}
+}
+
+// AddedBilledCost returns the value that was added to the "billed_cost" field in this mutation.
+func (m *UsageLogMutation) AddedBilledCost() (r float64, exists bool) {
+	v := m.addbilled_cost
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearBilledCost clears the value of the "billed_cost" field.
+func (m *UsageLogMutation) ClearBilledCost() {
+	m.billed_cost = nil
+	m.addbilled_cost = nil
+	m.clearedFields[usagelog.FieldBilledCost] = struct{}{}
+}
+
+// BilledCostCleared returns if the "billed_cost" field was cleared in this mutation.
+func (m *UsageLogMutation) BilledCostCleared() bool {
+	_, ok := m.clearedFields[usagelog.FieldBilledCost]
+	return ok
+}
+
+// ResetBilledCost resets all changes to the "billed_cost" field.
+func (m *UsageLogMutation) ResetBilledCost() {
+	m.billed_cost = nil
+	m.addbilled_cost = nil
+	delete(m.clearedFields, usagelog.FieldBilledCost)
+}
+
+// SetBillingEstimated sets the "billing_estimated" field.
+func (m *UsageLogMutation) SetBillingEstimated(b bool) {
+	m.billing_estimated = &b
+}
+
+// BillingEstimated returns the value of the "billing_estimated" field in the mutation.
+func (m *UsageLogMutation) BillingEstimated() (r bool, exists bool) {
+	v := m.billing_estimated
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldBillingEstimated returns the old "billing_estimated" field's value of the UsageLog entity.
+// If the UsageLog object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UsageLogMutation) OldBillingEstimated(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldBillingEstimated is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldBillingEstimated requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldBillingEstimated: %w", err)
+	}
+	return oldValue.BillingEstimated, nil
+}
+
+// ResetBillingEstimated resets all changes to the "billing_estimated" field.
+func (m *UsageLogMutation) ResetBillingEstimated() {
+	m.billing_estimated = nil
+}
+
+// SetBilledItems sets the "billed_items" field.
+func (m *UsageLogMutation) SetBilledItems(oi []objects.CostItem) {
+	m.billed_items = &oi
+	m.appendbilled_items = nil
+}
+
+// BilledItems returns the value of the "billed_items" field in the mutation.
+func (m *UsageLogMutation) BilledItems() (r []objects.CostItem, exists bool) {
+	v := m.billed_items
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldBilledItems returns the old "billed_items" field's value of the UsageLog entity.
+// If the UsageLog object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UsageLogMutation) OldBilledItems(ctx context.Context) (v []objects.CostItem, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldBilledItems is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldBilledItems requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldBilledItems: %w", err)
+	}
+	return oldValue.BilledItems, nil
+}
+
+// AppendBilledItems adds oi to the "billed_items" field.
+func (m *UsageLogMutation) AppendBilledItems(oi []objects.CostItem) {
+	m.appendbilled_items = append(m.appendbilled_items, oi...)
+}
+
+// AppendedBilledItems returns the list of values that were appended to the "billed_items" field in this mutation.
+func (m *UsageLogMutation) AppendedBilledItems() ([]objects.CostItem, bool) {
+	if len(m.appendbilled_items) == 0 {
+		return nil, false
+	}
+	return m.appendbilled_items, true
+}
+
+// ClearBilledItems clears the value of the "billed_items" field.
+func (m *UsageLogMutation) ClearBilledItems() {
+	m.billed_items = nil
+	m.appendbilled_items = nil
+	m.clearedFields[usagelog.FieldBilledItems] = struct{}{}
+}
+
+// BilledItemsCleared returns if the "billed_items" field was cleared in this mutation.
+func (m *UsageLogMutation) BilledItemsCleared() bool {
+	_, ok := m.clearedFields[usagelog.FieldBilledItems]
+	return ok
+}
+
+// ResetBilledItems resets all changes to the "billed_items" field.
+func (m *UsageLogMutation) ResetBilledItems() {
+	m.billed_items = nil
+	m.appendbilled_items = nil
+	delete(m.clearedFields, usagelog.FieldBilledItems)
+}
+
 // SetTotalCost sets the "total_cost" field.
 func (m *UsageLogMutation) SetTotalCost(f float64) {
 	m.total_cost = &f
@@ -46954,12 +49313,15 @@ func (m *UsageLogMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *UsageLogMutation) Fields() []string {
-	fields := make([]string, 0, 32)
+	fields := make([]string, 0, 37)
 	if m.created_at != nil {
 		fields = append(fields, usagelog.FieldCreatedAt)
 	}
 	if m.updated_at != nil {
 		fields = append(fields, usagelog.FieldUpdatedAt)
+	}
+	if m.restore_ref != nil {
+		fields = append(fields, usagelog.FieldRestoreRef)
 	}
 	if m.request != nil {
 		fields = append(fields, usagelog.FieldRequestID)
@@ -47042,6 +49404,18 @@ func (m *UsageLogMutation) Fields() []string {
 	if m.cost_snapshot != nil {
 		fields = append(fields, usagelog.FieldCostSnapshot)
 	}
+	if m.billing_group_id != nil {
+		fields = append(fields, usagelog.FieldBillingGroupID)
+	}
+	if m.billed_cost != nil {
+		fields = append(fields, usagelog.FieldBilledCost)
+	}
+	if m.billing_estimated != nil {
+		fields = append(fields, usagelog.FieldBillingEstimated)
+	}
+	if m.billed_items != nil {
+		fields = append(fields, usagelog.FieldBilledItems)
+	}
 	if m.total_cost != nil {
 		fields = append(fields, usagelog.FieldTotalCost)
 	}
@@ -47063,6 +49437,8 @@ func (m *UsageLogMutation) Field(name string) (ent.Value, bool) {
 		return m.CreatedAt()
 	case usagelog.FieldUpdatedAt:
 		return m.UpdatedAt()
+	case usagelog.FieldRestoreRef:
+		return m.RestoreRef()
 	case usagelog.FieldRequestID:
 		return m.RequestID()
 	case usagelog.FieldAPIKeyID:
@@ -47117,6 +49493,14 @@ func (m *UsageLogMutation) Field(name string) (ent.Value, bool) {
 		return m.StatisticsVersion()
 	case usagelog.FieldCostSnapshot:
 		return m.CostSnapshot()
+	case usagelog.FieldBillingGroupID:
+		return m.BillingGroupID()
+	case usagelog.FieldBilledCost:
+		return m.BilledCost()
+	case usagelog.FieldBillingEstimated:
+		return m.BillingEstimated()
+	case usagelog.FieldBilledItems:
+		return m.BilledItems()
 	case usagelog.FieldTotalCost:
 		return m.TotalCost()
 	case usagelog.FieldCostItems:
@@ -47136,6 +49520,8 @@ func (m *UsageLogMutation) OldField(ctx context.Context, name string) (ent.Value
 		return m.OldCreatedAt(ctx)
 	case usagelog.FieldUpdatedAt:
 		return m.OldUpdatedAt(ctx)
+	case usagelog.FieldRestoreRef:
+		return m.OldRestoreRef(ctx)
 	case usagelog.FieldRequestID:
 		return m.OldRequestID(ctx)
 	case usagelog.FieldAPIKeyID:
@@ -47190,6 +49576,14 @@ func (m *UsageLogMutation) OldField(ctx context.Context, name string) (ent.Value
 		return m.OldStatisticsVersion(ctx)
 	case usagelog.FieldCostSnapshot:
 		return m.OldCostSnapshot(ctx)
+	case usagelog.FieldBillingGroupID:
+		return m.OldBillingGroupID(ctx)
+	case usagelog.FieldBilledCost:
+		return m.OldBilledCost(ctx)
+	case usagelog.FieldBillingEstimated:
+		return m.OldBillingEstimated(ctx)
+	case usagelog.FieldBilledItems:
+		return m.OldBilledItems(ctx)
 	case usagelog.FieldTotalCost:
 		return m.OldTotalCost(ctx)
 	case usagelog.FieldCostItems:
@@ -47218,6 +49612,13 @@ func (m *UsageLogMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetUpdatedAt(v)
+		return nil
+	case usagelog.FieldRestoreRef:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRestoreRef(v)
 		return nil
 	case usagelog.FieldRequestID:
 		v, ok := value.(int)
@@ -47408,6 +49809,34 @@ func (m *UsageLogMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetCostSnapshot(v)
 		return nil
+	case usagelog.FieldBillingGroupID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetBillingGroupID(v)
+		return nil
+	case usagelog.FieldBilledCost:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetBilledCost(v)
+		return nil
+	case usagelog.FieldBillingEstimated:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetBillingEstimated(v)
+		return nil
+	case usagelog.FieldBilledItems:
+		v, ok := value.([]objects.CostItem)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetBilledItems(v)
+		return nil
 	case usagelog.FieldTotalCost:
 		v, ok := value.(float64)
 		if !ok {
@@ -47494,6 +49923,12 @@ func (m *UsageLogMutation) AddedFields() []string {
 	if m.addstatistics_version != nil {
 		fields = append(fields, usagelog.FieldStatisticsVersion)
 	}
+	if m.addbilling_group_id != nil {
+		fields = append(fields, usagelog.FieldBillingGroupID)
+	}
+	if m.addbilled_cost != nil {
+		fields = append(fields, usagelog.FieldBilledCost)
+	}
 	if m.addtotal_cost != nil {
 		fields = append(fields, usagelog.FieldTotalCost)
 	}
@@ -47543,6 +49978,10 @@ func (m *UsageLogMutation) AddedField(name string) (ent.Value, bool) {
 		return m.AddedStatisticsStandardCost()
 	case usagelog.FieldStatisticsVersion:
 		return m.AddedStatisticsVersion()
+	case usagelog.FieldBillingGroupID:
+		return m.AddedBillingGroupID()
+	case usagelog.FieldBilledCost:
+		return m.AddedBilledCost()
 	case usagelog.FieldTotalCost:
 		return m.AddedTotalCost()
 	}
@@ -47687,6 +50126,20 @@ func (m *UsageLogMutation) AddField(name string, value ent.Value) error {
 		}
 		m.AddStatisticsVersion(v)
 		return nil
+	case usagelog.FieldBillingGroupID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddBillingGroupID(v)
+		return nil
+	case usagelog.FieldBilledCost:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddBilledCost(v)
+		return nil
 	case usagelog.FieldTotalCost:
 		v, ok := value.(float64)
 		if !ok {
@@ -47702,6 +50155,9 @@ func (m *UsageLogMutation) AddField(name string, value ent.Value) error {
 // mutation.
 func (m *UsageLogMutation) ClearedFields() []string {
 	var fields []string
+	if m.FieldCleared(usagelog.FieldRestoreRef) {
+		fields = append(fields, usagelog.FieldRestoreRef)
+	}
 	if m.FieldCleared(usagelog.FieldAPIKeyID) {
 		fields = append(fields, usagelog.FieldAPIKeyID)
 	}
@@ -47753,6 +50209,15 @@ func (m *UsageLogMutation) ClearedFields() []string {
 	if m.FieldCleared(usagelog.FieldCostSnapshot) {
 		fields = append(fields, usagelog.FieldCostSnapshot)
 	}
+	if m.FieldCleared(usagelog.FieldBillingGroupID) {
+		fields = append(fields, usagelog.FieldBillingGroupID)
+	}
+	if m.FieldCleared(usagelog.FieldBilledCost) {
+		fields = append(fields, usagelog.FieldBilledCost)
+	}
+	if m.FieldCleared(usagelog.FieldBilledItems) {
+		fields = append(fields, usagelog.FieldBilledItems)
+	}
 	if m.FieldCleared(usagelog.FieldTotalCost) {
 		fields = append(fields, usagelog.FieldTotalCost)
 	}
@@ -47776,6 +50241,9 @@ func (m *UsageLogMutation) FieldCleared(name string) bool {
 // error if the field is not defined in the schema.
 func (m *UsageLogMutation) ClearField(name string) error {
 	switch name {
+	case usagelog.FieldRestoreRef:
+		m.ClearRestoreRef()
+		return nil
 	case usagelog.FieldAPIKeyID:
 		m.ClearAPIKeyID()
 		return nil
@@ -47827,6 +50295,15 @@ func (m *UsageLogMutation) ClearField(name string) error {
 	case usagelog.FieldCostSnapshot:
 		m.ClearCostSnapshot()
 		return nil
+	case usagelog.FieldBillingGroupID:
+		m.ClearBillingGroupID()
+		return nil
+	case usagelog.FieldBilledCost:
+		m.ClearBilledCost()
+		return nil
+	case usagelog.FieldBilledItems:
+		m.ClearBilledItems()
+		return nil
 	case usagelog.FieldTotalCost:
 		m.ClearTotalCost()
 		return nil
@@ -47849,6 +50326,9 @@ func (m *UsageLogMutation) ResetField(name string) error {
 		return nil
 	case usagelog.FieldUpdatedAt:
 		m.ResetUpdatedAt()
+		return nil
+	case usagelog.FieldRestoreRef:
+		m.ResetRestoreRef()
 		return nil
 	case usagelog.FieldRequestID:
 		m.ResetRequestID()
@@ -47930,6 +50410,18 @@ func (m *UsageLogMutation) ResetField(name string) error {
 		return nil
 	case usagelog.FieldCostSnapshot:
 		m.ResetCostSnapshot()
+		return nil
+	case usagelog.FieldBillingGroupID:
+		m.ResetBillingGroupID()
+		return nil
+	case usagelog.FieldBilledCost:
+		m.ResetBilledCost()
+		return nil
+	case usagelog.FieldBillingEstimated:
+		m.ResetBillingEstimated()
+		return nil
+	case usagelog.FieldBilledItems:
+		m.ResetBilledItems()
 		return nil
 	case usagelog.FieldTotalCost:
 		m.ResetTotalCost()

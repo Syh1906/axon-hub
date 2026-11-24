@@ -261,7 +261,7 @@ type dispatchRecordingExecutor struct {
 func (e dispatchRecordingExecutor) record(ctx context.Context, req *httpclient.Request, err error) {
 	// Responses can reject a continuation inside its executor before delegating
 	// to HTTP. These typed errors never represent a provider response.
-	if errors.Is(err, httpclient.ErrRequestNotSent) || errors.Is(err, httpclient.ErrContinuationUnavailable) || errors.Is(err, httpclient.ErrContinuationRestoreFailed) {
+	if transportConfirmedUnsent(err) {
 		return
 	}
 	if err != nil {

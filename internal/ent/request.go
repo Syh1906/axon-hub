@@ -28,10 +28,14 @@ type Request struct {
 	CreatedAt time.Time `json:"created_at,omitempty"`
 	// UpdatedAt holds the value of the "updated_at" field.
 	UpdatedAt time.Time `json:"updated_at,omitempty"`
+	// RestoreRef holds the value of the "restore_ref" field.
+	RestoreRef *string `json:"restore_ref,omitempty"`
 	// API Key ID of the request, null for the request from the Admin.
 	APIKeyID int `json:"api_key_id,omitempty"`
 	// User ID of the Playground request creator
 	UserID *int `json:"user_id,omitempty"`
+	// BillingGroupRef holds the value of the "billing_group_ref" field.
+	BillingGroupRef *int `json:"billing_group_ref,omitempty"`
 	// Project ID, default to 1 for backward compatibility
 	ProjectID int `json:"project_id,omitempty"`
 	// Trace ID that this request belongs to
@@ -210,9 +214,9 @@ func (*Request) scanValues(columns []string) ([]any, error) {
 			values[i] = new([]byte)
 		case request.FieldStream, request.FieldContentSaved:
 			values[i] = new(sql.NullBool)
-		case request.FieldID, request.FieldAPIKeyID, request.FieldUserID, request.FieldProjectID, request.FieldTraceID, request.FieldDataStorageID, request.FieldChannelID, request.FieldResultExecutionID, request.FieldClientStatusCode, request.FieldMetricsLatencyMs, request.FieldMetricsFirstTokenLatencyMs, request.FieldMetricsReasoningDurationMs, request.FieldContentStorageID:
+		case request.FieldID, request.FieldAPIKeyID, request.FieldUserID, request.FieldBillingGroupRef, request.FieldProjectID, request.FieldTraceID, request.FieldDataStorageID, request.FieldChannelID, request.FieldResultExecutionID, request.FieldClientStatusCode, request.FieldMetricsLatencyMs, request.FieldMetricsFirstTokenLatencyMs, request.FieldMetricsReasoningDurationMs, request.FieldContentStorageID:
 			values[i] = new(sql.NullInt64)
-		case request.FieldClientSessionID, request.FieldContinuationKey, request.FieldSource, request.FieldModelID, request.FieldReasoningEffort, request.FieldFormat, request.FieldExternalID, request.FieldStatus, request.FieldClientIP, request.FieldUserAgent, request.FieldContentStorageKey:
+		case request.FieldRestoreRef, request.FieldClientSessionID, request.FieldContinuationKey, request.FieldSource, request.FieldModelID, request.FieldReasoningEffort, request.FieldFormat, request.FieldExternalID, request.FieldStatus, request.FieldClientIP, request.FieldUserAgent, request.FieldContentStorageKey:
 			values[i] = new(sql.NullString)
 		case request.FieldCreatedAt, request.FieldUpdatedAt, request.FieldContentSavedAt:
 			values[i] = new(sql.NullTime)
@@ -249,6 +253,13 @@ func (_m *Request) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.UpdatedAt = value.Time
 			}
+		case request.FieldRestoreRef:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field restore_ref", values[i])
+			} else if value.Valid {
+				_m.RestoreRef = new(string)
+				*_m.RestoreRef = value.String
+			}
 		case request.FieldAPIKeyID:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
 				return fmt.Errorf("unexpected type %T for field api_key_id", values[i])
@@ -261,6 +272,13 @@ func (_m *Request) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.UserID = new(int)
 				*_m.UserID = int(value.Int64)
+			}
+		case request.FieldBillingGroupRef:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field billing_group_ref", values[i])
+			} else if value.Valid {
+				_m.BillingGroupRef = new(int)
+				*_m.BillingGroupRef = int(value.Int64)
 			}
 		case request.FieldProjectID:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
@@ -556,11 +574,21 @@ func (_m *Request) String() string {
 	builder.WriteString("updated_at=")
 	builder.WriteString(_m.UpdatedAt.Format(time.ANSIC))
 	builder.WriteString(", ")
+	if v := _m.RestoreRef; v != nil {
+		builder.WriteString("restore_ref=")
+		builder.WriteString(*v)
+	}
+	builder.WriteString(", ")
 	builder.WriteString("api_key_id=")
 	builder.WriteString(fmt.Sprintf("%v", _m.APIKeyID))
 	builder.WriteString(", ")
 	if v := _m.UserID; v != nil {
 		builder.WriteString("user_id=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	if v := _m.BillingGroupRef; v != nil {
+		builder.WriteString("billing_group_ref=")
 		builder.WriteString(fmt.Sprintf("%v", *v))
 	}
 	builder.WriteString(", ")

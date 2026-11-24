@@ -16,7 +16,7 @@ func IncludeArchivedUsage(s *sql.Selector) {
 
 func usageHistory(db string) *sql.Selector {
 	fields := []string{"id", "request_id", "project_id", "api_key_id", "channel_id", "model_id", "created_at",
-		"prompt_tokens", "completion_tokens", "total_tokens", "prompt_cached_tokens", "prompt_write_cached_tokens", "completion_reasoning_tokens", "total_cost", "statistics_standard_cost"}
+		"prompt_tokens", "completion_tokens", "total_tokens", "prompt_cached_tokens", "prompt_write_cached_tokens", "completion_reasoning_tokens", "total_cost", "billing_group_id", "billed_cost", "statistics_standard_cost"}
 	live := sql.Table(usagelog.Table)
 	archive := sql.Table(usagearchive.Table).As("history_archive")
 	live.SetDialect(db)

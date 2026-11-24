@@ -10,24 +10,26 @@ import (
 	"github.com/looplj/axonhub/internal/ent/request"
 	"github.com/looplj/axonhub/internal/ent/usagearchive"
 	"github.com/looplj/axonhub/internal/ent/usagelog"
+	"github.com/looplj/axonhub/internal/objects"
 	"github.com/looplj/axonhub/internal/pkg/usageanalytics"
 )
 
-// ArchivedUsageFields deliberately excludes payloads and pricing JSON. Detail
+// The input includes settlement items to extract compact billing evidence. Detail
 // deletion and these inserts must share the caller's transaction.
 var ArchivedUsageFields = []string{
-	usagelog.FieldID, usagelog.FieldRequestID, usagelog.FieldProjectID,
+	usagelog.FieldID, usagelog.FieldRestoreRef, usagelog.FieldRequestID, usagelog.FieldProjectID,
 	usagelog.FieldAPIKeyID, usagelog.FieldChannelID, usagelog.FieldModelID, usagelog.FieldCreatedAt,
 	usagelog.FieldPromptTokens, usagelog.FieldCompletionTokens, usagelog.FieldTotalTokens,
 	usagelog.FieldPromptCachedTokens, usagelog.FieldPromptWriteCachedTokens,
-	usagelog.FieldCompletionReasoningTokens, usagelog.FieldTotalCost,
+	usagelog.FieldCompletionReasoningTokens, usagelog.FieldTotalCost, usagelog.FieldBillingGroupID, usagelog.FieldBilledCost, usagelog.FieldBillingEstimated, usagelog.FieldCostSnapshot, usagelog.FieldCostItems, usagelog.FieldBilledItems,
 }
 
 func ArchiveUsageStatistics(ctx context.Context, client *ent.Client, rows []*ent.UsageLog) error {
 	for _, row := range rows {
-		err := client.UsageArchive.Create().SetKind(usagearchive.KindUsage).SetSourceID(row.ID).
+		err := client.UsageArchive.Create().SetKind(usagearchive.KindUsage).SetSourceID(row.ID).SetRestoreRef(objects.UsageRestoreRef(row.RestoreRef, "usage", row.ProjectID, row.ID, row.CreatedAt)).
 			SetRequestID(row.RequestID).SetProjectID(row.ProjectID).SetAPIKeyID(row.APIKeyID).
 			SetChannelID(row.ChannelID).SetModelID(row.ModelID).SetOccurredAt(row.CreatedAt).
+			SetBillingEvidence(UsageBillingEvidence(row)).SetNillableBillingGroupID(row.BillingGroupID).SetNillableBilledCost(row.BilledCost).SetBillingEstimated(row.BillingEstimated).
 			SetPromptTokens(row.PromptTokens).SetCompletionTokens(row.CompletionTokens).SetTotalTokens(row.TotalTokens).
 			SetPromptCachedTokens(row.PromptCachedTokens).SetPromptWriteCachedTokens(row.PromptWriteCachedTokens).
 			SetCompletionReasoningTokens(row.CompletionReasoningTokens).SetNillableTotalCost(row.TotalCost).
@@ -40,6 +42,7 @@ func ArchiveUsageStatistics(ctx context.Context, client *ent.Client, rows []*ent
 }
 
 type archivedRequestFacts struct {
+	RestoreRef        *string   `json:"restore_ref"`
 	ClientSessionID   *string   `json:"client_session_id"`
 	ID                int       `json:"id"`
 	ProjectID         int       `json:"project_id"`
@@ -89,7 +92,7 @@ func ArchiveRequestStatistics(ctx context.Context, client *ent.Client, requestID
 		outcome, speed := consumptionOutcomeAndSpeed(u, execution)
 		firstToken := usageanalytics.FirstTokenSQL(execution.C("metrics_first_token_latency_ms"), execution.C("metrics_latency_ms"), execution.C("stream"), execution.C("status"))
 		cacheRead, cacheWrite := "COALESCE("+u.C("prompt_cached_tokens")+", 0)", "COALESCE("+u.C("prompt_write_cached_tokens")+", 0)"
-		q.Select(q.C("id"), q.C("project_id"), q.C("created_at"), q.C("client_session_id"),
+		q.Select(q.C("id"), q.C("restore_ref"), q.C("project_id"), q.C("created_at"), q.C("client_session_id"),
 			sql.As(q.C("model_id"), "request_model"), sql.As(q.C("status"), "request_status"), sql.As(q.C("source"), "request_source"),
 			sql.As("COALESCE("+q.C("api_key_id")+", 0)", "api_key_id"), sql.As("COALESCE("+q.C("channel_id")+", 0)", "channel_id"),
 			sql.As("COALESCE(NULLIF(TRIM("+execution.C("model_id")+"), ''), "+q.C("model_id")+")", "model"))
@@ -109,7 +112,7 @@ func ArchiveRequestStatistics(ctx context.Context, client *ent.Client, requestID
 		return err
 	}
 	for _, row := range rows {
-		err := client.UsageArchive.Create().SetKind(usagearchive.KindRequest).SetSourceID(row.ID).SetRequestID(row.ID).
+		err := client.UsageArchive.Create().SetKind(usagearchive.KindRequest).SetRestoreRef(objects.UsageRestoreRef(row.RestoreRef, "request", row.ProjectID, row.ID, row.CreatedAt)).SetSourceID(row.ID).SetRequestID(row.ID).
 			SetNillableClientSessionID(row.ClientSessionID).SetRequestModelID(row.RequestModel).SetRequestStatus(row.RequestStatus).SetRequestSource(row.RequestSource).
 			SetProjectID(row.ProjectID).SetAPIKeyID(row.APIKeyID).SetChannelID(row.ChannelID).SetModelID(row.Model).SetOccurredAt(row.CreatedAt).
 			SetPromptTokens(row.PromptTokens).SetCompletionTokens(row.CompletionTokens).SetTotalTokens(row.TotalTokens).

@@ -314,7 +314,7 @@ func (s *QuotaService) usageAgg(ctx context.Context, apiKeyID int, window QuotaW
 			err := q.Modify(func(s *sql.Selector) {
 				s.Select(
 					sql.As(fmt.Sprintf("COALESCE(SUM(%s), 0)", s.C(usagelog.FieldTotalTokens)), "total_tokens"),
-					sql.As(fmt.Sprintf("COALESCE(SUM(%s), 0)", s.C(usagelog.FieldTotalCost)), "total_cost"),
+					sql.As(fmt.Sprintf("COALESCE(SUM(%s), 0)", CallerCostColumn(s)), "total_cost"),
 				)
 			}).Scan(ctx, &rows)
 			if err != nil {
@@ -359,7 +359,7 @@ func (s *QuotaService) usageAgg(ctx context.Context, apiKeyID int, window QuotaW
 
 			err := q.Modify(func(s *sql.Selector) {
 				s.Select(
-					sql.As(fmt.Sprintf("COALESCE(SUM(%s), 0)", s.C(usagelog.FieldTotalCost)), "total_cost"),
+					sql.As(fmt.Sprintf("COALESCE(SUM(%s), 0)", CallerCostColumn(s)), "total_cost"),
 				)
 			}).Scan(ctx, &rows)
 			if err != nil {

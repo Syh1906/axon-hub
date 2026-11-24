@@ -8,6 +8,7 @@ import { extractNumberID } from '@/lib/utils';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useAuthStore } from '@/stores/authStore';
 import { Button } from '@/components/ui/button';
+import { ChannelRateDialog } from '@/features/key-groups/channel-rate-dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { BudgetDialog } from '@/features/budgets/budget-dialog';
 import { useApiKeysContext } from '../context/apikeys-context';
@@ -21,7 +22,8 @@ interface DataTableRowActionsProps {
 export function DataTableRowActions({ row }: DataTableRowActionsProps) {
   const { t } = useTranslation();
   const { openDialog } = useApiKeysContext();
-  const { apiKeyPermissions, hasProjectScope } = usePermissions();
+  const [showRates,setShowRates]=React.useState(false);
+  const { apiKeyPermissions,channelPermissions, hasProjectScope } = usePermissions();
   const canResetBudget = apiKeyPermissions.canWrite && hasProjectScope('write_users') && hasProjectScope('write_roles');
   const currentUser = useAuthStore((state) => state.auth.user);
   const apiKey = row.original;
@@ -77,7 +79,7 @@ export function DataTableRowActions({ row }: DataTableRowActionsProps) {
 
   return (
     <>
-      <DropdownMenu open={open} onOpenChange={setOpen}>
+      <DropdownMenu modal={false} open={open} onOpenChange={setOpen}>
         <DropdownMenuTrigger asChild>
           <Button variant='ghost' className='data-[state=open]:bg-muted flex h-8 w-8 p-0'>
             <DotsHorizontalIcon className='h-4 w-4' />
@@ -106,6 +108,7 @@ export function DataTableRowActions({ row }: DataTableRowActionsProps) {
               </DropdownMenuItem>
             ))}
           <DropdownMenuSeparator />
+          {canMutate && channelPermissions.canWrite && <DropdownMenuItem onSelect={()=>setShowRates(true)}>{t('kg.rate.menu')}</DropdownMenuItem>}
           <DropdownMenuItem onClick={handleViewChart}>
             <BarChart3 className='mr-2 h-4 w-4' />
             {t('apikeys.actions.viewTokenChart')}
@@ -172,6 +175,7 @@ export function DataTableRowActions({ row }: DataTableRowActionsProps) {
           )}
         </DropdownMenuContent>
       </DropdownMenu>
+      {showRates && <ChannelRateDialog target={{keyID:Number(extractNumberID(apiKey.id)),name:apiKey.displayName || apiKey.name}} onClose={()=>setShowRates(false)}/>}
       {budgetMode && (
         <BudgetDialog
           target={{ kind: 'key', ownerID: Number(extractNumberID(apiKey.id)), name: apiKey.displayName || apiKey.name }}

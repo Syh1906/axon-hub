@@ -13,6 +13,7 @@ import (
 	"entgo.io/ent/dialect/sql/sqljson"
 	"entgo.io/ent/schema/field"
 	"github.com/looplj/axonhub/internal/ent/apikey"
+	"github.com/looplj/axonhub/internal/ent/apikeychannelrate"
 	"github.com/looplj/axonhub/internal/ent/predicate"
 	"github.com/looplj/axonhub/internal/ent/request"
 	"github.com/looplj/axonhub/internal/objects"
@@ -190,6 +191,21 @@ func (_u *APIKeyUpdate) ClearAllowedIps() *APIKeyUpdate {
 	return _u
 }
 
+// AddChannelRateIDs adds the "channel_rates" edge to the APIKeyChannelRate entity by IDs.
+func (_u *APIKeyUpdate) AddChannelRateIDs(ids ...int) *APIKeyUpdate {
+	_u.mutation.AddChannelRateIDs(ids...)
+	return _u
+}
+
+// AddChannelRates adds the "channel_rates" edges to the APIKeyChannelRate entity.
+func (_u *APIKeyUpdate) AddChannelRates(v ...*APIKeyChannelRate) *APIKeyUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddChannelRateIDs(ids...)
+}
+
 // AddRequestIDs adds the "requests" edge to the Request entity by IDs.
 func (_u *APIKeyUpdate) AddRequestIDs(ids ...int) *APIKeyUpdate {
 	_u.mutation.AddRequestIDs(ids...)
@@ -208,6 +224,27 @@ func (_u *APIKeyUpdate) AddRequests(v ...*Request) *APIKeyUpdate {
 // Mutation returns the APIKeyMutation object of the builder.
 func (_u *APIKeyUpdate) Mutation() *APIKeyMutation {
 	return _u.mutation
+}
+
+// ClearChannelRates clears all "channel_rates" edges to the APIKeyChannelRate entity.
+func (_u *APIKeyUpdate) ClearChannelRates() *APIKeyUpdate {
+	_u.mutation.ClearChannelRates()
+	return _u
+}
+
+// RemoveChannelRateIDs removes the "channel_rates" edge to APIKeyChannelRate entities by IDs.
+func (_u *APIKeyUpdate) RemoveChannelRateIDs(ids ...int) *APIKeyUpdate {
+	_u.mutation.RemoveChannelRateIDs(ids...)
+	return _u
+}
+
+// RemoveChannelRates removes "channel_rates" edges to APIKeyChannelRate entities.
+func (_u *APIKeyUpdate) RemoveChannelRates(v ...*APIKeyChannelRate) *APIKeyUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveChannelRateIDs(ids...)
 }
 
 // ClearRequests clears all "requests" edges to the Request entity.
@@ -366,6 +403,51 @@ func (_u *APIKeyUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if _u.mutation.AllowedIpsCleared() {
 		_spec.ClearField(apikey.FieldAllowedIps, field.TypeJSON)
+	}
+	if _u.mutation.ChannelRatesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   apikey.ChannelRatesTable,
+			Columns: []string{apikey.ChannelRatesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(apikeychannelrate.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedChannelRatesIDs(); len(nodes) > 0 && !_u.mutation.ChannelRatesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   apikey.ChannelRatesTable,
+			Columns: []string{apikey.ChannelRatesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(apikeychannelrate.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.ChannelRatesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   apikey.ChannelRatesTable,
+			Columns: []string{apikey.ChannelRatesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(apikeychannelrate.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
 	if _u.mutation.RequestsCleared() {
 		edge := &sqlgraph.EdgeSpec{
@@ -592,6 +674,21 @@ func (_u *APIKeyUpdateOne) ClearAllowedIps() *APIKeyUpdateOne {
 	return _u
 }
 
+// AddChannelRateIDs adds the "channel_rates" edge to the APIKeyChannelRate entity by IDs.
+func (_u *APIKeyUpdateOne) AddChannelRateIDs(ids ...int) *APIKeyUpdateOne {
+	_u.mutation.AddChannelRateIDs(ids...)
+	return _u
+}
+
+// AddChannelRates adds the "channel_rates" edges to the APIKeyChannelRate entity.
+func (_u *APIKeyUpdateOne) AddChannelRates(v ...*APIKeyChannelRate) *APIKeyUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddChannelRateIDs(ids...)
+}
+
 // AddRequestIDs adds the "requests" edge to the Request entity by IDs.
 func (_u *APIKeyUpdateOne) AddRequestIDs(ids ...int) *APIKeyUpdateOne {
 	_u.mutation.AddRequestIDs(ids...)
@@ -610,6 +707,27 @@ func (_u *APIKeyUpdateOne) AddRequests(v ...*Request) *APIKeyUpdateOne {
 // Mutation returns the APIKeyMutation object of the builder.
 func (_u *APIKeyUpdateOne) Mutation() *APIKeyMutation {
 	return _u.mutation
+}
+
+// ClearChannelRates clears all "channel_rates" edges to the APIKeyChannelRate entity.
+func (_u *APIKeyUpdateOne) ClearChannelRates() *APIKeyUpdateOne {
+	_u.mutation.ClearChannelRates()
+	return _u
+}
+
+// RemoveChannelRateIDs removes the "channel_rates" edge to APIKeyChannelRate entities by IDs.
+func (_u *APIKeyUpdateOne) RemoveChannelRateIDs(ids ...int) *APIKeyUpdateOne {
+	_u.mutation.RemoveChannelRateIDs(ids...)
+	return _u
+}
+
+// RemoveChannelRates removes "channel_rates" edges to APIKeyChannelRate entities.
+func (_u *APIKeyUpdateOne) RemoveChannelRates(v ...*APIKeyChannelRate) *APIKeyUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveChannelRateIDs(ids...)
 }
 
 // ClearRequests clears all "requests" edges to the Request entity.
@@ -798,6 +916,51 @@ func (_u *APIKeyUpdateOne) sqlSave(ctx context.Context) (_node *APIKey, err erro
 	}
 	if _u.mutation.AllowedIpsCleared() {
 		_spec.ClearField(apikey.FieldAllowedIps, field.TypeJSON)
+	}
+	if _u.mutation.ChannelRatesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   apikey.ChannelRatesTable,
+			Columns: []string{apikey.ChannelRatesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(apikeychannelrate.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedChannelRatesIDs(); len(nodes) > 0 && !_u.mutation.ChannelRatesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   apikey.ChannelRatesTable,
+			Columns: []string{apikey.ChannelRatesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(apikeychannelrate.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.ChannelRatesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   apikey.ChannelRatesTable,
+			Columns: []string{apikey.ChannelRatesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(apikeychannelrate.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
 	if _u.mutation.RequestsCleared() {
 		edge := &sqlgraph.EdgeSpec{

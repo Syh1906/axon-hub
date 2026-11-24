@@ -9,7 +9,9 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"github.com/looplj/axonhub/internal/ent"
 	"github.com/looplj/axonhub/internal/ent/apikey"
+	"github.com/looplj/axonhub/internal/ent/apikeychannelrate"
 	"github.com/looplj/axonhub/internal/ent/apikeygroup"
+	"github.com/looplj/axonhub/internal/ent/apikeygroupchannelrate"
 	"github.com/looplj/axonhub/internal/ent/apikeyoperation"
 	"github.com/looplj/axonhub/internal/ent/apikeyprofiletemplate"
 	"github.com/looplj/axonhub/internal/ent/budgetaccount"
@@ -134,6 +136,33 @@ func (f TraverseAPIKey) Traverse(ctx context.Context, q ent.Query) error {
 	return fmt.Errorf("unexpected query type %T. expect *ent.APIKeyQuery", q)
 }
 
+// The APIKeyChannelRateFunc type is an adapter to allow the use of ordinary function as a Querier.
+type APIKeyChannelRateFunc func(context.Context, *ent.APIKeyChannelRateQuery) (ent.Value, error)
+
+// Query calls f(ctx, q).
+func (f APIKeyChannelRateFunc) Query(ctx context.Context, q ent.Query) (ent.Value, error) {
+	if q, ok := q.(*ent.APIKeyChannelRateQuery); ok {
+		return f(ctx, q)
+	}
+	return nil, fmt.Errorf("unexpected query type %T. expect *ent.APIKeyChannelRateQuery", q)
+}
+
+// The TraverseAPIKeyChannelRate type is an adapter to allow the use of ordinary function as Traverser.
+type TraverseAPIKeyChannelRate func(context.Context, *ent.APIKeyChannelRateQuery) error
+
+// Intercept is a dummy implementation of Intercept that returns the next Querier in the pipeline.
+func (f TraverseAPIKeyChannelRate) Intercept(next ent.Querier) ent.Querier {
+	return next
+}
+
+// Traverse calls f(ctx, q).
+func (f TraverseAPIKeyChannelRate) Traverse(ctx context.Context, q ent.Query) error {
+	if q, ok := q.(*ent.APIKeyChannelRateQuery); ok {
+		return f(ctx, q)
+	}
+	return fmt.Errorf("unexpected query type %T. expect *ent.APIKeyChannelRateQuery", q)
+}
+
 // The APIKeyGroupFunc type is an adapter to allow the use of ordinary function as a Querier.
 type APIKeyGroupFunc func(context.Context, *ent.APIKeyGroupQuery) (ent.Value, error)
 
@@ -159,6 +188,33 @@ func (f TraverseAPIKeyGroup) Traverse(ctx context.Context, q ent.Query) error {
 		return f(ctx, q)
 	}
 	return fmt.Errorf("unexpected query type %T. expect *ent.APIKeyGroupQuery", q)
+}
+
+// The APIKeyGroupChannelRateFunc type is an adapter to allow the use of ordinary function as a Querier.
+type APIKeyGroupChannelRateFunc func(context.Context, *ent.APIKeyGroupChannelRateQuery) (ent.Value, error)
+
+// Query calls f(ctx, q).
+func (f APIKeyGroupChannelRateFunc) Query(ctx context.Context, q ent.Query) (ent.Value, error) {
+	if q, ok := q.(*ent.APIKeyGroupChannelRateQuery); ok {
+		return f(ctx, q)
+	}
+	return nil, fmt.Errorf("unexpected query type %T. expect *ent.APIKeyGroupChannelRateQuery", q)
+}
+
+// The TraverseAPIKeyGroupChannelRate type is an adapter to allow the use of ordinary function as Traverser.
+type TraverseAPIKeyGroupChannelRate func(context.Context, *ent.APIKeyGroupChannelRateQuery) error
+
+// Intercept is a dummy implementation of Intercept that returns the next Querier in the pipeline.
+func (f TraverseAPIKeyGroupChannelRate) Intercept(next ent.Querier) ent.Querier {
+	return next
+}
+
+// Traverse calls f(ctx, q).
+func (f TraverseAPIKeyGroupChannelRate) Traverse(ctx context.Context, q ent.Query) error {
+	if q, ok := q.(*ent.APIKeyGroupChannelRateQuery); ok {
+		return f(ctx, q)
+	}
+	return fmt.Errorf("unexpected query type %T. expect *ent.APIKeyGroupChannelRateQuery", q)
 }
 
 // The APIKeyOperationFunc type is an adapter to allow the use of ordinary function as a Querier.
@@ -1192,8 +1248,12 @@ func NewQuery(q ent.Query) (Query, error) {
 	switch q := q.(type) {
 	case *ent.APIKeyQuery:
 		return &query[*ent.APIKeyQuery, predicate.APIKey, apikey.OrderOption]{typ: ent.TypeAPIKey, tq: q}, nil
+	case *ent.APIKeyChannelRateQuery:
+		return &query[*ent.APIKeyChannelRateQuery, predicate.APIKeyChannelRate, apikeychannelrate.OrderOption]{typ: ent.TypeAPIKeyChannelRate, tq: q}, nil
 	case *ent.APIKeyGroupQuery:
 		return &query[*ent.APIKeyGroupQuery, predicate.APIKeyGroup, apikeygroup.OrderOption]{typ: ent.TypeAPIKeyGroup, tq: q}, nil
+	case *ent.APIKeyGroupChannelRateQuery:
+		return &query[*ent.APIKeyGroupChannelRateQuery, predicate.APIKeyGroupChannelRate, apikeygroupchannelrate.OrderOption]{typ: ent.TypeAPIKeyGroupChannelRate, tq: q}, nil
 	case *ent.APIKeyOperationQuery:
 		return &query[*ent.APIKeyOperationQuery, predicate.APIKeyOperation, apikeyoperation.OrderOption]{typ: ent.TypeAPIKeyOperation, tq: q}, nil
 	case *ent.APIKeyProfileTemplateQuery:

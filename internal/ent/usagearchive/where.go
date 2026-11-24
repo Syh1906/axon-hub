@@ -59,6 +59,11 @@ func SourceID(v int) predicate.UsageArchive {
 	return predicate.UsageArchive(sql.FieldEQ(FieldSourceID, v))
 }
 
+// RestoreRef applies equality check predicate on the "restore_ref" field. It's identical to RestoreRefEQ.
+func RestoreRef(v string) predicate.UsageArchive {
+	return predicate.UsageArchive(sql.FieldEQ(FieldRestoreRef, v))
+}
+
 // RequestID applies equality check predicate on the "request_id" field. It's identical to RequestIDEQ.
 func RequestID(v int) predicate.UsageArchive {
 	return predicate.UsageArchive(sql.FieldEQ(FieldRequestID, v))
@@ -107,6 +112,21 @@ func RequestSource(v string) predicate.UsageArchive {
 // OccurredAt applies equality check predicate on the "occurred_at" field. It's identical to OccurredAtEQ.
 func OccurredAt(v time.Time) predicate.UsageArchive {
 	return predicate.UsageArchive(sql.FieldEQ(FieldOccurredAt, v))
+}
+
+// BillingGroupID applies equality check predicate on the "billing_group_id" field. It's identical to BillingGroupIDEQ.
+func BillingGroupID(v int) predicate.UsageArchive {
+	return predicate.UsageArchive(sql.FieldEQ(FieldBillingGroupID, v))
+}
+
+// BilledCost applies equality check predicate on the "billed_cost" field. It's identical to BilledCostEQ.
+func BilledCost(v float64) predicate.UsageArchive {
+	return predicate.UsageArchive(sql.FieldEQ(FieldBilledCost, v))
+}
+
+// BillingEstimated applies equality check predicate on the "billing_estimated" field. It's identical to BillingEstimatedEQ.
+func BillingEstimated(v bool) predicate.UsageArchive {
+	return predicate.UsageArchive(sql.FieldEQ(FieldBillingEstimated, v))
 }
 
 // TotalCost applies equality check predicate on the "total_cost" field. It's identical to TotalCostEQ.
@@ -262,6 +282,81 @@ func SourceIDLT(v int) predicate.UsageArchive {
 // SourceIDLTE applies the LTE predicate on the "source_id" field.
 func SourceIDLTE(v int) predicate.UsageArchive {
 	return predicate.UsageArchive(sql.FieldLTE(FieldSourceID, v))
+}
+
+// RestoreRefEQ applies the EQ predicate on the "restore_ref" field.
+func RestoreRefEQ(v string) predicate.UsageArchive {
+	return predicate.UsageArchive(sql.FieldEQ(FieldRestoreRef, v))
+}
+
+// RestoreRefNEQ applies the NEQ predicate on the "restore_ref" field.
+func RestoreRefNEQ(v string) predicate.UsageArchive {
+	return predicate.UsageArchive(sql.FieldNEQ(FieldRestoreRef, v))
+}
+
+// RestoreRefIn applies the In predicate on the "restore_ref" field.
+func RestoreRefIn(vs ...string) predicate.UsageArchive {
+	return predicate.UsageArchive(sql.FieldIn(FieldRestoreRef, vs...))
+}
+
+// RestoreRefNotIn applies the NotIn predicate on the "restore_ref" field.
+func RestoreRefNotIn(vs ...string) predicate.UsageArchive {
+	return predicate.UsageArchive(sql.FieldNotIn(FieldRestoreRef, vs...))
+}
+
+// RestoreRefGT applies the GT predicate on the "restore_ref" field.
+func RestoreRefGT(v string) predicate.UsageArchive {
+	return predicate.UsageArchive(sql.FieldGT(FieldRestoreRef, v))
+}
+
+// RestoreRefGTE applies the GTE predicate on the "restore_ref" field.
+func RestoreRefGTE(v string) predicate.UsageArchive {
+	return predicate.UsageArchive(sql.FieldGTE(FieldRestoreRef, v))
+}
+
+// RestoreRefLT applies the LT predicate on the "restore_ref" field.
+func RestoreRefLT(v string) predicate.UsageArchive {
+	return predicate.UsageArchive(sql.FieldLT(FieldRestoreRef, v))
+}
+
+// RestoreRefLTE applies the LTE predicate on the "restore_ref" field.
+func RestoreRefLTE(v string) predicate.UsageArchive {
+	return predicate.UsageArchive(sql.FieldLTE(FieldRestoreRef, v))
+}
+
+// RestoreRefContains applies the Contains predicate on the "restore_ref" field.
+func RestoreRefContains(v string) predicate.UsageArchive {
+	return predicate.UsageArchive(sql.FieldContains(FieldRestoreRef, v))
+}
+
+// RestoreRefHasPrefix applies the HasPrefix predicate on the "restore_ref" field.
+func RestoreRefHasPrefix(v string) predicate.UsageArchive {
+	return predicate.UsageArchive(sql.FieldHasPrefix(FieldRestoreRef, v))
+}
+
+// RestoreRefHasSuffix applies the HasSuffix predicate on the "restore_ref" field.
+func RestoreRefHasSuffix(v string) predicate.UsageArchive {
+	return predicate.UsageArchive(sql.FieldHasSuffix(FieldRestoreRef, v))
+}
+
+// RestoreRefIsNil applies the IsNil predicate on the "restore_ref" field.
+func RestoreRefIsNil() predicate.UsageArchive {
+	return predicate.UsageArchive(sql.FieldIsNull(FieldRestoreRef))
+}
+
+// RestoreRefNotNil applies the NotNil predicate on the "restore_ref" field.
+func RestoreRefNotNil() predicate.UsageArchive {
+	return predicate.UsageArchive(sql.FieldNotNull(FieldRestoreRef))
+}
+
+// RestoreRefEqualFold applies the EqualFold predicate on the "restore_ref" field.
+func RestoreRefEqualFold(v string) predicate.UsageArchive {
+	return predicate.UsageArchive(sql.FieldEqualFold(FieldRestoreRef, v))
+}
+
+// RestoreRefContainsFold applies the ContainsFold predicate on the "restore_ref" field.
+func RestoreRefContainsFold(v string) predicate.UsageArchive {
+	return predicate.UsageArchive(sql.FieldContainsFold(FieldRestoreRef, v))
 }
 
 // RequestIDEQ applies the EQ predicate on the "request_id" field.
@@ -797,6 +892,126 @@ func OccurredAtLT(v time.Time) predicate.UsageArchive {
 // OccurredAtLTE applies the LTE predicate on the "occurred_at" field.
 func OccurredAtLTE(v time.Time) predicate.UsageArchive {
 	return predicate.UsageArchive(sql.FieldLTE(FieldOccurredAt, v))
+}
+
+// BillingGroupIDEQ applies the EQ predicate on the "billing_group_id" field.
+func BillingGroupIDEQ(v int) predicate.UsageArchive {
+	return predicate.UsageArchive(sql.FieldEQ(FieldBillingGroupID, v))
+}
+
+// BillingGroupIDNEQ applies the NEQ predicate on the "billing_group_id" field.
+func BillingGroupIDNEQ(v int) predicate.UsageArchive {
+	return predicate.UsageArchive(sql.FieldNEQ(FieldBillingGroupID, v))
+}
+
+// BillingGroupIDIn applies the In predicate on the "billing_group_id" field.
+func BillingGroupIDIn(vs ...int) predicate.UsageArchive {
+	return predicate.UsageArchive(sql.FieldIn(FieldBillingGroupID, vs...))
+}
+
+// BillingGroupIDNotIn applies the NotIn predicate on the "billing_group_id" field.
+func BillingGroupIDNotIn(vs ...int) predicate.UsageArchive {
+	return predicate.UsageArchive(sql.FieldNotIn(FieldBillingGroupID, vs...))
+}
+
+// BillingGroupIDGT applies the GT predicate on the "billing_group_id" field.
+func BillingGroupIDGT(v int) predicate.UsageArchive {
+	return predicate.UsageArchive(sql.FieldGT(FieldBillingGroupID, v))
+}
+
+// BillingGroupIDGTE applies the GTE predicate on the "billing_group_id" field.
+func BillingGroupIDGTE(v int) predicate.UsageArchive {
+	return predicate.UsageArchive(sql.FieldGTE(FieldBillingGroupID, v))
+}
+
+// BillingGroupIDLT applies the LT predicate on the "billing_group_id" field.
+func BillingGroupIDLT(v int) predicate.UsageArchive {
+	return predicate.UsageArchive(sql.FieldLT(FieldBillingGroupID, v))
+}
+
+// BillingGroupIDLTE applies the LTE predicate on the "billing_group_id" field.
+func BillingGroupIDLTE(v int) predicate.UsageArchive {
+	return predicate.UsageArchive(sql.FieldLTE(FieldBillingGroupID, v))
+}
+
+// BillingGroupIDIsNil applies the IsNil predicate on the "billing_group_id" field.
+func BillingGroupIDIsNil() predicate.UsageArchive {
+	return predicate.UsageArchive(sql.FieldIsNull(FieldBillingGroupID))
+}
+
+// BillingGroupIDNotNil applies the NotNil predicate on the "billing_group_id" field.
+func BillingGroupIDNotNil() predicate.UsageArchive {
+	return predicate.UsageArchive(sql.FieldNotNull(FieldBillingGroupID))
+}
+
+// BillingEvidenceIsNil applies the IsNil predicate on the "billing_evidence" field.
+func BillingEvidenceIsNil() predicate.UsageArchive {
+	return predicate.UsageArchive(sql.FieldIsNull(FieldBillingEvidence))
+}
+
+// BillingEvidenceNotNil applies the NotNil predicate on the "billing_evidence" field.
+func BillingEvidenceNotNil() predicate.UsageArchive {
+	return predicate.UsageArchive(sql.FieldNotNull(FieldBillingEvidence))
+}
+
+// BilledCostEQ applies the EQ predicate on the "billed_cost" field.
+func BilledCostEQ(v float64) predicate.UsageArchive {
+	return predicate.UsageArchive(sql.FieldEQ(FieldBilledCost, v))
+}
+
+// BilledCostNEQ applies the NEQ predicate on the "billed_cost" field.
+func BilledCostNEQ(v float64) predicate.UsageArchive {
+	return predicate.UsageArchive(sql.FieldNEQ(FieldBilledCost, v))
+}
+
+// BilledCostIn applies the In predicate on the "billed_cost" field.
+func BilledCostIn(vs ...float64) predicate.UsageArchive {
+	return predicate.UsageArchive(sql.FieldIn(FieldBilledCost, vs...))
+}
+
+// BilledCostNotIn applies the NotIn predicate on the "billed_cost" field.
+func BilledCostNotIn(vs ...float64) predicate.UsageArchive {
+	return predicate.UsageArchive(sql.FieldNotIn(FieldBilledCost, vs...))
+}
+
+// BilledCostGT applies the GT predicate on the "billed_cost" field.
+func BilledCostGT(v float64) predicate.UsageArchive {
+	return predicate.UsageArchive(sql.FieldGT(FieldBilledCost, v))
+}
+
+// BilledCostGTE applies the GTE predicate on the "billed_cost" field.
+func BilledCostGTE(v float64) predicate.UsageArchive {
+	return predicate.UsageArchive(sql.FieldGTE(FieldBilledCost, v))
+}
+
+// BilledCostLT applies the LT predicate on the "billed_cost" field.
+func BilledCostLT(v float64) predicate.UsageArchive {
+	return predicate.UsageArchive(sql.FieldLT(FieldBilledCost, v))
+}
+
+// BilledCostLTE applies the LTE predicate on the "billed_cost" field.
+func BilledCostLTE(v float64) predicate.UsageArchive {
+	return predicate.UsageArchive(sql.FieldLTE(FieldBilledCost, v))
+}
+
+// BilledCostIsNil applies the IsNil predicate on the "billed_cost" field.
+func BilledCostIsNil() predicate.UsageArchive {
+	return predicate.UsageArchive(sql.FieldIsNull(FieldBilledCost))
+}
+
+// BilledCostNotNil applies the NotNil predicate on the "billed_cost" field.
+func BilledCostNotNil() predicate.UsageArchive {
+	return predicate.UsageArchive(sql.FieldNotNull(FieldBilledCost))
+}
+
+// BillingEstimatedEQ applies the EQ predicate on the "billing_estimated" field.
+func BillingEstimatedEQ(v bool) predicate.UsageArchive {
+	return predicate.UsageArchive(sql.FieldEQ(FieldBillingEstimated, v))
+}
+
+// BillingEstimatedNEQ applies the NEQ predicate on the "billing_estimated" field.
+func BillingEstimatedNEQ(v bool) predicate.UsageArchive {
+	return predicate.UsageArchive(sql.FieldNEQ(FieldBillingEstimated, v))
 }
 
 // TotalCostEQ applies the EQ predicate on the "total_cost" field.

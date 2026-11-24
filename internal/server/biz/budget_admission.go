@@ -15,10 +15,13 @@ import (
 	"github.com/looplj/axonhub/internal/ent/apikeygroup"
 	"github.com/looplj/axonhub/internal/ent/budgetaccount"
 	"github.com/looplj/axonhub/internal/ent/budgetcharge"
+	"github.com/looplj/axonhub/internal/ent/request"
 	"github.com/looplj/axonhub/internal/ent/requestexecution"
+	"github.com/looplj/axonhub/internal/objects"
 	"github.com/looplj/axonhub/internal/pkg/budget"
 	"github.com/looplj/axonhub/llm"
 	"github.com/looplj/axonhub/llm/httpclient"
+	"github.com/samber/lo"
 )
 
 // BudgetDenied distinguishes a global restriction from a candidate quote that
@@ -54,10 +57,12 @@ func (s *BudgetService) Reserve(ctx context.Context, projectID, keyID, requestID
 }
 
 // ErrBudgetNeedsHistoryQuote asks for a full continuation quote only for an active account.
+var ErrBillingGroupChanged = errors.New("key group changed during pricing")
+
 var ErrBudgetNeedsHistoryQuote = errors.New("active budget requires complete continuation estimate")
 
 // ReserveAttempt reports whether the committed admission owns a real charge.
-func (s *BudgetService) ReserveAttempt(ctx context.Context, projectID, keyID, requestID, executionID int, estimate budget.Amount, quoteErr error) (bool, error) {
+func (s *BudgetService) ReserveAttempt(ctx context.Context, projectID, keyID, requestID, executionID int, estimate budget.Amount, quoteErr error, prices ...*objects.RequestCostSnapshot) (bool, error) {
 	var held bool
 	err := s.transaction(ctx, func(ctx context.Context, db *ent.Client) error {
 		held = false
@@ -91,13 +96,31 @@ func (s *BudgetService) ReserveAttempt(ctx context.Context, projectID, keyID, re
 		} else if !ent.IsNotFound(err) {
 			return err
 		}
+		historicalGroup := first != nil
+		var billing *objects.ExecutionBilling
+		if len(prices) > 0 && prices[0] != nil {
+			billing = prices[0].Billing
+		}
+		if billing != nil {
+			saved, err := db.Request.Query().Where(request.IDEQ(requestID), request.ProjectIDEQ(projectID)).Select(request.FieldBillingGroupRef).Only(ctx)
+			if err != nil {
+				return err
+			}
+			if saved.BillingGroupRef != nil {
+				groupID = lo.EmptyableToPtr(*saved.BillingGroupRef)
+				historicalGroup = true
+			}
+			if lo.FromPtr(billing.GroupID) != lo.FromPtr(groupID) {
+				return ErrBillingGroupChanged
+			}
+		}
 		var groupAccount *ent.BudgetAccount
 		if groupID != nil {
 			groupAccount, err = LockBudgetAccount(ctx, db, projectID, budgetaccount.OwnerKindGroup, *groupID)
 			if err != nil {
 				return err
 			}
-			if first == nil {
+			if !historicalGroup {
 				if _, err = db.APIKeyGroup.Query().Where(apikeygroup.IDEQ(*groupID), apikeygroup.ProjectIDEQ(projectID)).Only(ctx); err != nil {
 					return err
 				}

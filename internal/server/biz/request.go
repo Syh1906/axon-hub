@@ -444,6 +444,12 @@ func (s *RequestService) CreateRequestExecution(
 		return nil, err
 	}
 
+	if request.APIKeyID > 0 {
+		costSnapshot.Billing, err = executionBilling(ctx, client, request, channel.ID)
+		if err != nil {
+			return nil, fmt.Errorf("capture caller billing: %w", err)
+		}
+	}
 	requestBodyForDB := payloadMarker(requestPayloadReference{State: "disabled"})
 	if storeRequestBody {
 		requestBodyForDB = s.PayloadService.saveRequestDebug(ctx, requestBodyBytes)

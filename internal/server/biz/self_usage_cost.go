@@ -63,13 +63,20 @@ type selfUsageMergedItem struct {
 // the authenticated key. Usage-log ownership columns are not authoritative.
 func (s *SelfUsageService) loadRequestCosts(ctx context.Context, scope selfUsageScope, ids []int) (map[int]selfUsageRequestCosts, error) {
 	logs, err := s.client.UsageLog.Query().Where(usagelog.RequestIDIn(ids...)).Select(
-		usagelog.FieldRequestID, usagelog.FieldCostItems, usagelog.FieldCostPriceReferenceID, usagelog.FieldTotalCost, usagelog.FieldCostSnapshot,
+		usagelog.FieldBilledCost, usagelog.FieldBilledItems, usagelog.FieldBillingGroupID, usagelog.FieldRequestID, usagelog.FieldCostItems, usagelog.FieldCostPriceReferenceID, usagelog.FieldTotalCost, usagelog.FieldCostSnapshot,
 	).Modify(func(q *sql.Selector) { scope.join(q) }).All(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("query self usage page cost items: %w", err)
 	}
 	references := make(map[string]struct{})
 	for _, log := range logs {
+		if log.BillingGroupID != nil {
+			log.TotalCost = log.BilledCost
+			if log.CostSnapshot != nil && log.CostSnapshot.Billing != nil && log.CostSnapshot.Billing.Rate != nil {
+				log.CostItems = log.BilledItems
+				log.CostSnapshot = log.CostSnapshot.BilledPrice()
+			}
+		}
 		if log.TotalCost != nil && log.CostPriceReferenceID != "" {
 			references[log.CostPriceReferenceID] = struct{}{}
 		}
@@ -228,4 +235,11 @@ func selfUsageVariantOrder(variant *string) int {
 	default:
 		return 3
 	}
+}
+
+func CallerCostColumn(s *sql.Selector) string {
+	return billedCostExpression(s.C(usagelog.FieldBillingGroupID), s.C(usagelog.FieldTotalCost), s.C(usagelog.FieldBilledCost))
+}
+func billedCostExpression(group, channel, billed string) string {
+	return "CASE WHEN " + group + " IS NULL THEN " + channel + " ELSE " + billed + " END"
 }

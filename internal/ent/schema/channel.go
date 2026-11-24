@@ -192,6 +192,8 @@ func (Channel) Fields() []ent.Field {
 
 func (Channel) Edges() []ent.Edge {
 	return []ent.Edge{
+		edge.To("key_rates", APIKeyChannelRate.Type).Annotations(entgql.Skip()),
+		edge.To("group_rates", APIKeyGroupChannelRate.Type).Annotations(entgql.Skip()),
 		edge.To("upstream_statuses", ChannelUpstreamStatus.Type).Annotations(entgql.Skip()),
 		edge.To("requests", Request.Type).
 			Annotations(

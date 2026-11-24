@@ -45,6 +45,8 @@ const (
 	FieldProfiles = "profiles"
 	// FieldAllowedIps holds the string denoting the allowed_ips field in the database.
 	FieldAllowedIps = "allowed_ips"
+	// EdgeChannelRates holds the string denoting the channel_rates edge name in mutations.
+	EdgeChannelRates = "channel_rates"
 	// EdgeUser holds the string denoting the user edge name in mutations.
 	EdgeUser = "user"
 	// EdgeProject holds the string denoting the project edge name in mutations.
@@ -53,6 +55,13 @@ const (
 	EdgeRequests = "requests"
 	// Table holds the table name of the apikey in the database.
 	Table = "api_keys"
+	// ChannelRatesTable is the table that holds the channel_rates relation/edge.
+	ChannelRatesTable = "api_key_channel_rates"
+	// ChannelRatesInverseTable is the table name for the APIKeyChannelRate entity.
+	// It exists in this package in order to avoid circular dependency with the "apikeychannelrate" package.
+	ChannelRatesInverseTable = "api_key_channel_rates"
+	// ChannelRatesColumn is the table column denoting the channel_rates relation/edge.
+	ChannelRatesColumn = "key_id"
 	// UserTable is the table that holds the user relation/edge.
 	UserTable = "api_keys"
 	// UserInverseTable is the table name for the User entity.
@@ -244,6 +253,20 @@ func ByStatus(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldStatus, opts...).ToFunc()
 }
 
+// ByChannelRatesCount orders the results by channel_rates count.
+func ByChannelRatesCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newChannelRatesStep(), opts...)
+	}
+}
+
+// ByChannelRates orders the results by channel_rates terms.
+func ByChannelRates(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newChannelRatesStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+
 // ByUserField orders the results by user field.
 func ByUserField(field string, opts ...sql.OrderTermOption) OrderOption {
 	return func(s *sql.Selector) {
@@ -270,6 +293,13 @@ func ByRequests(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
 	return func(s *sql.Selector) {
 		sqlgraph.OrderByNeighborTerms(s, newRequestsStep(), append([]sql.OrderTerm{term}, terms...)...)
 	}
+}
+func newChannelRatesStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(ChannelRatesInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, ChannelRatesTable, ChannelRatesColumn),
+	)
 }
 func newUserStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(

@@ -197,3 +197,21 @@ func refreshTestUpstreamChannel(svc *ChannelService, ctx context.Context, id int
 	}
 	return result, nil
 }
+
+func TestRateDialogCountsChannelCredentials(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		ch    ent.Channel
+		count int
+	}{
+		{"empty", ent.Channel{}, 0},
+		{"same key twice", ent.Channel{Credentials: objects.ChannelCredentials{APIKeys: []string{"fixture", "fixture"}}}, 1},
+		{"oauth", ent.Channel{Credentials: objects.ChannelCredentials{OAuth: &objects.OAuthCredentials{AccessToken: "fixture"}}}, 1},
+		{"service account", ent.Channel{Type: channel.TypeAnthropicGcp, Credentials: objects.ChannelCredentials{GCP: &objects.GCPCredential{JSONData: "{}"}}}, 1},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			state := upstreamStateFromSnapshots(&tc.ch, nil)
+			require.Equal(t, tc.count, state.EnabledCredentialCount)
+		})
+	}
+}

@@ -185,6 +185,7 @@ type AppliedCostMultiplier struct {
 
 // RequestCostSnapshot 保留请求时的计价依据：渠道价格引用不可变版本，模型默认价直接保存副本。
 type RequestCostSnapshot struct {
+	Billing *ExecutionBilling `json:"billing,omitempty"`
 	// Catalog rule supplying the actual model standard price, frozen at dispatch.
 	StandardPriceModelID string                `json:"standardPriceModelId,omitempty"`
 	CacheWriteBilling    CacheWriteBilling     `json:"cacheWriteBilling,omitempty"`
@@ -244,14 +245,15 @@ type ChannelUpstreamKeyState struct {
 }
 
 type ChannelUpstreamState struct {
-	ChannelID        GUID                           `json:"channelId"`
-	Settings         ChannelUpstreamSettings        `json:"settings"`
-	ManualMultiplier decimal.Decimal                `json:"manualMultiplier"`
-	Provider         UpstreamProvider               `json:"provider"`
-	Accounts         []*ChannelUpstreamAccountState `json:"accounts"`
-	BalanceSummary   ChannelBalanceSummary          `json:"balanceSummary"`
-	KeySessionReuse  bool                           `json:"keySessionReuse"`
-	Keys             []*ChannelUpstreamKeyState     `json:"keys"`
+	EnabledCredentialCount int                            `json:"enabledCredentialCount"`
+	ChannelID              GUID                           `json:"channelId"`
+	Settings               ChannelUpstreamSettings        `json:"settings"`
+	ManualMultiplier       decimal.Decimal                `json:"manualMultiplier"`
+	Provider               UpstreamProvider               `json:"provider"`
+	Accounts               []*ChannelUpstreamAccountState `json:"accounts"`
+	BalanceSummary         ChannelBalanceSummary          `json:"balanceSummary"`
+	KeySessionReuse        bool                           `json:"keySessionReuse"`
+	Keys                   []*ChannelUpstreamKeyState     `json:"keys"`
 }
 
 type UpdateChannelUpstreamInput struct {

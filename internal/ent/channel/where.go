@@ -1010,6 +1010,52 @@ func EndpointsNotNil() predicate.Channel {
 	return predicate.Channel(sql.FieldNotNull(FieldEndpoints))
 }
 
+// HasKeyRates applies the HasEdge predicate on the "key_rates" edge.
+func HasKeyRates() predicate.Channel {
+	return predicate.Channel(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, KeyRatesTable, KeyRatesColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasKeyRatesWith applies the HasEdge predicate on the "key_rates" edge with a given conditions (other predicates).
+func HasKeyRatesWith(preds ...predicate.APIKeyChannelRate) predicate.Channel {
+	return predicate.Channel(func(s *sql.Selector) {
+		step := newKeyRatesStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
+// HasGroupRates applies the HasEdge predicate on the "group_rates" edge.
+func HasGroupRates() predicate.Channel {
+	return predicate.Channel(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, GroupRatesTable, GroupRatesColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasGroupRatesWith applies the HasEdge predicate on the "group_rates" edge with a given conditions (other predicates).
+func HasGroupRatesWith(preds ...predicate.APIKeyGroupChannelRate) predicate.Channel {
+	return predicate.Channel(func(s *sql.Selector) {
+		step := newGroupRatesStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
 // HasUpstreamStatuses applies the HasEdge predicate on the "upstream_statuses" edge.
 func HasUpstreamStatuses() predicate.Channel {
 	return predicate.Channel(func(s *sql.Selector) {

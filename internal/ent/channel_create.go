@@ -11,6 +11,8 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
+	"github.com/looplj/axonhub/internal/ent/apikeychannelrate"
+	"github.com/looplj/axonhub/internal/ent/apikeygroupchannelrate"
 	"github.com/looplj/axonhub/internal/ent/channel"
 	"github.com/looplj/axonhub/internal/ent/channelmodelprice"
 	"github.com/looplj/axonhub/internal/ent/channelprobe"
@@ -290,6 +292,36 @@ func (_c *ChannelCreate) SetNillableRemark(v *string) *ChannelCreate {
 func (_c *ChannelCreate) SetEndpoints(v []objects.ChannelEndpoint) *ChannelCreate {
 	_c.mutation.SetEndpoints(v)
 	return _c
+}
+
+// AddKeyRateIDs adds the "key_rates" edge to the APIKeyChannelRate entity by IDs.
+func (_c *ChannelCreate) AddKeyRateIDs(ids ...int) *ChannelCreate {
+	_c.mutation.AddKeyRateIDs(ids...)
+	return _c
+}
+
+// AddKeyRates adds the "key_rates" edges to the APIKeyChannelRate entity.
+func (_c *ChannelCreate) AddKeyRates(v ...*APIKeyChannelRate) *ChannelCreate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddKeyRateIDs(ids...)
+}
+
+// AddGroupRateIDs adds the "group_rates" edge to the APIKeyGroupChannelRate entity by IDs.
+func (_c *ChannelCreate) AddGroupRateIDs(ids ...int) *ChannelCreate {
+	_c.mutation.AddGroupRateIDs(ids...)
+	return _c
+}
+
+// AddGroupRates adds the "group_rates" edges to the APIKeyGroupChannelRate entity.
+func (_c *ChannelCreate) AddGroupRates(v ...*APIKeyGroupChannelRate) *ChannelCreate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddGroupRateIDs(ids...)
 }
 
 // AddUpstreamStatusIDs adds the "upstream_statuses" edge to the ChannelUpstreamStatus entity by IDs.
@@ -669,6 +701,38 @@ func (_c *ChannelCreate) createSpec() (*Channel, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.Endpoints(); ok {
 		_spec.SetField(channel.FieldEndpoints, field.TypeJSON, value)
 		_node.Endpoints = value
+	}
+	if nodes := _c.mutation.KeyRatesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   channel.KeyRatesTable,
+			Columns: []string{channel.KeyRatesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(apikeychannelrate.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.GroupRatesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   channel.GroupRatesTable,
+			Columns: []string{channel.GroupRatesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(apikeygroupchannelrate.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
 	}
 	if nodes := _c.mutation.UpstreamStatusesIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{

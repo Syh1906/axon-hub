@@ -24,6 +24,8 @@ func (UsageLog) Mixin() []ent.Mixin {
 
 func (UsageLog) Indexes() []ent.Index {
 	return []ent.Index{
+		index.Fields("restore_ref").Unique().StorageKey("usage_logs_by_restore_ref"),
+		index.Fields("project_id", "billing_group_id", "created_at").StorageKey("usage_log_by_billing_group_time"),
 		index.Fields("request_id").
 			StorageKey("usage_logs_by_request_id"),
 		index.Fields("channel_id", "statistics_standard_ready", "request_id").
@@ -44,6 +46,7 @@ func (UsageLog) Indexes() []ent.Index {
 
 func (UsageLog) Fields() []ent.Field {
 	return []ent.Field{
+		field.String("restore_ref").MaxLen(64).Optional().Nillable().Immutable().Annotations(entgql.Skip()),
 		field.Int("request_id").Immutable().Comment("Related request ID"),
 		field.Int("api_key_id").Optional().Immutable(),
 		field.Int("project_id").Immutable().Default(1).Comment("Project ID, default to 1 for backward compatibility"),
@@ -83,6 +86,10 @@ func (UsageLog) Fields() []ent.Field {
 		field.Int64("statistics_version").Default(0).Annotations(entgql.Skip()),
 		field.JSON("cost_snapshot", &objects.RequestCostSnapshot{}).
 			Optional().Annotations(entgql.Skip()),
+		field.Int("billing_group_id").Optional().Nillable().Annotations(entgql.Skip()),
+		field.Float("billed_cost").Optional().Nillable().Annotations(entgql.Skip()),
+		field.Bool("billing_estimated").Default(false).Annotations(entgql.Skip()),
+		field.JSON("billed_items", []objects.CostItem{}).Optional().Annotations(entgql.Skip()),
 		field.Float("total_cost").
 			Nillable().
 			Optional().

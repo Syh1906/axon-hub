@@ -31,7 +31,7 @@ type BackupBudgetAccount struct {
 // counters, reservations and postings. Independent table reads could restore a
 // counter and reservation from opposite sides of a settlement.
 func (svc *BackupService) doBackupToWriter(ctx context.Context, opts BackupOptions, w io.Writer) error {
-	if !opts.IncludeAPIKeys {
+	if !opts.IncludeAPIKeys && !opts.IncludeUsageStats {
 		return svc.writeBackupToWriter(ctx, opts, w)
 	}
 	var tx *ent.Tx
@@ -253,6 +253,9 @@ func (svc *BackupService) restoreBudgets(ctx context.Context, db *ent.Client, da
 				return fmt.Errorf("budget charge group account is missing")
 			}
 			create.SetGroupAccountID(group.ID).SetGroupID(group.OwnerID)
+			if source.CostSnapshot != nil && source.CostSnapshot.Billing != nil {
+				source.CostSnapshot.Billing.GroupID = &group.OwnerID
+			}
 		}
 		charge, err := create.Save(ctx)
 		if err != nil {

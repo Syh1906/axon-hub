@@ -20,6 +20,8 @@ const (
 	FieldKind = "kind"
 	// FieldSourceID holds the string denoting the source_id field in the database.
 	FieldSourceID = "source_id"
+	// FieldRestoreRef holds the string denoting the restore_ref field in the database.
+	FieldRestoreRef = "restore_ref"
 	// FieldRequestID holds the string denoting the request_id field in the database.
 	FieldRequestID = "request_id"
 	// FieldProjectID holds the string denoting the project_id field in the database.
@@ -40,6 +42,14 @@ const (
 	FieldRequestSource = "request_source"
 	// FieldOccurredAt holds the string denoting the occurred_at field in the database.
 	FieldOccurredAt = "occurred_at"
+	// FieldBillingGroupID holds the string denoting the billing_group_id field in the database.
+	FieldBillingGroupID = "billing_group_id"
+	// FieldBillingEvidence holds the string denoting the billing_evidence field in the database.
+	FieldBillingEvidence = "billing_evidence"
+	// FieldBilledCost holds the string denoting the billed_cost field in the database.
+	FieldBilledCost = "billed_cost"
+	// FieldBillingEstimated holds the string denoting the billing_estimated field in the database.
+	FieldBillingEstimated = "billing_estimated"
 	// FieldTotalCost holds the string denoting the total_cost field in the database.
 	FieldTotalCost = "total_cost"
 	// FieldCacheCreationCost holds the string denoting the cache_creation_cost field in the database.
@@ -87,6 +97,7 @@ var Columns = []string{
 	FieldID,
 	FieldKind,
 	FieldSourceID,
+	FieldRestoreRef,
 	FieldRequestID,
 	FieldProjectID,
 	FieldClientSessionID,
@@ -97,6 +108,10 @@ var Columns = []string{
 	FieldRequestStatus,
 	FieldRequestSource,
 	FieldOccurredAt,
+	FieldBillingGroupID,
+	FieldBillingEvidence,
+	FieldBilledCost,
+	FieldBillingEstimated,
 	FieldTotalCost,
 	FieldCacheCreationCost,
 	FieldFirstTokenSum,
@@ -136,6 +151,8 @@ func ValidColumn(column string) bool {
 var (
 	Hooks  [1]ent.Hook
 	Policy ent.Policy
+	// RestoreRefValidator is a validator for the "restore_ref" field. It is called by the builders before save.
+	RestoreRefValidator func(string) error
 	// ClientSessionIDValidator is a validator for the "client_session_id" field. It is called by the builders before save.
 	ClientSessionIDValidator func(string) error
 	// DefaultAPIKeyID holds the default value on creation for the "api_key_id" field.
@@ -152,6 +169,8 @@ var (
 	DefaultRequestSource string
 	// RequestSourceValidator is a validator for the "request_source" field. It is called by the builders before save.
 	RequestSourceValidator func(string) error
+	// DefaultBillingEstimated holds the default value on creation for the "billing_estimated" field.
+	DefaultBillingEstimated bool
 	// DefaultCacheCreationCost holds the default value on creation for the "cache_creation_cost" field.
 	DefaultCacheCreationCost float64
 	// DefaultFirstTokenSum holds the default value on creation for the "first_token_sum" field.
@@ -230,6 +249,11 @@ func BySourceID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldSourceID, opts...).ToFunc()
 }
 
+// ByRestoreRef orders the results by the restore_ref field.
+func ByRestoreRef(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldRestoreRef, opts...).ToFunc()
+}
+
 // ByRequestID orders the results by the request_id field.
 func ByRequestID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldRequestID, opts...).ToFunc()
@@ -278,6 +302,21 @@ func ByRequestSource(opts ...sql.OrderTermOption) OrderOption {
 // ByOccurredAt orders the results by the occurred_at field.
 func ByOccurredAt(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldOccurredAt, opts...).ToFunc()
+}
+
+// ByBillingGroupID orders the results by the billing_group_id field.
+func ByBillingGroupID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldBillingGroupID, opts...).ToFunc()
+}
+
+// ByBilledCost orders the results by the billed_cost field.
+func ByBilledCost(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldBilledCost, opts...).ToFunc()
+}
+
+// ByBillingEstimated orders the results by the billing_estimated field.
+func ByBillingEstimated(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldBillingEstimated, opts...).ToFunc()
 }
 
 // ByTotalCost orders the results by the total_cost field.

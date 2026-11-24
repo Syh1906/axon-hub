@@ -31,10 +31,19 @@ const (
 	FieldRevision = "revision"
 	// FieldProjectID holds the string denoting the project_id field in the database.
 	FieldProjectID = "project_id"
+	// EdgeChannelRates holds the string denoting the channel_rates edge name in mutations.
+	EdgeChannelRates = "channel_rates"
 	// EdgeProject holds the string denoting the project edge name in mutations.
 	EdgeProject = "project"
 	// Table holds the table name of the apikeygroup in the database.
 	Table = "api_key_groups"
+	// ChannelRatesTable is the table that holds the channel_rates relation/edge.
+	ChannelRatesTable = "api_key_group_channel_rates"
+	// ChannelRatesInverseTable is the table name for the APIKeyGroupChannelRate entity.
+	// It exists in this package in order to avoid circular dependency with the "apikeygroupchannelrate" package.
+	ChannelRatesInverseTable = "api_key_group_channel_rates"
+	// ChannelRatesColumn is the table column denoting the channel_rates relation/edge.
+	ChannelRatesColumn = "group_id"
 	// ProjectTable is the table that holds the project relation/edge.
 	ProjectTable = "api_key_groups"
 	// ProjectInverseTable is the table name for the Project entity.
@@ -143,11 +152,32 @@ func ByProjectID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldProjectID, opts...).ToFunc()
 }
 
+// ByChannelRatesCount orders the results by channel_rates count.
+func ByChannelRatesCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newChannelRatesStep(), opts...)
+	}
+}
+
+// ByChannelRates orders the results by channel_rates terms.
+func ByChannelRates(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newChannelRatesStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+
 // ByProjectField orders the results by project field.
 func ByProjectField(field string, opts ...sql.OrderTermOption) OrderOption {
 	return func(s *sql.Selector) {
 		sqlgraph.OrderByNeighborTerms(s, newProjectStep(), sql.OrderByField(field, opts...))
 	}
+}
+func newChannelRatesStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(ChannelRatesInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, ChannelRatesTable, ChannelRatesColumn),
+	)
 }
 func newProjectStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(

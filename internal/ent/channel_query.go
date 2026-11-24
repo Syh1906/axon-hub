@@ -13,6 +13,8 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
+	"github.com/looplj/axonhub/internal/ent/apikeychannelrate"
+	"github.com/looplj/axonhub/internal/ent/apikeygroupchannelrate"
 	"github.com/looplj/axonhub/internal/ent/channel"
 	"github.com/looplj/axonhub/internal/ent/channelmodelprice"
 	"github.com/looplj/axonhub/internal/ent/channelprobe"
@@ -31,6 +33,8 @@ type ChannelQuery struct {
 	order                       []channel.OrderOption
 	inters                      []Interceptor
 	predicates                  []predicate.Channel
+	withKeyRates                *APIKeyChannelRateQuery
+	withGroupRates              *APIKeyGroupChannelRateQuery
 	withUpstreamStatuses        *ChannelUpstreamStatusQuery
 	withRequests                *RequestQuery
 	withExecutions              *RequestExecutionQuery
@@ -40,6 +44,8 @@ type ChannelQuery struct {
 	withProviderQuotaStatus     *ProviderQuotaStatusQuery
 	loadTotal                   []func(context.Context, []*Channel) error
 	modifiers                   []func(*sql.Selector)
+	withNamedKeyRates           map[string]*APIKeyChannelRateQuery
+	withNamedGroupRates         map[string]*APIKeyGroupChannelRateQuery
 	withNamedUpstreamStatuses   map[string]*ChannelUpstreamStatusQuery
 	withNamedRequests           map[string]*RequestQuery
 	withNamedExecutions         map[string]*RequestExecutionQuery
@@ -80,6 +86,50 @@ func (_q *ChannelQuery) Unique(unique bool) *ChannelQuery {
 func (_q *ChannelQuery) Order(o ...channel.OrderOption) *ChannelQuery {
 	_q.order = append(_q.order, o...)
 	return _q
+}
+
+// QueryKeyRates chains the current query on the "key_rates" edge.
+func (_q *ChannelQuery) QueryKeyRates() *APIKeyChannelRateQuery {
+	query := (&APIKeyChannelRateClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(channel.Table, channel.FieldID, selector),
+			sqlgraph.To(apikeychannelrate.Table, apikeychannelrate.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, channel.KeyRatesTable, channel.KeyRatesColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryGroupRates chains the current query on the "group_rates" edge.
+func (_q *ChannelQuery) QueryGroupRates() *APIKeyGroupChannelRateQuery {
+	query := (&APIKeyGroupChannelRateClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(channel.Table, channel.FieldID, selector),
+			sqlgraph.To(apikeygroupchannelrate.Table, apikeygroupchannelrate.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, channel.GroupRatesTable, channel.GroupRatesColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
 }
 
 // QueryUpstreamStatuses chains the current query on the "upstream_statuses" edge.
@@ -428,6 +478,8 @@ func (_q *ChannelQuery) Clone() *ChannelQuery {
 		order:                   append([]channel.OrderOption{}, _q.order...),
 		inters:                  append([]Interceptor{}, _q.inters...),
 		predicates:              append([]predicate.Channel{}, _q.predicates...),
+		withKeyRates:            _q.withKeyRates.Clone(),
+		withGroupRates:          _q.withGroupRates.Clone(),
 		withUpstreamStatuses:    _q.withUpstreamStatuses.Clone(),
 		withRequests:            _q.withRequests.Clone(),
 		withExecutions:          _q.withExecutions.Clone(),
@@ -440,6 +492,28 @@ func (_q *ChannelQuery) Clone() *ChannelQuery {
 		path:      _q.path,
 		modifiers: append([]func(*sql.Selector){}, _q.modifiers...),
 	}
+}
+
+// WithKeyRates tells the query-builder to eager-load the nodes that are connected to
+// the "key_rates" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *ChannelQuery) WithKeyRates(opts ...func(*APIKeyChannelRateQuery)) *ChannelQuery {
+	query := (&APIKeyChannelRateClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withKeyRates = query
+	return _q
+}
+
+// WithGroupRates tells the query-builder to eager-load the nodes that are connected to
+// the "group_rates" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *ChannelQuery) WithGroupRates(opts ...func(*APIKeyGroupChannelRateQuery)) *ChannelQuery {
+	query := (&APIKeyGroupChannelRateClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withGroupRates = query
+	return _q
 }
 
 // WithUpstreamStatuses tells the query-builder to eager-load the nodes that are connected to
@@ -603,7 +677,9 @@ func (_q *ChannelQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Chan
 	var (
 		nodes       = []*Channel{}
 		_spec       = _q.querySpec()
-		loadedTypes = [7]bool{
+		loadedTypes = [9]bool{
+			_q.withKeyRates != nil,
+			_q.withGroupRates != nil,
 			_q.withUpstreamStatuses != nil,
 			_q.withRequests != nil,
 			_q.withExecutions != nil,
@@ -633,6 +709,20 @@ func (_q *ChannelQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Chan
 	}
 	if len(nodes) == 0 {
 		return nodes, nil
+	}
+	if query := _q.withKeyRates; query != nil {
+		if err := _q.loadKeyRates(ctx, query, nodes,
+			func(n *Channel) { n.Edges.KeyRates = []*APIKeyChannelRate{} },
+			func(n *Channel, e *APIKeyChannelRate) { n.Edges.KeyRates = append(n.Edges.KeyRates, e) }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withGroupRates; query != nil {
+		if err := _q.loadGroupRates(ctx, query, nodes,
+			func(n *Channel) { n.Edges.GroupRates = []*APIKeyGroupChannelRate{} },
+			func(n *Channel, e *APIKeyGroupChannelRate) { n.Edges.GroupRates = append(n.Edges.GroupRates, e) }); err != nil {
+			return nil, err
+		}
 	}
 	if query := _q.withUpstreamStatuses; query != nil {
 		if err := _q.loadUpstreamStatuses(ctx, query, nodes,
@@ -686,6 +776,20 @@ func (_q *ChannelQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Chan
 			return nil, err
 		}
 	}
+	for name, query := range _q.withNamedKeyRates {
+		if err := _q.loadKeyRates(ctx, query, nodes,
+			func(n *Channel) { n.appendNamedKeyRates(name) },
+			func(n *Channel, e *APIKeyChannelRate) { n.appendNamedKeyRates(name, e) }); err != nil {
+			return nil, err
+		}
+	}
+	for name, query := range _q.withNamedGroupRates {
+		if err := _q.loadGroupRates(ctx, query, nodes,
+			func(n *Channel) { n.appendNamedGroupRates(name) },
+			func(n *Channel, e *APIKeyGroupChannelRate) { n.appendNamedGroupRates(name, e) }); err != nil {
+			return nil, err
+		}
+	}
 	for name, query := range _q.withNamedUpstreamStatuses {
 		if err := _q.loadUpstreamStatuses(ctx, query, nodes,
 			func(n *Channel) { n.appendNamedUpstreamStatuses(name) },
@@ -736,6 +840,66 @@ func (_q *ChannelQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Chan
 	return nodes, nil
 }
 
+func (_q *ChannelQuery) loadKeyRates(ctx context.Context, query *APIKeyChannelRateQuery, nodes []*Channel, init func(*Channel), assign func(*Channel, *APIKeyChannelRate)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int]*Channel)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(apikeychannelrate.FieldChannelID)
+	}
+	query.Where(predicate.APIKeyChannelRate(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(channel.KeyRatesColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.ChannelID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "channel_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *ChannelQuery) loadGroupRates(ctx context.Context, query *APIKeyGroupChannelRateQuery, nodes []*Channel, init func(*Channel), assign func(*Channel, *APIKeyGroupChannelRate)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int]*Channel)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(apikeygroupchannelrate.FieldChannelID)
+	}
+	query.Where(predicate.APIKeyGroupChannelRate(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(channel.GroupRatesColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.ChannelID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "channel_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
 func (_q *ChannelQuery) loadUpstreamStatuses(ctx context.Context, query *ChannelUpstreamStatusQuery, nodes []*Channel, init func(*Channel), assign func(*Channel, *ChannelUpstreamStatus)) error {
 	fks := make([]driver.Value, 0, len(nodes))
 	nodeids := make(map[int]*Channel)
@@ -1035,6 +1199,34 @@ func (_q *ChannelQuery) sqlQuery(ctx context.Context) *sql.Selector {
 func (_q *ChannelQuery) Modify(modifiers ...func(s *sql.Selector)) *ChannelSelect {
 	_q.modifiers = append(_q.modifiers, modifiers...)
 	return _q.Select()
+}
+
+// WithNamedKeyRates tells the query-builder to eager-load the nodes that are connected to the "key_rates"
+// edge with the given name. The optional arguments are used to configure the query builder of the edge.
+func (_q *ChannelQuery) WithNamedKeyRates(name string, opts ...func(*APIKeyChannelRateQuery)) *ChannelQuery {
+	query := (&APIKeyChannelRateClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	if _q.withNamedKeyRates == nil {
+		_q.withNamedKeyRates = make(map[string]*APIKeyChannelRateQuery)
+	}
+	_q.withNamedKeyRates[name] = query
+	return _q
+}
+
+// WithNamedGroupRates tells the query-builder to eager-load the nodes that are connected to the "group_rates"
+// edge with the given name. The optional arguments are used to configure the query builder of the edge.
+func (_q *ChannelQuery) WithNamedGroupRates(name string, opts ...func(*APIKeyGroupChannelRateQuery)) *ChannelQuery {
+	query := (&APIKeyGroupChannelRateClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	if _q.withNamedGroupRates == nil {
+		_q.withNamedGroupRates = make(map[string]*APIKeyGroupChannelRateQuery)
+	}
+	_q.withNamedGroupRates[name] = query
+	return _q
 }
 
 // WithNamedUpstreamStatuses tells the query-builder to eager-load the nodes that are connected to the "upstream_statuses"

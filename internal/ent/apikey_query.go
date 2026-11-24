@@ -14,6 +14,7 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/looplj/axonhub/internal/ent/apikey"
+	"github.com/looplj/axonhub/internal/ent/apikeychannelrate"
 	"github.com/looplj/axonhub/internal/ent/predicate"
 	"github.com/looplj/axonhub/internal/ent/project"
 	"github.com/looplj/axonhub/internal/ent/request"
@@ -23,16 +24,18 @@ import (
 // APIKeyQuery is the builder for querying APIKey entities.
 type APIKeyQuery struct {
 	config
-	ctx               *QueryContext
-	order             []apikey.OrderOption
-	inters            []Interceptor
-	predicates        []predicate.APIKey
-	withUser          *UserQuery
-	withProject       *ProjectQuery
-	withRequests      *RequestQuery
-	loadTotal         []func(context.Context, []*APIKey) error
-	modifiers         []func(*sql.Selector)
-	withNamedRequests map[string]*RequestQuery
+	ctx                   *QueryContext
+	order                 []apikey.OrderOption
+	inters                []Interceptor
+	predicates            []predicate.APIKey
+	withChannelRates      *APIKeyChannelRateQuery
+	withUser              *UserQuery
+	withProject           *ProjectQuery
+	withRequests          *RequestQuery
+	loadTotal             []func(context.Context, []*APIKey) error
+	modifiers             []func(*sql.Selector)
+	withNamedChannelRates map[string]*APIKeyChannelRateQuery
+	withNamedRequests     map[string]*RequestQuery
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -67,6 +70,28 @@ func (_q *APIKeyQuery) Unique(unique bool) *APIKeyQuery {
 func (_q *APIKeyQuery) Order(o ...apikey.OrderOption) *APIKeyQuery {
 	_q.order = append(_q.order, o...)
 	return _q
+}
+
+// QueryChannelRates chains the current query on the "channel_rates" edge.
+func (_q *APIKeyQuery) QueryChannelRates() *APIKeyChannelRateQuery {
+	query := (&APIKeyChannelRateClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(apikey.Table, apikey.FieldID, selector),
+			sqlgraph.To(apikeychannelrate.Table, apikeychannelrate.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, apikey.ChannelRatesTable, apikey.ChannelRatesColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
 }
 
 // QueryUser chains the current query on the "user" edge.
@@ -322,19 +347,31 @@ func (_q *APIKeyQuery) Clone() *APIKeyQuery {
 		return nil
 	}
 	return &APIKeyQuery{
-		config:       _q.config,
-		ctx:          _q.ctx.Clone(),
-		order:        append([]apikey.OrderOption{}, _q.order...),
-		inters:       append([]Interceptor{}, _q.inters...),
-		predicates:   append([]predicate.APIKey{}, _q.predicates...),
-		withUser:     _q.withUser.Clone(),
-		withProject:  _q.withProject.Clone(),
-		withRequests: _q.withRequests.Clone(),
+		config:           _q.config,
+		ctx:              _q.ctx.Clone(),
+		order:            append([]apikey.OrderOption{}, _q.order...),
+		inters:           append([]Interceptor{}, _q.inters...),
+		predicates:       append([]predicate.APIKey{}, _q.predicates...),
+		withChannelRates: _q.withChannelRates.Clone(),
+		withUser:         _q.withUser.Clone(),
+		withProject:      _q.withProject.Clone(),
+		withRequests:     _q.withRequests.Clone(),
 		// clone intermediate query.
 		sql:       _q.sql.Clone(),
 		path:      _q.path,
 		modifiers: append([]func(*sql.Selector){}, _q.modifiers...),
 	}
+}
+
+// WithChannelRates tells the query-builder to eager-load the nodes that are connected to
+// the "channel_rates" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *APIKeyQuery) WithChannelRates(opts ...func(*APIKeyChannelRateQuery)) *APIKeyQuery {
+	query := (&APIKeyChannelRateClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withChannelRates = query
+	return _q
 }
 
 // WithUser tells the query-builder to eager-load the nodes that are connected to
@@ -454,7 +491,8 @@ func (_q *APIKeyQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*APIKe
 	var (
 		nodes       = []*APIKey{}
 		_spec       = _q.querySpec()
-		loadedTypes = [3]bool{
+		loadedTypes = [4]bool{
+			_q.withChannelRates != nil,
 			_q.withUser != nil,
 			_q.withProject != nil,
 			_q.withRequests != nil,
@@ -481,6 +519,13 @@ func (_q *APIKeyQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*APIKe
 	if len(nodes) == 0 {
 		return nodes, nil
 	}
+	if query := _q.withChannelRates; query != nil {
+		if err := _q.loadChannelRates(ctx, query, nodes,
+			func(n *APIKey) { n.Edges.ChannelRates = []*APIKeyChannelRate{} },
+			func(n *APIKey, e *APIKeyChannelRate) { n.Edges.ChannelRates = append(n.Edges.ChannelRates, e) }); err != nil {
+			return nil, err
+		}
+	}
 	if query := _q.withUser; query != nil {
 		if err := _q.loadUser(ctx, query, nodes, nil,
 			func(n *APIKey, e *User) { n.Edges.User = e }); err != nil {
@@ -500,6 +545,13 @@ func (_q *APIKeyQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*APIKe
 			return nil, err
 		}
 	}
+	for name, query := range _q.withNamedChannelRates {
+		if err := _q.loadChannelRates(ctx, query, nodes,
+			func(n *APIKey) { n.appendNamedChannelRates(name) },
+			func(n *APIKey, e *APIKeyChannelRate) { n.appendNamedChannelRates(name, e) }); err != nil {
+			return nil, err
+		}
+	}
 	for name, query := range _q.withNamedRequests {
 		if err := _q.loadRequests(ctx, query, nodes,
 			func(n *APIKey) { n.appendNamedRequests(name) },
@@ -515,6 +567,36 @@ func (_q *APIKeyQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*APIKe
 	return nodes, nil
 }
 
+func (_q *APIKeyQuery) loadChannelRates(ctx context.Context, query *APIKeyChannelRateQuery, nodes []*APIKey, init func(*APIKey), assign func(*APIKey, *APIKeyChannelRate)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int]*APIKey)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(apikeychannelrate.FieldKeyID)
+	}
+	query.Where(predicate.APIKeyChannelRate(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(apikey.ChannelRatesColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.KeyID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "key_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
 func (_q *APIKeyQuery) loadUser(ctx context.Context, query *UserQuery, nodes []*APIKey, init func(*APIKey), assign func(*APIKey, *User)) error {
 	ids := make([]int, 0, len(nodes))
 	nodeids := make(map[int][]*APIKey)
@@ -701,6 +783,20 @@ func (_q *APIKeyQuery) sqlQuery(ctx context.Context) *sql.Selector {
 func (_q *APIKeyQuery) Modify(modifiers ...func(s *sql.Selector)) *APIKeySelect {
 	_q.modifiers = append(_q.modifiers, modifiers...)
 	return _q.Select()
+}
+
+// WithNamedChannelRates tells the query-builder to eager-load the nodes that are connected to the "channel_rates"
+// edge with the given name. The optional arguments are used to configure the query builder of the edge.
+func (_q *APIKeyQuery) WithNamedChannelRates(name string, opts ...func(*APIKeyChannelRateQuery)) *APIKeyQuery {
+	query := (&APIKeyChannelRateClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	if _q.withNamedChannelRates == nil {
+		_q.withNamedChannelRates = make(map[string]*APIKeyChannelRateQuery)
+	}
+	_q.withNamedChannelRates[name] = query
+	return _q
 }
 
 // WithNamedRequests tells the query-builder to eager-load the nodes that are connected to the "requests"

@@ -1340,7 +1340,13 @@ func (svc *ChannelService) SaveChannelEndpoints(ctx context.Context, input SaveC
 
 // DeleteChannel deletes a channel by ID.
 func (svc *ChannelService) DeleteChannel(ctx context.Context, id int) error {
-	if err := svc.entFromContext(ctx).Channel.DeleteOneID(id).Exec(ctx); err != nil {
+	if err := svc.RunInTransaction(ctx, func(ctx context.Context) error {
+		db := svc.entFromContext(ctx)
+		if err := db.Channel.DeleteOneID(id).Exec(ctx); err != nil {
+			return err
+		}
+		return removeChannelRates(ctx, db, []int{id})
+	}); err != nil {
 		return fmt.Errorf("failed to delete channel: %w", err)
 	}
 

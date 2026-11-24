@@ -3,6 +3,8 @@ import { useQuery } from '@tanstack/react-query';
 import { graphqlRequest } from '@/gql/graphql';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '@/stores/authStore';
+import { GroupCostComparison } from './group-cost-comparison';
+import { usePermissions } from '@/hooks/usePermissions';
 import { Button } from '@/components/ui/button';
 import { BudgetTable } from '@/features/budgets/budget-table';
 import { useBudget, hasBudgetLimits } from '@/features/budgets/data';
@@ -28,6 +30,10 @@ const managedRequests = requestsQuery
 
 function UsageContent({ groupRef, meta, project, identity }: { groupRef: number; meta: SelfUsageMeta; project: string; identity: string }) {
   const { t } = useTranslation();
+  const [view,setView]=useState<'overview'|'comparison'>('overview');
+  const {hasScope,isProjectOwner}=usePermissions(project);
+  const canCompare=(isProjectOwner || hasScope('write_channels')) && hasScope('read_channels') && hasScope('read_requests') && groupRef>0;
+  const comparing=canCompare && view==='comparison';
   const currencyDisplayDecimals = meta.currencyDisplayDecimals;
   const [range, setRange] = useState<DateRange>(() => presetRange('last7', meta.timezone));
   const [sessionID, setSessionID] = useState('');
@@ -55,11 +61,16 @@ function UsageContent({ groupRef, meta, project, identity }: { groupRef: number;
       <Button aria-pressed='true'>
         {t('apikeys.groups.scope')}: {meta.groupName || t('kg.ungrouped')}
       </Button>
+      {canCompare && <div className='flex gap-2'>
+        <Button variant={comparing?'outline':'default'} onClick={()=>setView('overview')}>{t('kg.rate.overview')}</Button>
+        <Button variant={comparing?'default':'outline'} onClick={()=>setView('comparison')}>{t('kg.rate.compare')}</Button>
+      </div>}
       <div className='flex flex-wrap items-center justify-between gap-3'>
         <DatePicker meta={meta} onChange={setRange} />
-        {sessionID && <span className='text-muted-foreground break-all text-sm'>{t('requests.session.selected', { id: sessionID })}</span>}
+        {!comparing && sessionID && <span className='text-muted-foreground break-all text-sm'>{t('requests.session.selected', { id: sessionID })}</span>}
         <span className='text-muted-foreground text-xs'>{t('requests.filters.timezone', { timezone: meta.timezone })}</span>
       </div>
+      {comparing ? <GroupCostComparison groupID={groupRef} project={project} identity={identity} range={range} meta={meta}/> : <>
       {budget.error && <PageError error={budget.error} retry={() => void budget.refetch()} />}
       {budget.data && hasBudgetLimits(budget.data) && (
         <section className='rounded-lg border p-4'>
@@ -102,6 +113,7 @@ function UsageContent({ groupRef, meta, project, identity }: { groupRef: number;
           ).managedGroupUsageRequests
         }
       />
+      </>}
     </div>
   );
 }

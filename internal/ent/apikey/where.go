@@ -515,6 +515,29 @@ func AllowedIpsNotNil() predicate.APIKey {
 	return predicate.APIKey(sql.FieldNotNull(FieldAllowedIps))
 }
 
+// HasChannelRates applies the HasEdge predicate on the "channel_rates" edge.
+func HasChannelRates() predicate.APIKey {
+	return predicate.APIKey(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, ChannelRatesTable, ChannelRatesColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasChannelRatesWith applies the HasEdge predicate on the "channel_rates" edge with a given conditions (other predicates).
+func HasChannelRatesWith(preds ...predicate.APIKeyChannelRate) predicate.APIKey {
+	return predicate.APIKey(func(s *sql.Selector) {
+		step := newChannelRatesStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
 // HasUser applies the HasEdge predicate on the "user" edge.
 func HasUser() predicate.APIKey {
 	return predicate.APIKey(func(s *sql.Selector) {

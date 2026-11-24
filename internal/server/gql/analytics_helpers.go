@@ -259,7 +259,7 @@ func (r *queryResolver) queryAnalyticsAPIKeyStats(ctx context.Context, filter *A
 				s.C(usagelog.FieldModelID),
 				sql.As(sql.Count(s.C(usagelog.FieldID)), "request_count"),
 				sql.As(fmt.Sprintf("COALESCE(SUM(%s), 0)", s.C(usagelog.FieldTotalTokens)), "total_tokens"),
-				sql.As(fmt.Sprintf("COALESCE(SUM(%s), 0)", s.C(usagelog.FieldTotalCost)), "cost"),
+				sql.As(fmt.Sprintf("COALESCE(SUM(%s), 0)", biz.CallerCostColumn(s)), "cost"),
 			).
 				GroupBy(s.C(usagelog.FieldAPIKeyID), s.C(usagelog.FieldModelID))
 		}).
@@ -989,7 +989,7 @@ func (r *queryResolver) queryAPIKeyStats(ctx context.Context, filter *AnalyticsF
 				sql.As(fmt.Sprintf("COALESCE(SUM(%s), 0)", s.C(usagelog.FieldPromptCachedTokens)), "cached_tokens"),
 				sql.As(fmt.Sprintf("COALESCE(SUM(%s), 0)", s.C(usagelog.FieldCompletionTokens)), "output_tokens"),
 				sql.As(fmt.Sprintf("COALESCE(SUM(%s), 0)", s.C(usagelog.FieldTotalTokens)), "total_tokens"),
-				sql.As(fmt.Sprintf("COALESCE(SUM(%s), 0)", s.C(usagelog.FieldTotalCost)), "cost"),
+				sql.As(fmt.Sprintf("COALESCE(SUM(%s), 0)", biz.CallerCostColumn(s)), "cost"),
 			).
 				GroupBy(s.C(usagelog.FieldAPIKeyID)).
 				OrderBy(sql.Desc("total_tokens"))

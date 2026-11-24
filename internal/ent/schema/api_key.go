@@ -100,6 +100,7 @@ func (APIKey) Fields() []ent.Field {
 
 func (APIKey) Edges() []ent.Edge {
 	return []ent.Edge{
+		edge.To("channel_rates", APIKeyChannelRate.Type).Annotations(entgql.Skip()),
 		edge.From("user", User.Type).
 			Unique().
 			Immutable().

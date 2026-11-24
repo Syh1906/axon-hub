@@ -354,9 +354,9 @@ func selfUsageAmountColumns(s *sql.Selector) []string {
 		sum(usagelog.FieldPromptTokens, "input_tokens"), sum(usagelog.FieldCompletionTokens, "output_tokens"),
 		sum(usagelog.FieldPromptCachedTokens, "cache_read_tokens"), sum(usagelog.FieldPromptWriteCachedTokens, "cache_write_tokens"),
 		sum(usagelog.FieldCompletionReasoningTokens, "reasoning_tokens"), sum(usagelog.FieldTotalTokens, "total_tokens"),
-		sql.As(fmt.Sprintf("SUM(%s)", s.C(usagelog.FieldTotalCost)), "cost"),
+		sql.As(fmt.Sprintf("SUM(%s)", CallerCostColumn(s)), "cost"),
 		sql.As(sql.Count(s.C(usagelog.FieldID)), "usage_records"),
-		sql.As(fmt.Sprintf("SUM(CASE WHEN %s IS NULL THEN 1 ELSE 0 END)", s.C(usagelog.FieldTotalCost)), "unpriced_records"),
+		sql.As(fmt.Sprintf("SUM(CASE WHEN %s IS NULL THEN 1 ELSE 0 END)", CallerCostColumn(s)), "unpriced_records"),
 	}
 }
 
@@ -639,7 +639,7 @@ func (s *SelfUsageService) requestsForScope(ctx context.Context, scope selfUsage
 			row.CostMultiplierMixed = costs[req.ID].multiplierMixed
 			if row.Channel != nil && row.Channel.hasCostSnapshot && row.UsageRecords > 0 && row.Cost != nil {
 				row.Channel.Multiplier = row.CostMultiplier
-				row.Channel.MultiplierMixed = row.CostMultiplierMixed || row.CostMultiplier == nil
+				row.Channel.MultiplierMixed = row.CostMultiplierMixed
 			}
 			switch req.Status {
 			case request.StatusCompleted:

@@ -13,7 +13,9 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"github.com/looplj/axonhub/internal/ent/apikey"
+	"github.com/looplj/axonhub/internal/ent/apikeychannelrate"
 	"github.com/looplj/axonhub/internal/ent/apikeygroup"
+	"github.com/looplj/axonhub/internal/ent/apikeygroupchannelrate"
 	"github.com/looplj/axonhub/internal/ent/apikeyoperation"
 	"github.com/looplj/axonhub/internal/ent/apikeyprofiletemplate"
 	"github.com/looplj/axonhub/internal/ent/budgetaccount"
@@ -113,7 +115,9 @@ func checkColumn(t, c string) error {
 	initCheck.Do(func() {
 		columnCheck = sql.NewColumnCheck(map[string]func(string) bool{
 			apikey.Table:                   apikey.ValidColumn,
+			apikeychannelrate.Table:        apikeychannelrate.ValidColumn,
 			apikeygroup.Table:              apikeygroup.ValidColumn,
+			apikeygroupchannelrate.Table:   apikeygroupchannelrate.ValidColumn,
 			apikeyoperation.Table:          apikeyoperation.ValidColumn,
 			apikeyprofiletemplate.Table:    apikeyprofiletemplate.ValidColumn,
 			budgetaccount.Table:            budgetaccount.ValidColumn,

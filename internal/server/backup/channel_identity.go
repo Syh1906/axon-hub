@@ -94,6 +94,11 @@ func newChannelRestoreState(ctx context.Context, db *ent.Client, data BackupData
 				addSource(r.ChannelID, r.ChannelName)
 			}
 		}
+		for _, r := range data.UsageArchives {
+			if r != nil {
+				addSource(r.ChannelID, r.ChannelName)
+			}
+		}
 		for _, r := range data.UsageLogs {
 			if r != nil {
 				addSource(r.ChannelID, r.ChannelName)
@@ -101,6 +106,20 @@ func newChannelRestoreState(ctx context.Context, db *ent.Client, data BackupData
 		}
 	}
 	if opts.IncludeAPIKeys {
+		for _, k := range data.APIKeys {
+			if k != nil {
+				for _, r := range k.ChannelRates {
+					addSource(r.ChannelID, r.ChannelName)
+				}
+			}
+		}
+		for _, g := range data.APIKeyGroups {
+			if g != nil {
+				for _, r := range g.ChannelRates {
+					addSource(r.ChannelID, r.ChannelName)
+				}
+			}
+		}
 		for _, c := range data.BudgetCharges {
 			if c != nil && c.AsyncTask != nil {
 				addSource(c.AsyncTask.ChannelID, c.AsyncTask.ChannelName)

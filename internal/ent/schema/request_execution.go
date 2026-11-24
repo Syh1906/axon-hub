@@ -50,6 +50,7 @@ func (RequestExecution) Indexes() []ent.Index {
 
 func (RequestExecution) Fields() []ent.Field {
 	return []ent.Field{
+		field.Bool("billing_dispatched").Default(false).Annotations(entgql.Skip()),
 		field.Bool("statistics_ready").Default(false).Annotations(entgql.Skip()),
 		field.Int64("statistics_version").Default(0).Annotations(entgql.Skip()),
 		field.Float("statistics_outcome").Optional().Nillable().Annotations(entgql.Skip()),
@@ -92,8 +93,9 @@ func (RequestExecution) Fields() []ent.Field {
 		field.String("upstream_model_id").
 			Optional().
 			Comment("Raw model reported by the upstream provider response, before client-model rewrite"),
+		// The creation quote may be refreshed before budget admission if the key moves.
 		field.JSON("cost_snapshot", &objects.RequestCostSnapshot{}).
-			Optional().Immutable().Annotations(
+			Optional().Annotations(
 			entgql.Type("RequestCostSnapshot"),
 			entgql.Skip(entgql.SkipWhereInput, entgql.SkipMutationCreateInput, entgql.SkipMutationUpdateInput),
 		),

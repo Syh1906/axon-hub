@@ -8,10 +8,11 @@ import { useMe } from '@/features/auth/data/auth';
  * Provides utilities to check if user has specific permissions for actions
  * Supports both system-level and project-level scopes
  */
-export function usePermissions() {
+export function usePermissions(projectID?:string) {
   const { user: authUser } = useAuthStore((state) => state.auth);
   const { data: meData } = useMe();
-  const selectedProjectId = useSelectedProjectId();
+  const activeProjectId = useSelectedProjectId();
+  const selectedProjectId=projectID ?? activeProjectId;
 
   // Use data from me query if available, otherwise fall back to auth store
   const user = meData || authUser;

@@ -12,6 +12,7 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/looplj/axonhub/internal/ent/apikeygroup"
+	"github.com/looplj/axonhub/internal/ent/apikeygroupchannelrate"
 	"github.com/looplj/axonhub/internal/ent/project"
 )
 
@@ -117,6 +118,21 @@ func (_c *APIKeyGroupCreate) SetNillableRevision(v *int) *APIKeyGroupCreate {
 func (_c *APIKeyGroupCreate) SetProjectID(v int) *APIKeyGroupCreate {
 	_c.mutation.SetProjectID(v)
 	return _c
+}
+
+// AddChannelRateIDs adds the "channel_rates" edge to the APIKeyGroupChannelRate entity by IDs.
+func (_c *APIKeyGroupCreate) AddChannelRateIDs(ids ...int) *APIKeyGroupCreate {
+	_c.mutation.AddChannelRateIDs(ids...)
+	return _c
+}
+
+// AddChannelRates adds the "channel_rates" edges to the APIKeyGroupChannelRate entity.
+func (_c *APIKeyGroupCreate) AddChannelRates(v ...*APIKeyGroupChannelRate) *APIKeyGroupCreate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddChannelRateIDs(ids...)
 }
 
 // SetProject sets the "project" edge to the Project entity.
@@ -281,6 +297,22 @@ func (_c *APIKeyGroupCreate) createSpec() (*APIKeyGroup, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.Revision(); ok {
 		_spec.SetField(apikeygroup.FieldRevision, field.TypeInt, value)
 		_node.Revision = value
+	}
+	if nodes := _c.mutation.ChannelRatesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   apikeygroup.ChannelRatesTable,
+			Columns: []string{apikeygroup.ChannelRatesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(apikeygroupchannelrate.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
 	}
 	if nodes := _c.mutation.ProjectIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{

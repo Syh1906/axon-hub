@@ -9,8 +9,14 @@ import (
 // APIKey is the predicate function for apikey builders.
 type APIKey func(*sql.Selector)
 
+// APIKeyChannelRate is the predicate function for apikeychannelrate builders.
+type APIKeyChannelRate func(*sql.Selector)
+
 // APIKeyGroup is the predicate function for apikeygroup builders.
 type APIKeyGroup func(*sql.Selector)
+
+// APIKeyGroupChannelRate is the predicate function for apikeygroupchannelrate builders.
+type APIKeyGroupChannelRate func(*sql.Selector)
 
 // APIKeyOperation is the predicate function for apikeyoperation builders.
 type APIKeyOperation func(*sql.Selector)

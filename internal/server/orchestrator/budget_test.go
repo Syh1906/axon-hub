@@ -344,3 +344,29 @@ func TestBudgetAdmissionPricesHistoryBehindShortHTTPFrame(t *testing.T) {
 	require.True(t, gjson.GetBytes(raw.Body, "previous_response_id").Exists())
 	require.Less(t, len(raw.Body), 100)
 }
+
+func TestContinuationPreflightReleasesBilling(t *testing.T) {
+	for _, stream := range []bool{false, true} {
+		ctx, db, ch, _, _, usage, key := setupBudgetRequest(t)
+		req := db.Request.Create().SetProjectID(key.ProjectID).SetAPIKeyID(key.ID).SetModelID("m").SetStatus("processing").SetRequestBody([]byte("{}")).SaveX(ctx)
+		snap := &objects.RequestCostSnapshot{Billing: &objects.ExecutionBilling{}}
+		execution := db.RequestExecution.Create().SetProjectID(key.ProjectID).SetRequestID(req.ID).SetModelID("m").SetChannelID(ch.ID).SetStatus("processing").SetRequestBody([]byte("{}")).SetCostSnapshot(snap).SaveX(ctx)
+		held, err := usage.BudgetService.ReserveAttempt(ctx, key.ProjectID, key.ID, req.ID, execution.ID, 1, nil, snap)
+		require.NoError(t, err)
+		require.True(t, held)
+		cause := httpclient.ErrContinuationUnavailable
+		if stream {
+			cause = fmt.Errorf("%w: fixture", httpclient.ErrContinuationRestoreFailed)
+		}
+		exec := budgetExecutor{Executor: &mockExecutor{err: cause}, request: req, execution: execution, service: usage.BudgetService, held: held}
+		if stream {
+			_, err = exec.DoStream(ctx, &httpclient.Request{})
+		} else {
+			_, err = exec.Do(ctx, &httpclient.Request{})
+		}
+		require.ErrorIs(t, err, cause)
+		require.Nil(t, db.Request.GetX(ctx, req.ID).BillingGroupRef)
+		require.False(t, db.RequestExecution.GetX(ctx, execution.ID).BillingDispatched)
+		require.Equal(t, budgetcharge.StatusReleased, db.BudgetCharge.Query().Where(budgetcharge.ExecutionIDEQ(execution.ID)).OnlyX(ctx).Status)
+	}
+}

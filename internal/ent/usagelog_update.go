@@ -525,6 +525,92 @@ func (_u *UsageLogUpdate) ClearCostSnapshot() *UsageLogUpdate {
 	return _u
 }
 
+// SetBillingGroupID sets the "billing_group_id" field.
+func (_u *UsageLogUpdate) SetBillingGroupID(v int) *UsageLogUpdate {
+	_u.mutation.ResetBillingGroupID()
+	_u.mutation.SetBillingGroupID(v)
+	return _u
+}
+
+// SetNillableBillingGroupID sets the "billing_group_id" field if the given value is not nil.
+func (_u *UsageLogUpdate) SetNillableBillingGroupID(v *int) *UsageLogUpdate {
+	if v != nil {
+		_u.SetBillingGroupID(*v)
+	}
+	return _u
+}
+
+// AddBillingGroupID adds value to the "billing_group_id" field.
+func (_u *UsageLogUpdate) AddBillingGroupID(v int) *UsageLogUpdate {
+	_u.mutation.AddBillingGroupID(v)
+	return _u
+}
+
+// ClearBillingGroupID clears the value of the "billing_group_id" field.
+func (_u *UsageLogUpdate) ClearBillingGroupID() *UsageLogUpdate {
+	_u.mutation.ClearBillingGroupID()
+	return _u
+}
+
+// SetBilledCost sets the "billed_cost" field.
+func (_u *UsageLogUpdate) SetBilledCost(v float64) *UsageLogUpdate {
+	_u.mutation.ResetBilledCost()
+	_u.mutation.SetBilledCost(v)
+	return _u
+}
+
+// SetNillableBilledCost sets the "billed_cost" field if the given value is not nil.
+func (_u *UsageLogUpdate) SetNillableBilledCost(v *float64) *UsageLogUpdate {
+	if v != nil {
+		_u.SetBilledCost(*v)
+	}
+	return _u
+}
+
+// AddBilledCost adds value to the "billed_cost" field.
+func (_u *UsageLogUpdate) AddBilledCost(v float64) *UsageLogUpdate {
+	_u.mutation.AddBilledCost(v)
+	return _u
+}
+
+// ClearBilledCost clears the value of the "billed_cost" field.
+func (_u *UsageLogUpdate) ClearBilledCost() *UsageLogUpdate {
+	_u.mutation.ClearBilledCost()
+	return _u
+}
+
+// SetBillingEstimated sets the "billing_estimated" field.
+func (_u *UsageLogUpdate) SetBillingEstimated(v bool) *UsageLogUpdate {
+	_u.mutation.SetBillingEstimated(v)
+	return _u
+}
+
+// SetNillableBillingEstimated sets the "billing_estimated" field if the given value is not nil.
+func (_u *UsageLogUpdate) SetNillableBillingEstimated(v *bool) *UsageLogUpdate {
+	if v != nil {
+		_u.SetBillingEstimated(*v)
+	}
+	return _u
+}
+
+// SetBilledItems sets the "billed_items" field.
+func (_u *UsageLogUpdate) SetBilledItems(v []objects.CostItem) *UsageLogUpdate {
+	_u.mutation.SetBilledItems(v)
+	return _u
+}
+
+// AppendBilledItems appends value to the "billed_items" field.
+func (_u *UsageLogUpdate) AppendBilledItems(v []objects.CostItem) *UsageLogUpdate {
+	_u.mutation.AppendBilledItems(v)
+	return _u
+}
+
+// ClearBilledItems clears the value of the "billed_items" field.
+func (_u *UsageLogUpdate) ClearBilledItems() *UsageLogUpdate {
+	_u.mutation.ClearBilledItems()
+	return _u
+}
+
 // SetTotalCost sets the "total_cost" field.
 func (_u *UsageLogUpdate) SetTotalCost(v float64) *UsageLogUpdate {
 	_u.mutation.ResetTotalCost()
@@ -668,6 +754,9 @@ func (_u *UsageLogUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(usagelog.FieldUpdatedAt, field.TypeTime, value)
+	}
+	if _u.mutation.RestoreRefCleared() {
+		_spec.ClearField(usagelog.FieldRestoreRef, field.TypeString)
 	}
 	if _u.mutation.APIKeyIDCleared() {
 		_spec.ClearField(usagelog.FieldAPIKeyID, field.TypeInt)
@@ -830,6 +919,38 @@ func (_u *UsageLogUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if _u.mutation.CostSnapshotCleared() {
 		_spec.ClearField(usagelog.FieldCostSnapshot, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.BillingGroupID(); ok {
+		_spec.SetField(usagelog.FieldBillingGroupID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedBillingGroupID(); ok {
+		_spec.AddField(usagelog.FieldBillingGroupID, field.TypeInt, value)
+	}
+	if _u.mutation.BillingGroupIDCleared() {
+		_spec.ClearField(usagelog.FieldBillingGroupID, field.TypeInt)
+	}
+	if value, ok := _u.mutation.BilledCost(); ok {
+		_spec.SetField(usagelog.FieldBilledCost, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedBilledCost(); ok {
+		_spec.AddField(usagelog.FieldBilledCost, field.TypeFloat64, value)
+	}
+	if _u.mutation.BilledCostCleared() {
+		_spec.ClearField(usagelog.FieldBilledCost, field.TypeFloat64)
+	}
+	if value, ok := _u.mutation.BillingEstimated(); ok {
+		_spec.SetField(usagelog.FieldBillingEstimated, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.BilledItems(); ok {
+		_spec.SetField(usagelog.FieldBilledItems, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedBilledItems(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, usagelog.FieldBilledItems, value)
+		})
+	}
+	if _u.mutation.BilledItemsCleared() {
+		_spec.ClearField(usagelog.FieldBilledItems, field.TypeJSON)
 	}
 	if value, ok := _u.mutation.TotalCost(); ok {
 		_spec.SetField(usagelog.FieldTotalCost, field.TypeFloat64, value)
@@ -1373,6 +1494,92 @@ func (_u *UsageLogUpdateOne) ClearCostSnapshot() *UsageLogUpdateOne {
 	return _u
 }
 
+// SetBillingGroupID sets the "billing_group_id" field.
+func (_u *UsageLogUpdateOne) SetBillingGroupID(v int) *UsageLogUpdateOne {
+	_u.mutation.ResetBillingGroupID()
+	_u.mutation.SetBillingGroupID(v)
+	return _u
+}
+
+// SetNillableBillingGroupID sets the "billing_group_id" field if the given value is not nil.
+func (_u *UsageLogUpdateOne) SetNillableBillingGroupID(v *int) *UsageLogUpdateOne {
+	if v != nil {
+		_u.SetBillingGroupID(*v)
+	}
+	return _u
+}
+
+// AddBillingGroupID adds value to the "billing_group_id" field.
+func (_u *UsageLogUpdateOne) AddBillingGroupID(v int) *UsageLogUpdateOne {
+	_u.mutation.AddBillingGroupID(v)
+	return _u
+}
+
+// ClearBillingGroupID clears the value of the "billing_group_id" field.
+func (_u *UsageLogUpdateOne) ClearBillingGroupID() *UsageLogUpdateOne {
+	_u.mutation.ClearBillingGroupID()
+	return _u
+}
+
+// SetBilledCost sets the "billed_cost" field.
+func (_u *UsageLogUpdateOne) SetBilledCost(v float64) *UsageLogUpdateOne {
+	_u.mutation.ResetBilledCost()
+	_u.mutation.SetBilledCost(v)
+	return _u
+}
+
+// SetNillableBilledCost sets the "billed_cost" field if the given value is not nil.
+func (_u *UsageLogUpdateOne) SetNillableBilledCost(v *float64) *UsageLogUpdateOne {
+	if v != nil {
+		_u.SetBilledCost(*v)
+	}
+	return _u
+}
+
+// AddBilledCost adds value to the "billed_cost" field.
+func (_u *UsageLogUpdateOne) AddBilledCost(v float64) *UsageLogUpdateOne {
+	_u.mutation.AddBilledCost(v)
+	return _u
+}
+
+// ClearBilledCost clears the value of the "billed_cost" field.
+func (_u *UsageLogUpdateOne) ClearBilledCost() *UsageLogUpdateOne {
+	_u.mutation.ClearBilledCost()
+	return _u
+}
+
+// SetBillingEstimated sets the "billing_estimated" field.
+func (_u *UsageLogUpdateOne) SetBillingEstimated(v bool) *UsageLogUpdateOne {
+	_u.mutation.SetBillingEstimated(v)
+	return _u
+}
+
+// SetNillableBillingEstimated sets the "billing_estimated" field if the given value is not nil.
+func (_u *UsageLogUpdateOne) SetNillableBillingEstimated(v *bool) *UsageLogUpdateOne {
+	if v != nil {
+		_u.SetBillingEstimated(*v)
+	}
+	return _u
+}
+
+// SetBilledItems sets the "billed_items" field.
+func (_u *UsageLogUpdateOne) SetBilledItems(v []objects.CostItem) *UsageLogUpdateOne {
+	_u.mutation.SetBilledItems(v)
+	return _u
+}
+
+// AppendBilledItems appends value to the "billed_items" field.
+func (_u *UsageLogUpdateOne) AppendBilledItems(v []objects.CostItem) *UsageLogUpdateOne {
+	_u.mutation.AppendBilledItems(v)
+	return _u
+}
+
+// ClearBilledItems clears the value of the "billed_items" field.
+func (_u *UsageLogUpdateOne) ClearBilledItems() *UsageLogUpdateOne {
+	_u.mutation.ClearBilledItems()
+	return _u
+}
+
 // SetTotalCost sets the "total_cost" field.
 func (_u *UsageLogUpdateOne) SetTotalCost(v float64) *UsageLogUpdateOne {
 	_u.mutation.ResetTotalCost()
@@ -1547,6 +1754,9 @@ func (_u *UsageLogUpdateOne) sqlSave(ctx context.Context) (_node *UsageLog, err 
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(usagelog.FieldUpdatedAt, field.TypeTime, value)
 	}
+	if _u.mutation.RestoreRefCleared() {
+		_spec.ClearField(usagelog.FieldRestoreRef, field.TypeString)
+	}
 	if _u.mutation.APIKeyIDCleared() {
 		_spec.ClearField(usagelog.FieldAPIKeyID, field.TypeInt)
 	}
@@ -1708,6 +1918,38 @@ func (_u *UsageLogUpdateOne) sqlSave(ctx context.Context) (_node *UsageLog, err 
 	}
 	if _u.mutation.CostSnapshotCleared() {
 		_spec.ClearField(usagelog.FieldCostSnapshot, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.BillingGroupID(); ok {
+		_spec.SetField(usagelog.FieldBillingGroupID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedBillingGroupID(); ok {
+		_spec.AddField(usagelog.FieldBillingGroupID, field.TypeInt, value)
+	}
+	if _u.mutation.BillingGroupIDCleared() {
+		_spec.ClearField(usagelog.FieldBillingGroupID, field.TypeInt)
+	}
+	if value, ok := _u.mutation.BilledCost(); ok {
+		_spec.SetField(usagelog.FieldBilledCost, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedBilledCost(); ok {
+		_spec.AddField(usagelog.FieldBilledCost, field.TypeFloat64, value)
+	}
+	if _u.mutation.BilledCostCleared() {
+		_spec.ClearField(usagelog.FieldBilledCost, field.TypeFloat64)
+	}
+	if value, ok := _u.mutation.BillingEstimated(); ok {
+		_spec.SetField(usagelog.FieldBillingEstimated, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.BilledItems(); ok {
+		_spec.SetField(usagelog.FieldBilledItems, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedBilledItems(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, usagelog.FieldBilledItems, value)
+		})
+	}
+	if _u.mutation.BilledItemsCleared() {
+		_spec.ClearField(usagelog.FieldBilledItems, field.TypeJSON)
 	}
 	if value, ok := _u.mutation.TotalCost(); ok {
 		_spec.SetField(usagelog.FieldTotalCost, field.TypeFloat64, value)

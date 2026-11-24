@@ -26,6 +26,8 @@ type UsageLog struct {
 	CreatedAt time.Time `json:"created_at,omitempty"`
 	// UpdatedAt holds the value of the "updated_at" field.
 	UpdatedAt time.Time `json:"updated_at,omitempty"`
+	// RestoreRef holds the value of the "restore_ref" field.
+	RestoreRef *string `json:"restore_ref,omitempty"`
 	// Related request ID
 	RequestID int `json:"request_id,omitempty"`
 	// APIKeyID holds the value of the "api_key_id" field.
@@ -80,6 +82,14 @@ type UsageLog struct {
 	StatisticsVersion int64 `json:"statistics_version,omitempty"`
 	// CostSnapshot holds the value of the "cost_snapshot" field.
 	CostSnapshot *objects.RequestCostSnapshot `json:"cost_snapshot,omitempty"`
+	// BillingGroupID holds the value of the "billing_group_id" field.
+	BillingGroupID *int `json:"billing_group_id,omitempty"`
+	// BilledCost holds the value of the "billed_cost" field.
+	BilledCost *float64 `json:"billed_cost,omitempty"`
+	// BillingEstimated holds the value of the "billing_estimated" field.
+	BillingEstimated bool `json:"billing_estimated,omitempty"`
+	// BilledItems holds the value of the "billed_items" field.
+	BilledItems []objects.CostItem `json:"billed_items,omitempty"`
 	// Total cost calculated based on channel model price
 	TotalCost *float64 `json:"total_cost,omitempty"`
 	// Detailed cost breakdown items in JSON
@@ -145,15 +155,15 @@ func (*UsageLog) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case usagelog.FieldCostSnapshot, usagelog.FieldCostItems:
+		case usagelog.FieldCostSnapshot, usagelog.FieldBilledItems, usagelog.FieldCostItems:
 			values[i] = new([]byte)
-		case usagelog.FieldStatisticsStandardReady:
+		case usagelog.FieldStatisticsStandardReady, usagelog.FieldBillingEstimated:
 			values[i] = new(sql.NullBool)
-		case usagelog.FieldStatisticsStandardCost, usagelog.FieldTotalCost:
+		case usagelog.FieldStatisticsStandardCost, usagelog.FieldBilledCost, usagelog.FieldTotalCost:
 			values[i] = new(sql.NullFloat64)
-		case usagelog.FieldID, usagelog.FieldRequestID, usagelog.FieldAPIKeyID, usagelog.FieldProjectID, usagelog.FieldChannelID, usagelog.FieldPromptTokens, usagelog.FieldCompletionTokens, usagelog.FieldTotalTokens, usagelog.FieldPromptTextTokens, usagelog.FieldPromptImageTokens, usagelog.FieldPromptTextCachedTokens, usagelog.FieldPromptImageCachedTokens, usagelog.FieldPromptAudioTokens, usagelog.FieldPromptCachedTokens, usagelog.FieldPromptWriteCachedTokens, usagelog.FieldPromptWriteCachedTokens5m, usagelog.FieldPromptWriteCachedTokens1h, usagelog.FieldCompletionAudioTokens, usagelog.FieldCompletionReasoningTokens, usagelog.FieldCompletionAcceptedPredictionTokens, usagelog.FieldCompletionRejectedPredictionTokens, usagelog.FieldStatisticsVersion:
+		case usagelog.FieldID, usagelog.FieldRequestID, usagelog.FieldAPIKeyID, usagelog.FieldProjectID, usagelog.FieldChannelID, usagelog.FieldPromptTokens, usagelog.FieldCompletionTokens, usagelog.FieldTotalTokens, usagelog.FieldPromptTextTokens, usagelog.FieldPromptImageTokens, usagelog.FieldPromptTextCachedTokens, usagelog.FieldPromptImageCachedTokens, usagelog.FieldPromptAudioTokens, usagelog.FieldPromptCachedTokens, usagelog.FieldPromptWriteCachedTokens, usagelog.FieldPromptWriteCachedTokens5m, usagelog.FieldPromptWriteCachedTokens1h, usagelog.FieldCompletionAudioTokens, usagelog.FieldCompletionReasoningTokens, usagelog.FieldCompletionAcceptedPredictionTokens, usagelog.FieldCompletionRejectedPredictionTokens, usagelog.FieldStatisticsVersion, usagelog.FieldBillingGroupID:
 			values[i] = new(sql.NullInt64)
-		case usagelog.FieldModelID, usagelog.FieldSource, usagelog.FieldFormat, usagelog.FieldCostPriceReferenceID:
+		case usagelog.FieldRestoreRef, usagelog.FieldModelID, usagelog.FieldSource, usagelog.FieldFormat, usagelog.FieldCostPriceReferenceID:
 			values[i] = new(sql.NullString)
 		case usagelog.FieldCreatedAt, usagelog.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -189,6 +199,13 @@ func (_m *UsageLog) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field updated_at", values[i])
 			} else if value.Valid {
 				_m.UpdatedAt = value.Time
+			}
+		case usagelog.FieldRestoreRef:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field restore_ref", values[i])
+			} else if value.Valid {
+				_m.RestoreRef = new(string)
+				*_m.RestoreRef = value.String
 			}
 		case usagelog.FieldRequestID:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
@@ -359,6 +376,34 @@ func (_m *UsageLog) assignValues(columns []string, values []any) error {
 					return fmt.Errorf("unmarshal field cost_snapshot: %w", err)
 				}
 			}
+		case usagelog.FieldBillingGroupID:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field billing_group_id", values[i])
+			} else if value.Valid {
+				_m.BillingGroupID = new(int)
+				*_m.BillingGroupID = int(value.Int64)
+			}
+		case usagelog.FieldBilledCost:
+			if value, ok := values[i].(*sql.NullFloat64); !ok {
+				return fmt.Errorf("unexpected type %T for field billed_cost", values[i])
+			} else if value.Valid {
+				_m.BilledCost = new(float64)
+				*_m.BilledCost = value.Float64
+			}
+		case usagelog.FieldBillingEstimated:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field billing_estimated", values[i])
+			} else if value.Valid {
+				_m.BillingEstimated = value.Bool
+			}
+		case usagelog.FieldBilledItems:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field billed_items", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.BilledItems); err != nil {
+					return fmt.Errorf("unmarshal field billed_items: %w", err)
+				}
+			}
 		case usagelog.FieldTotalCost:
 			if value, ok := values[i].(*sql.NullFloat64); !ok {
 				return fmt.Errorf("unexpected type %T for field total_cost", values[i])
@@ -436,6 +481,11 @@ func (_m *UsageLog) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("updated_at=")
 	builder.WriteString(_m.UpdatedAt.Format(time.ANSIC))
+	builder.WriteString(", ")
+	if v := _m.RestoreRef; v != nil {
+		builder.WriteString("restore_ref=")
+		builder.WriteString(*v)
+	}
 	builder.WriteString(", ")
 	builder.WriteString("request_id=")
 	builder.WriteString(fmt.Sprintf("%v", _m.RequestID))
@@ -527,6 +577,22 @@ func (_m *UsageLog) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("cost_snapshot=")
 	builder.WriteString(fmt.Sprintf("%v", _m.CostSnapshot))
+	builder.WriteString(", ")
+	if v := _m.BillingGroupID; v != nil {
+		builder.WriteString("billing_group_id=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	if v := _m.BilledCost; v != nil {
+		builder.WriteString("billed_cost=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	builder.WriteString("billing_estimated=")
+	builder.WriteString(fmt.Sprintf("%v", _m.BillingEstimated))
+	builder.WriteString(", ")
+	builder.WriteString("billed_items=")
+	builder.WriteString(fmt.Sprintf("%v", _m.BilledItems))
 	builder.WriteString(", ")
 	if v := _m.TotalCost; v != nil {
 		builder.WriteString("total_cost=")

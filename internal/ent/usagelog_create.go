@@ -54,6 +54,20 @@ func (_c *UsageLogCreate) SetNillableUpdatedAt(v *time.Time) *UsageLogCreate {
 	return _c
 }
 
+// SetRestoreRef sets the "restore_ref" field.
+func (_c *UsageLogCreate) SetRestoreRef(v string) *UsageLogCreate {
+	_c.mutation.SetRestoreRef(v)
+	return _c
+}
+
+// SetNillableRestoreRef sets the "restore_ref" field if the given value is not nil.
+func (_c *UsageLogCreate) SetNillableRestoreRef(v *string) *UsageLogCreate {
+	if v != nil {
+		_c.SetRestoreRef(*v)
+	}
+	return _c
+}
+
 // SetRequestID sets the "request_id" field.
 func (_c *UsageLogCreate) SetRequestID(v int) *UsageLogCreate {
 	_c.mutation.SetRequestID(v)
@@ -408,6 +422,54 @@ func (_c *UsageLogCreate) SetCostSnapshot(v *objects.RequestCostSnapshot) *Usage
 	return _c
 }
 
+// SetBillingGroupID sets the "billing_group_id" field.
+func (_c *UsageLogCreate) SetBillingGroupID(v int) *UsageLogCreate {
+	_c.mutation.SetBillingGroupID(v)
+	return _c
+}
+
+// SetNillableBillingGroupID sets the "billing_group_id" field if the given value is not nil.
+func (_c *UsageLogCreate) SetNillableBillingGroupID(v *int) *UsageLogCreate {
+	if v != nil {
+		_c.SetBillingGroupID(*v)
+	}
+	return _c
+}
+
+// SetBilledCost sets the "billed_cost" field.
+func (_c *UsageLogCreate) SetBilledCost(v float64) *UsageLogCreate {
+	_c.mutation.SetBilledCost(v)
+	return _c
+}
+
+// SetNillableBilledCost sets the "billed_cost" field if the given value is not nil.
+func (_c *UsageLogCreate) SetNillableBilledCost(v *float64) *UsageLogCreate {
+	if v != nil {
+		_c.SetBilledCost(*v)
+	}
+	return _c
+}
+
+// SetBillingEstimated sets the "billing_estimated" field.
+func (_c *UsageLogCreate) SetBillingEstimated(v bool) *UsageLogCreate {
+	_c.mutation.SetBillingEstimated(v)
+	return _c
+}
+
+// SetNillableBillingEstimated sets the "billing_estimated" field if the given value is not nil.
+func (_c *UsageLogCreate) SetNillableBillingEstimated(v *bool) *UsageLogCreate {
+	if v != nil {
+		_c.SetBillingEstimated(*v)
+	}
+	return _c
+}
+
+// SetBilledItems sets the "billed_items" field.
+func (_c *UsageLogCreate) SetBilledItems(v []objects.CostItem) *UsageLogCreate {
+	_c.mutation.SetBilledItems(v)
+	return _c
+}
+
 // SetTotalCost sets the "total_cost" field.
 func (_c *UsageLogCreate) SetTotalCost(v float64) *UsageLogCreate {
 	_c.mutation.SetTotalCost(v)
@@ -576,6 +638,10 @@ func (_c *UsageLogCreate) defaults() error {
 		v := usagelog.DefaultStatisticsVersion
 		_c.mutation.SetStatisticsVersion(v)
 	}
+	if _, ok := _c.mutation.BillingEstimated(); !ok {
+		v := usagelog.DefaultBillingEstimated
+		_c.mutation.SetBillingEstimated(v)
+	}
 	if _, ok := _c.mutation.CostItems(); !ok {
 		v := usagelog.DefaultCostItems
 		_c.mutation.SetCostItems(v)
@@ -585,6 +651,11 @@ func (_c *UsageLogCreate) defaults() error {
 
 // check runs all checks and user-defined validators on the builder.
 func (_c *UsageLogCreate) check() error {
+	if v, ok := _c.mutation.RestoreRef(); ok {
+		if err := usagelog.RestoreRefValidator(v); err != nil {
+			return &ValidationError{Name: "restore_ref", err: fmt.Errorf(`ent: validator failed for field "UsageLog.restore_ref": %w`, err)}
+		}
+	}
 	if _, ok := _c.mutation.RequestID(); !ok {
 		return &ValidationError{Name: "request_id", err: errors.New(`ent: missing required field "UsageLog.request_id"`)}
 	}
@@ -619,6 +690,9 @@ func (_c *UsageLogCreate) check() error {
 	}
 	if _, ok := _c.mutation.StatisticsVersion(); !ok {
 		return &ValidationError{Name: "statistics_version", err: errors.New(`ent: missing required field "UsageLog.statistics_version"`)}
+	}
+	if _, ok := _c.mutation.BillingEstimated(); !ok {
+		return &ValidationError{Name: "billing_estimated", err: errors.New(`ent: missing required field "UsageLog.billing_estimated"`)}
 	}
 	if len(_c.mutation.RequestIDs()) == 0 {
 		return &ValidationError{Name: "request", err: errors.New(`ent: missing required edge "UsageLog.request"`)}
@@ -660,6 +734,10 @@ func (_c *UsageLogCreate) createSpec() (*UsageLog, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.UpdatedAt(); ok {
 		_spec.SetField(usagelog.FieldUpdatedAt, field.TypeTime, value)
 		_node.UpdatedAt = value
+	}
+	if value, ok := _c.mutation.RestoreRef(); ok {
+		_spec.SetField(usagelog.FieldRestoreRef, field.TypeString, value)
+		_node.RestoreRef = &value
 	}
 	if value, ok := _c.mutation.APIKeyID(); ok {
 		_spec.SetField(usagelog.FieldAPIKeyID, field.TypeInt, value)
@@ -756,6 +834,22 @@ func (_c *UsageLogCreate) createSpec() (*UsageLog, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.CostSnapshot(); ok {
 		_spec.SetField(usagelog.FieldCostSnapshot, field.TypeJSON, value)
 		_node.CostSnapshot = value
+	}
+	if value, ok := _c.mutation.BillingGroupID(); ok {
+		_spec.SetField(usagelog.FieldBillingGroupID, field.TypeInt, value)
+		_node.BillingGroupID = &value
+	}
+	if value, ok := _c.mutation.BilledCost(); ok {
+		_spec.SetField(usagelog.FieldBilledCost, field.TypeFloat64, value)
+		_node.BilledCost = &value
+	}
+	if value, ok := _c.mutation.BillingEstimated(); ok {
+		_spec.SetField(usagelog.FieldBillingEstimated, field.TypeBool, value)
+		_node.BillingEstimated = value
+	}
+	if value, ok := _c.mutation.BilledItems(); ok {
+		_spec.SetField(usagelog.FieldBilledItems, field.TypeJSON, value)
+		_node.BilledItems = value
 	}
 	if value, ok := _c.mutation.TotalCost(); ok {
 		_spec.SetField(usagelog.FieldTotalCost, field.TypeFloat64, value)
@@ -1322,6 +1416,84 @@ func (u *UsageLogUpsert) ClearCostSnapshot() *UsageLogUpsert {
 	return u
 }
 
+// SetBillingGroupID sets the "billing_group_id" field.
+func (u *UsageLogUpsert) SetBillingGroupID(v int) *UsageLogUpsert {
+	u.Set(usagelog.FieldBillingGroupID, v)
+	return u
+}
+
+// UpdateBillingGroupID sets the "billing_group_id" field to the value that was provided on create.
+func (u *UsageLogUpsert) UpdateBillingGroupID() *UsageLogUpsert {
+	u.SetExcluded(usagelog.FieldBillingGroupID)
+	return u
+}
+
+// AddBillingGroupID adds v to the "billing_group_id" field.
+func (u *UsageLogUpsert) AddBillingGroupID(v int) *UsageLogUpsert {
+	u.Add(usagelog.FieldBillingGroupID, v)
+	return u
+}
+
+// ClearBillingGroupID clears the value of the "billing_group_id" field.
+func (u *UsageLogUpsert) ClearBillingGroupID() *UsageLogUpsert {
+	u.SetNull(usagelog.FieldBillingGroupID)
+	return u
+}
+
+// SetBilledCost sets the "billed_cost" field.
+func (u *UsageLogUpsert) SetBilledCost(v float64) *UsageLogUpsert {
+	u.Set(usagelog.FieldBilledCost, v)
+	return u
+}
+
+// UpdateBilledCost sets the "billed_cost" field to the value that was provided on create.
+func (u *UsageLogUpsert) UpdateBilledCost() *UsageLogUpsert {
+	u.SetExcluded(usagelog.FieldBilledCost)
+	return u
+}
+
+// AddBilledCost adds v to the "billed_cost" field.
+func (u *UsageLogUpsert) AddBilledCost(v float64) *UsageLogUpsert {
+	u.Add(usagelog.FieldBilledCost, v)
+	return u
+}
+
+// ClearBilledCost clears the value of the "billed_cost" field.
+func (u *UsageLogUpsert) ClearBilledCost() *UsageLogUpsert {
+	u.SetNull(usagelog.FieldBilledCost)
+	return u
+}
+
+// SetBillingEstimated sets the "billing_estimated" field.
+func (u *UsageLogUpsert) SetBillingEstimated(v bool) *UsageLogUpsert {
+	u.Set(usagelog.FieldBillingEstimated, v)
+	return u
+}
+
+// UpdateBillingEstimated sets the "billing_estimated" field to the value that was provided on create.
+func (u *UsageLogUpsert) UpdateBillingEstimated() *UsageLogUpsert {
+	u.SetExcluded(usagelog.FieldBillingEstimated)
+	return u
+}
+
+// SetBilledItems sets the "billed_items" field.
+func (u *UsageLogUpsert) SetBilledItems(v []objects.CostItem) *UsageLogUpsert {
+	u.Set(usagelog.FieldBilledItems, v)
+	return u
+}
+
+// UpdateBilledItems sets the "billed_items" field to the value that was provided on create.
+func (u *UsageLogUpsert) UpdateBilledItems() *UsageLogUpsert {
+	u.SetExcluded(usagelog.FieldBilledItems)
+	return u
+}
+
+// ClearBilledItems clears the value of the "billed_items" field.
+func (u *UsageLogUpsert) ClearBilledItems() *UsageLogUpsert {
+	u.SetNull(usagelog.FieldBilledItems)
+	return u
+}
+
 // SetTotalCost sets the "total_cost" field.
 func (u *UsageLogUpsert) SetTotalCost(v float64) *UsageLogUpsert {
 	u.Set(usagelog.FieldTotalCost, v)
@@ -1395,6 +1567,9 @@ func (u *UsageLogUpsertOne) UpdateNewValues() *UsageLogUpsertOne {
 	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(s *sql.UpdateSet) {
 		if _, exists := u.create.mutation.CreatedAt(); exists {
 			s.SetIgnore(usagelog.FieldCreatedAt)
+		}
+		if _, exists := u.create.mutation.RestoreRef(); exists {
+			s.SetIgnore(usagelog.FieldRestoreRef)
 		}
 		if _, exists := u.create.mutation.RequestID(); exists {
 			s.SetIgnore(usagelog.FieldRequestID)
@@ -1973,6 +2148,97 @@ func (u *UsageLogUpsertOne) ClearCostSnapshot() *UsageLogUpsertOne {
 	})
 }
 
+// SetBillingGroupID sets the "billing_group_id" field.
+func (u *UsageLogUpsertOne) SetBillingGroupID(v int) *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetBillingGroupID(v)
+	})
+}
+
+// AddBillingGroupID adds v to the "billing_group_id" field.
+func (u *UsageLogUpsertOne) AddBillingGroupID(v int) *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.AddBillingGroupID(v)
+	})
+}
+
+// UpdateBillingGroupID sets the "billing_group_id" field to the value that was provided on create.
+func (u *UsageLogUpsertOne) UpdateBillingGroupID() *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateBillingGroupID()
+	})
+}
+
+// ClearBillingGroupID clears the value of the "billing_group_id" field.
+func (u *UsageLogUpsertOne) ClearBillingGroupID() *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.ClearBillingGroupID()
+	})
+}
+
+// SetBilledCost sets the "billed_cost" field.
+func (u *UsageLogUpsertOne) SetBilledCost(v float64) *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetBilledCost(v)
+	})
+}
+
+// AddBilledCost adds v to the "billed_cost" field.
+func (u *UsageLogUpsertOne) AddBilledCost(v float64) *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.AddBilledCost(v)
+	})
+}
+
+// UpdateBilledCost sets the "billed_cost" field to the value that was provided on create.
+func (u *UsageLogUpsertOne) UpdateBilledCost() *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateBilledCost()
+	})
+}
+
+// ClearBilledCost clears the value of the "billed_cost" field.
+func (u *UsageLogUpsertOne) ClearBilledCost() *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.ClearBilledCost()
+	})
+}
+
+// SetBillingEstimated sets the "billing_estimated" field.
+func (u *UsageLogUpsertOne) SetBillingEstimated(v bool) *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetBillingEstimated(v)
+	})
+}
+
+// UpdateBillingEstimated sets the "billing_estimated" field to the value that was provided on create.
+func (u *UsageLogUpsertOne) UpdateBillingEstimated() *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateBillingEstimated()
+	})
+}
+
+// SetBilledItems sets the "billed_items" field.
+func (u *UsageLogUpsertOne) SetBilledItems(v []objects.CostItem) *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetBilledItems(v)
+	})
+}
+
+// UpdateBilledItems sets the "billed_items" field to the value that was provided on create.
+func (u *UsageLogUpsertOne) UpdateBilledItems() *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateBilledItems()
+	})
+}
+
+// ClearBilledItems clears the value of the "billed_items" field.
+func (u *UsageLogUpsertOne) ClearBilledItems() *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.ClearBilledItems()
+	})
+}
+
 // SetTotalCost sets the "total_cost" field.
 func (u *UsageLogUpsertOne) SetTotalCost(v float64) *UsageLogUpsertOne {
 	return u.Update(func(s *UsageLogUpsert) {
@@ -2221,6 +2487,9 @@ func (u *UsageLogUpsertBulk) UpdateNewValues() *UsageLogUpsertBulk {
 		for _, b := range u.create.builders {
 			if _, exists := b.mutation.CreatedAt(); exists {
 				s.SetIgnore(usagelog.FieldCreatedAt)
+			}
+			if _, exists := b.mutation.RestoreRef(); exists {
+				s.SetIgnore(usagelog.FieldRestoreRef)
 			}
 			if _, exists := b.mutation.RequestID(); exists {
 				s.SetIgnore(usagelog.FieldRequestID)
@@ -2797,6 +3066,97 @@ func (u *UsageLogUpsertBulk) UpdateCostSnapshot() *UsageLogUpsertBulk {
 func (u *UsageLogUpsertBulk) ClearCostSnapshot() *UsageLogUpsertBulk {
 	return u.Update(func(s *UsageLogUpsert) {
 		s.ClearCostSnapshot()
+	})
+}
+
+// SetBillingGroupID sets the "billing_group_id" field.
+func (u *UsageLogUpsertBulk) SetBillingGroupID(v int) *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetBillingGroupID(v)
+	})
+}
+
+// AddBillingGroupID adds v to the "billing_group_id" field.
+func (u *UsageLogUpsertBulk) AddBillingGroupID(v int) *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.AddBillingGroupID(v)
+	})
+}
+
+// UpdateBillingGroupID sets the "billing_group_id" field to the value that was provided on create.
+func (u *UsageLogUpsertBulk) UpdateBillingGroupID() *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateBillingGroupID()
+	})
+}
+
+// ClearBillingGroupID clears the value of the "billing_group_id" field.
+func (u *UsageLogUpsertBulk) ClearBillingGroupID() *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.ClearBillingGroupID()
+	})
+}
+
+// SetBilledCost sets the "billed_cost" field.
+func (u *UsageLogUpsertBulk) SetBilledCost(v float64) *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetBilledCost(v)
+	})
+}
+
+// AddBilledCost adds v to the "billed_cost" field.
+func (u *UsageLogUpsertBulk) AddBilledCost(v float64) *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.AddBilledCost(v)
+	})
+}
+
+// UpdateBilledCost sets the "billed_cost" field to the value that was provided on create.
+func (u *UsageLogUpsertBulk) UpdateBilledCost() *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateBilledCost()
+	})
+}
+
+// ClearBilledCost clears the value of the "billed_cost" field.
+func (u *UsageLogUpsertBulk) ClearBilledCost() *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.ClearBilledCost()
+	})
+}
+
+// SetBillingEstimated sets the "billing_estimated" field.
+func (u *UsageLogUpsertBulk) SetBillingEstimated(v bool) *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetBillingEstimated(v)
+	})
+}
+
+// UpdateBillingEstimated sets the "billing_estimated" field to the value that was provided on create.
+func (u *UsageLogUpsertBulk) UpdateBillingEstimated() *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateBillingEstimated()
+	})
+}
+
+// SetBilledItems sets the "billed_items" field.
+func (u *UsageLogUpsertBulk) SetBilledItems(v []objects.CostItem) *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetBilledItems(v)
+	})
+}
+
+// UpdateBilledItems sets the "billed_items" field to the value that was provided on create.
+func (u *UsageLogUpsertBulk) UpdateBilledItems() *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateBilledItems()
+	})
+}
+
+// ClearBilledItems clears the value of the "billed_items" field.
+func (u *UsageLogUpsertBulk) ClearBilledItems() *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.ClearBilledItems()
 	})
 }
 

@@ -16,7 +16,9 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"github.com/looplj/axonhub/internal/ent/apikey"
+	"github.com/looplj/axonhub/internal/ent/apikeychannelrate"
 	"github.com/looplj/axonhub/internal/ent/apikeygroup"
+	"github.com/looplj/axonhub/internal/ent/apikeygroupchannelrate"
 	"github.com/looplj/axonhub/internal/ent/apikeyoperation"
 	"github.com/looplj/axonhub/internal/ent/apikeyprofiletemplate"
 	"github.com/looplj/axonhub/internal/ent/budgetaccount"
@@ -64,8 +66,12 @@ type Client struct {
 	Schema *migrate.Schema
 	// APIKey is the client for interacting with the APIKey builders.
 	APIKey *APIKeyClient
+	// APIKeyChannelRate is the client for interacting with the APIKeyChannelRate builders.
+	APIKeyChannelRate *APIKeyChannelRateClient
 	// APIKeyGroup is the client for interacting with the APIKeyGroup builders.
 	APIKeyGroup *APIKeyGroupClient
+	// APIKeyGroupChannelRate is the client for interacting with the APIKeyGroupChannelRate builders.
+	APIKeyGroupChannelRate *APIKeyGroupChannelRateClient
 	// APIKeyOperation is the client for interacting with the APIKeyOperation builders.
 	APIKeyOperation *APIKeyOperationClient
 	// APIKeyProfileTemplate is the client for interacting with the APIKeyProfileTemplate builders.
@@ -157,7 +163,9 @@ func NewClient(opts ...Option) *Client {
 func (c *Client) init() {
 	c.Schema = migrate.NewSchema(c.driver)
 	c.APIKey = NewAPIKeyClient(c.config)
+	c.APIKeyChannelRate = NewAPIKeyChannelRateClient(c.config)
 	c.APIKeyGroup = NewAPIKeyGroupClient(c.config)
+	c.APIKeyGroupChannelRate = NewAPIKeyGroupChannelRateClient(c.config)
 	c.APIKeyOperation = NewAPIKeyOperationClient(c.config)
 	c.APIKeyProfileTemplate = NewAPIKeyProfileTemplateClient(c.config)
 	c.BudgetAccount = NewBudgetAccountClient(c.config)
@@ -289,7 +297,9 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		ctx:                      ctx,
 		config:                   cfg,
 		APIKey:                   NewAPIKeyClient(cfg),
+		APIKeyChannelRate:        NewAPIKeyChannelRateClient(cfg),
 		APIKeyGroup:              NewAPIKeyGroupClient(cfg),
+		APIKeyGroupChannelRate:   NewAPIKeyGroupChannelRateClient(cfg),
 		APIKeyOperation:          NewAPIKeyOperationClient(cfg),
 		APIKeyProfileTemplate:    NewAPIKeyProfileTemplateClient(cfg),
 		BudgetAccount:            NewBudgetAccountClient(cfg),
@@ -348,7 +358,9 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		ctx:                      ctx,
 		config:                   cfg,
 		APIKey:                   NewAPIKeyClient(cfg),
+		APIKeyChannelRate:        NewAPIKeyChannelRateClient(cfg),
 		APIKeyGroup:              NewAPIKeyGroupClient(cfg),
+		APIKeyGroupChannelRate:   NewAPIKeyGroupChannelRateClient(cfg),
 		APIKeyOperation:          NewAPIKeyOperationClient(cfg),
 		APIKeyProfileTemplate:    NewAPIKeyProfileTemplateClient(cfg),
 		BudgetAccount:            NewBudgetAccountClient(cfg),
@@ -416,16 +428,16 @@ func (c *Client) Close() error {
 // In order to add hooks to a specific client, call: `client.Node.Use(...)`.
 func (c *Client) Use(hooks ...Hook) {
 	for _, n := range []interface{ Use(...Hook) }{
-		c.APIKey, c.APIKeyGroup, c.APIKeyOperation, c.APIKeyProfileTemplate,
-		c.BudgetAccount, c.BudgetChange, c.BudgetCharge, c.BudgetPosting,
-		c.CacheEffectivenessWindow, c.Channel, c.ChannelModelPrice,
-		c.ChannelModelPriceVersion, c.ChannelOverrideTemplate, c.ChannelProbe,
-		c.ChannelUpstreamStatus, c.ConsumptionSnapshot, c.DataStorage, c.GeminiCache,
-		c.Invitation, c.Model, c.OIDCIdentity, c.Plugin, c.PluginStorage, c.Project,
-		c.Prompt, c.PromptProtectionRule, c.ProviderQuotaStatus, c.Request,
-		c.RequestExecution, c.ResponsesOrigin, c.Role, c.StatisticsRevision, c.System,
-		c.Thread, c.Trace, c.UsageArchive, c.UsageLog, c.User, c.UserProject,
-		c.UserRole,
+		c.APIKey, c.APIKeyChannelRate, c.APIKeyGroup, c.APIKeyGroupChannelRate,
+		c.APIKeyOperation, c.APIKeyProfileTemplate, c.BudgetAccount, c.BudgetChange,
+		c.BudgetCharge, c.BudgetPosting, c.CacheEffectivenessWindow, c.Channel,
+		c.ChannelModelPrice, c.ChannelModelPriceVersion, c.ChannelOverrideTemplate,
+		c.ChannelProbe, c.ChannelUpstreamStatus, c.ConsumptionSnapshot, c.DataStorage,
+		c.GeminiCache, c.Invitation, c.Model, c.OIDCIdentity, c.Plugin,
+		c.PluginStorage, c.Project, c.Prompt, c.PromptProtectionRule,
+		c.ProviderQuotaStatus, c.Request, c.RequestExecution, c.ResponsesOrigin,
+		c.Role, c.StatisticsRevision, c.System, c.Thread, c.Trace, c.UsageArchive,
+		c.UsageLog, c.User, c.UserProject, c.UserRole,
 	} {
 		n.Use(hooks...)
 	}
@@ -435,16 +447,16 @@ func (c *Client) Use(hooks ...Hook) {
 // In order to add interceptors to a specific client, call: `client.Node.Intercept(...)`.
 func (c *Client) Intercept(interceptors ...Interceptor) {
 	for _, n := range []interface{ Intercept(...Interceptor) }{
-		c.APIKey, c.APIKeyGroup, c.APIKeyOperation, c.APIKeyProfileTemplate,
-		c.BudgetAccount, c.BudgetChange, c.BudgetCharge, c.BudgetPosting,
-		c.CacheEffectivenessWindow, c.Channel, c.ChannelModelPrice,
-		c.ChannelModelPriceVersion, c.ChannelOverrideTemplate, c.ChannelProbe,
-		c.ChannelUpstreamStatus, c.ConsumptionSnapshot, c.DataStorage, c.GeminiCache,
-		c.Invitation, c.Model, c.OIDCIdentity, c.Plugin, c.PluginStorage, c.Project,
-		c.Prompt, c.PromptProtectionRule, c.ProviderQuotaStatus, c.Request,
-		c.RequestExecution, c.ResponsesOrigin, c.Role, c.StatisticsRevision, c.System,
-		c.Thread, c.Trace, c.UsageArchive, c.UsageLog, c.User, c.UserProject,
-		c.UserRole,
+		c.APIKey, c.APIKeyChannelRate, c.APIKeyGroup, c.APIKeyGroupChannelRate,
+		c.APIKeyOperation, c.APIKeyProfileTemplate, c.BudgetAccount, c.BudgetChange,
+		c.BudgetCharge, c.BudgetPosting, c.CacheEffectivenessWindow, c.Channel,
+		c.ChannelModelPrice, c.ChannelModelPriceVersion, c.ChannelOverrideTemplate,
+		c.ChannelProbe, c.ChannelUpstreamStatus, c.ConsumptionSnapshot, c.DataStorage,
+		c.GeminiCache, c.Invitation, c.Model, c.OIDCIdentity, c.Plugin,
+		c.PluginStorage, c.Project, c.Prompt, c.PromptProtectionRule,
+		c.ProviderQuotaStatus, c.Request, c.RequestExecution, c.ResponsesOrigin,
+		c.Role, c.StatisticsRevision, c.System, c.Thread, c.Trace, c.UsageArchive,
+		c.UsageLog, c.User, c.UserProject, c.UserRole,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -455,8 +467,12 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 	switch m := m.(type) {
 	case *APIKeyMutation:
 		return c.APIKey.mutate(ctx, m)
+	case *APIKeyChannelRateMutation:
+		return c.APIKeyChannelRate.mutate(ctx, m)
 	case *APIKeyGroupMutation:
 		return c.APIKeyGroup.mutate(ctx, m)
+	case *APIKeyGroupChannelRateMutation:
+		return c.APIKeyGroupChannelRate.mutate(ctx, m)
 	case *APIKeyOperationMutation:
 		return c.APIKeyOperation.mutate(ctx, m)
 	case *APIKeyProfileTemplateMutation:
@@ -646,6 +662,22 @@ func (c *APIKeyClient) GetX(ctx context.Context, id int) *APIKey {
 	return obj
 }
 
+// QueryChannelRates queries the channel_rates edge of a APIKey.
+func (c *APIKeyClient) QueryChannelRates(_m *APIKey) *APIKeyChannelRateQuery {
+	query := (&APIKeyChannelRateClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(apikey.Table, apikey.FieldID, id),
+			sqlgraph.To(apikeychannelrate.Table, apikeychannelrate.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, apikey.ChannelRatesTable, apikey.ChannelRatesColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
 // QueryUser queries the user edge of a APIKey.
 func (c *APIKeyClient) QueryUser(_m *APIKey) *UserQuery {
 	query := (&UserClient{config: c.config}).Query()
@@ -718,6 +750,172 @@ func (c *APIKeyClient) mutate(ctx context.Context, m *APIKeyMutation) (Value, er
 		return (&APIKeyDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown APIKey mutation op: %q", m.Op())
+	}
+}
+
+// APIKeyChannelRateClient is a client for the APIKeyChannelRate schema.
+type APIKeyChannelRateClient struct {
+	config
+}
+
+// NewAPIKeyChannelRateClient returns a client for the APIKeyChannelRate from the given config.
+func NewAPIKeyChannelRateClient(c config) *APIKeyChannelRateClient {
+	return &APIKeyChannelRateClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `apikeychannelrate.Hooks(f(g(h())))`.
+func (c *APIKeyChannelRateClient) Use(hooks ...Hook) {
+	c.hooks.APIKeyChannelRate = append(c.hooks.APIKeyChannelRate, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `apikeychannelrate.Intercept(f(g(h())))`.
+func (c *APIKeyChannelRateClient) Intercept(interceptors ...Interceptor) {
+	c.inters.APIKeyChannelRate = append(c.inters.APIKeyChannelRate, interceptors...)
+}
+
+// Create returns a builder for creating a APIKeyChannelRate entity.
+func (c *APIKeyChannelRateClient) Create() *APIKeyChannelRateCreate {
+	mutation := newAPIKeyChannelRateMutation(c.config, OpCreate)
+	return &APIKeyChannelRateCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of APIKeyChannelRate entities.
+func (c *APIKeyChannelRateClient) CreateBulk(builders ...*APIKeyChannelRateCreate) *APIKeyChannelRateCreateBulk {
+	return &APIKeyChannelRateCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *APIKeyChannelRateClient) MapCreateBulk(slice any, setFunc func(*APIKeyChannelRateCreate, int)) *APIKeyChannelRateCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &APIKeyChannelRateCreateBulk{err: fmt.Errorf("calling to APIKeyChannelRateClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*APIKeyChannelRateCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &APIKeyChannelRateCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for APIKeyChannelRate.
+func (c *APIKeyChannelRateClient) Update() *APIKeyChannelRateUpdate {
+	mutation := newAPIKeyChannelRateMutation(c.config, OpUpdate)
+	return &APIKeyChannelRateUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *APIKeyChannelRateClient) UpdateOne(_m *APIKeyChannelRate) *APIKeyChannelRateUpdateOne {
+	mutation := newAPIKeyChannelRateMutation(c.config, OpUpdateOne, withAPIKeyChannelRate(_m))
+	return &APIKeyChannelRateUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *APIKeyChannelRateClient) UpdateOneID(id int) *APIKeyChannelRateUpdateOne {
+	mutation := newAPIKeyChannelRateMutation(c.config, OpUpdateOne, withAPIKeyChannelRateID(id))
+	return &APIKeyChannelRateUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for APIKeyChannelRate.
+func (c *APIKeyChannelRateClient) Delete() *APIKeyChannelRateDelete {
+	mutation := newAPIKeyChannelRateMutation(c.config, OpDelete)
+	return &APIKeyChannelRateDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *APIKeyChannelRateClient) DeleteOne(_m *APIKeyChannelRate) *APIKeyChannelRateDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *APIKeyChannelRateClient) DeleteOneID(id int) *APIKeyChannelRateDeleteOne {
+	builder := c.Delete().Where(apikeychannelrate.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &APIKeyChannelRateDeleteOne{builder}
+}
+
+// Query returns a query builder for APIKeyChannelRate.
+func (c *APIKeyChannelRateClient) Query() *APIKeyChannelRateQuery {
+	return &APIKeyChannelRateQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeAPIKeyChannelRate},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a APIKeyChannelRate entity by its id.
+func (c *APIKeyChannelRateClient) Get(ctx context.Context, id int) (*APIKeyChannelRate, error) {
+	return c.Query().Where(apikeychannelrate.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *APIKeyChannelRateClient) GetX(ctx context.Context, id int) *APIKeyChannelRate {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryKey queries the key edge of a APIKeyChannelRate.
+func (c *APIKeyChannelRateClient) QueryKey(_m *APIKeyChannelRate) *APIKeyQuery {
+	query := (&APIKeyClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(apikeychannelrate.Table, apikeychannelrate.FieldID, id),
+			sqlgraph.To(apikey.Table, apikey.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, apikeychannelrate.KeyTable, apikeychannelrate.KeyColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryChannel queries the channel edge of a APIKeyChannelRate.
+func (c *APIKeyChannelRateClient) QueryChannel(_m *APIKeyChannelRate) *ChannelQuery {
+	query := (&ChannelClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(apikeychannelrate.Table, apikeychannelrate.FieldID, id),
+			sqlgraph.To(channel.Table, channel.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, apikeychannelrate.ChannelTable, apikeychannelrate.ChannelColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *APIKeyChannelRateClient) Hooks() []Hook {
+	hooks := c.hooks.APIKeyChannelRate
+	return append(hooks[:len(hooks):len(hooks)], apikeychannelrate.Hooks[:]...)
+}
+
+// Interceptors returns the client interceptors.
+func (c *APIKeyChannelRateClient) Interceptors() []Interceptor {
+	return c.inters.APIKeyChannelRate
+}
+
+func (c *APIKeyChannelRateClient) mutate(ctx context.Context, m *APIKeyChannelRateMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&APIKeyChannelRateCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&APIKeyChannelRateUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&APIKeyChannelRateUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&APIKeyChannelRateDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown APIKeyChannelRate mutation op: %q", m.Op())
 	}
 }
 
@@ -829,6 +1027,22 @@ func (c *APIKeyGroupClient) GetX(ctx context.Context, id int) *APIKeyGroup {
 	return obj
 }
 
+// QueryChannelRates queries the channel_rates edge of a APIKeyGroup.
+func (c *APIKeyGroupClient) QueryChannelRates(_m *APIKeyGroup) *APIKeyGroupChannelRateQuery {
+	query := (&APIKeyGroupChannelRateClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(apikeygroup.Table, apikeygroup.FieldID, id),
+			sqlgraph.To(apikeygroupchannelrate.Table, apikeygroupchannelrate.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, apikeygroup.ChannelRatesTable, apikeygroup.ChannelRatesColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
 // QueryProject queries the project edge of a APIKeyGroup.
 func (c *APIKeyGroupClient) QueryProject(_m *APIKeyGroup) *ProjectQuery {
 	query := (&ProjectClient{config: c.config}).Query()
@@ -868,6 +1082,172 @@ func (c *APIKeyGroupClient) mutate(ctx context.Context, m *APIKeyGroupMutation) 
 		return (&APIKeyGroupDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown APIKeyGroup mutation op: %q", m.Op())
+	}
+}
+
+// APIKeyGroupChannelRateClient is a client for the APIKeyGroupChannelRate schema.
+type APIKeyGroupChannelRateClient struct {
+	config
+}
+
+// NewAPIKeyGroupChannelRateClient returns a client for the APIKeyGroupChannelRate from the given config.
+func NewAPIKeyGroupChannelRateClient(c config) *APIKeyGroupChannelRateClient {
+	return &APIKeyGroupChannelRateClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `apikeygroupchannelrate.Hooks(f(g(h())))`.
+func (c *APIKeyGroupChannelRateClient) Use(hooks ...Hook) {
+	c.hooks.APIKeyGroupChannelRate = append(c.hooks.APIKeyGroupChannelRate, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `apikeygroupchannelrate.Intercept(f(g(h())))`.
+func (c *APIKeyGroupChannelRateClient) Intercept(interceptors ...Interceptor) {
+	c.inters.APIKeyGroupChannelRate = append(c.inters.APIKeyGroupChannelRate, interceptors...)
+}
+
+// Create returns a builder for creating a APIKeyGroupChannelRate entity.
+func (c *APIKeyGroupChannelRateClient) Create() *APIKeyGroupChannelRateCreate {
+	mutation := newAPIKeyGroupChannelRateMutation(c.config, OpCreate)
+	return &APIKeyGroupChannelRateCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of APIKeyGroupChannelRate entities.
+func (c *APIKeyGroupChannelRateClient) CreateBulk(builders ...*APIKeyGroupChannelRateCreate) *APIKeyGroupChannelRateCreateBulk {
+	return &APIKeyGroupChannelRateCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *APIKeyGroupChannelRateClient) MapCreateBulk(slice any, setFunc func(*APIKeyGroupChannelRateCreate, int)) *APIKeyGroupChannelRateCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &APIKeyGroupChannelRateCreateBulk{err: fmt.Errorf("calling to APIKeyGroupChannelRateClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*APIKeyGroupChannelRateCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &APIKeyGroupChannelRateCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for APIKeyGroupChannelRate.
+func (c *APIKeyGroupChannelRateClient) Update() *APIKeyGroupChannelRateUpdate {
+	mutation := newAPIKeyGroupChannelRateMutation(c.config, OpUpdate)
+	return &APIKeyGroupChannelRateUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *APIKeyGroupChannelRateClient) UpdateOne(_m *APIKeyGroupChannelRate) *APIKeyGroupChannelRateUpdateOne {
+	mutation := newAPIKeyGroupChannelRateMutation(c.config, OpUpdateOne, withAPIKeyGroupChannelRate(_m))
+	return &APIKeyGroupChannelRateUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *APIKeyGroupChannelRateClient) UpdateOneID(id int) *APIKeyGroupChannelRateUpdateOne {
+	mutation := newAPIKeyGroupChannelRateMutation(c.config, OpUpdateOne, withAPIKeyGroupChannelRateID(id))
+	return &APIKeyGroupChannelRateUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for APIKeyGroupChannelRate.
+func (c *APIKeyGroupChannelRateClient) Delete() *APIKeyGroupChannelRateDelete {
+	mutation := newAPIKeyGroupChannelRateMutation(c.config, OpDelete)
+	return &APIKeyGroupChannelRateDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *APIKeyGroupChannelRateClient) DeleteOne(_m *APIKeyGroupChannelRate) *APIKeyGroupChannelRateDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *APIKeyGroupChannelRateClient) DeleteOneID(id int) *APIKeyGroupChannelRateDeleteOne {
+	builder := c.Delete().Where(apikeygroupchannelrate.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &APIKeyGroupChannelRateDeleteOne{builder}
+}
+
+// Query returns a query builder for APIKeyGroupChannelRate.
+func (c *APIKeyGroupChannelRateClient) Query() *APIKeyGroupChannelRateQuery {
+	return &APIKeyGroupChannelRateQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeAPIKeyGroupChannelRate},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a APIKeyGroupChannelRate entity by its id.
+func (c *APIKeyGroupChannelRateClient) Get(ctx context.Context, id int) (*APIKeyGroupChannelRate, error) {
+	return c.Query().Where(apikeygroupchannelrate.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *APIKeyGroupChannelRateClient) GetX(ctx context.Context, id int) *APIKeyGroupChannelRate {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryGroup queries the group edge of a APIKeyGroupChannelRate.
+func (c *APIKeyGroupChannelRateClient) QueryGroup(_m *APIKeyGroupChannelRate) *APIKeyGroupQuery {
+	query := (&APIKeyGroupClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(apikeygroupchannelrate.Table, apikeygroupchannelrate.FieldID, id),
+			sqlgraph.To(apikeygroup.Table, apikeygroup.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, apikeygroupchannelrate.GroupTable, apikeygroupchannelrate.GroupColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryChannel queries the channel edge of a APIKeyGroupChannelRate.
+func (c *APIKeyGroupChannelRateClient) QueryChannel(_m *APIKeyGroupChannelRate) *ChannelQuery {
+	query := (&ChannelClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(apikeygroupchannelrate.Table, apikeygroupchannelrate.FieldID, id),
+			sqlgraph.To(channel.Table, channel.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, apikeygroupchannelrate.ChannelTable, apikeygroupchannelrate.ChannelColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *APIKeyGroupChannelRateClient) Hooks() []Hook {
+	hooks := c.hooks.APIKeyGroupChannelRate
+	return append(hooks[:len(hooks):len(hooks)], apikeygroupchannelrate.Hooks[:]...)
+}
+
+// Interceptors returns the client interceptors.
+func (c *APIKeyGroupChannelRateClient) Interceptors() []Interceptor {
+	return c.inters.APIKeyGroupChannelRate
+}
+
+func (c *APIKeyGroupChannelRateClient) mutate(ctx context.Context, m *APIKeyGroupChannelRateMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&APIKeyGroupChannelRateCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&APIKeyGroupChannelRateUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&APIKeyGroupChannelRateUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&APIKeyGroupChannelRateDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown APIKeyGroupChannelRate mutation op: %q", m.Op())
 	}
 }
 
@@ -1932,6 +2312,38 @@ func (c *ChannelClient) GetX(ctx context.Context, id int) *Channel {
 		panic(err)
 	}
 	return obj
+}
+
+// QueryKeyRates queries the key_rates edge of a Channel.
+func (c *ChannelClient) QueryKeyRates(_m *Channel) *APIKeyChannelRateQuery {
+	query := (&APIKeyChannelRateClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(channel.Table, channel.FieldID, id),
+			sqlgraph.To(apikeychannelrate.Table, apikeychannelrate.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, channel.KeyRatesTable, channel.KeyRatesColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryGroupRates queries the group_rates edge of a Channel.
+func (c *ChannelClient) QueryGroupRates(_m *Channel) *APIKeyGroupChannelRateQuery {
+	query := (&APIKeyGroupChannelRateClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(channel.Table, channel.FieldID, id),
+			sqlgraph.To(apikeygroupchannelrate.Table, apikeygroupchannelrate.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, channel.GroupRatesTable, channel.GroupRatesColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
 }
 
 // QueryUpstreamStatuses queries the upstream_statuses edge of a Channel.
@@ -7003,22 +7415,24 @@ func (c *UserRoleClient) mutate(ctx context.Context, m *UserRoleMutation) (Value
 // hooks and interceptors per client, for fast access.
 type (
 	hooks struct {
-		APIKey, APIKeyGroup, APIKeyOperation, APIKeyProfileTemplate, BudgetAccount,
-		BudgetChange, BudgetCharge, BudgetPosting, CacheEffectivenessWindow, Channel,
-		ChannelModelPrice, ChannelModelPriceVersion, ChannelOverrideTemplate,
-		ChannelProbe, ChannelUpstreamStatus, ConsumptionSnapshot, DataStorage,
-		GeminiCache, Invitation, Model, OIDCIdentity, Plugin, PluginStorage, Project,
-		Prompt, PromptProtectionRule, ProviderQuotaStatus, Request, RequestExecution,
+		APIKey, APIKeyChannelRate, APIKeyGroup, APIKeyGroupChannelRate, APIKeyOperation,
+		APIKeyProfileTemplate, BudgetAccount, BudgetChange, BudgetCharge,
+		BudgetPosting, CacheEffectivenessWindow, Channel, ChannelModelPrice,
+		ChannelModelPriceVersion, ChannelOverrideTemplate, ChannelProbe,
+		ChannelUpstreamStatus, ConsumptionSnapshot, DataStorage, GeminiCache,
+		Invitation, Model, OIDCIdentity, Plugin, PluginStorage, Project, Prompt,
+		PromptProtectionRule, ProviderQuotaStatus, Request, RequestExecution,
 		ResponsesOrigin, Role, StatisticsRevision, System, Thread, Trace, UsageArchive,
 		UsageLog, User, UserProject, UserRole []ent.Hook
 	}
 	inters struct {
-		APIKey, APIKeyGroup, APIKeyOperation, APIKeyProfileTemplate, BudgetAccount,
-		BudgetChange, BudgetCharge, BudgetPosting, CacheEffectivenessWindow, Channel,
-		ChannelModelPrice, ChannelModelPriceVersion, ChannelOverrideTemplate,
-		ChannelProbe, ChannelUpstreamStatus, ConsumptionSnapshot, DataStorage,
-		GeminiCache, Invitation, Model, OIDCIdentity, Plugin, PluginStorage, Project,
-		Prompt, PromptProtectionRule, ProviderQuotaStatus, Request, RequestExecution,
+		APIKey, APIKeyChannelRate, APIKeyGroup, APIKeyGroupChannelRate, APIKeyOperation,
+		APIKeyProfileTemplate, BudgetAccount, BudgetChange, BudgetCharge,
+		BudgetPosting, CacheEffectivenessWindow, Channel, ChannelModelPrice,
+		ChannelModelPriceVersion, ChannelOverrideTemplate, ChannelProbe,
+		ChannelUpstreamStatus, ConsumptionSnapshot, DataStorage, GeminiCache,
+		Invitation, Model, OIDCIdentity, Plugin, PluginStorage, Project, Prompt,
+		PromptProtectionRule, ProviderQuotaStatus, Request, RequestExecution,
 		ResponsesOrigin, Role, StatisticsRevision, System, Thread, Trace, UsageArchive,
 		UsageLog, User, UserProject, UserRole []ent.Interceptor
 	}

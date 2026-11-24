@@ -1,0 +1,16 @@
+type KeyChannelRate { channelID: Int!, multiplier: Decimal! }
+input KeyChannelRateInput { channelID: Int!, multiplier: Decimal! }
+type KeyChannelRates { rules: [KeyChannelRate!]!, inherited: [KeyChannelRate!]!, revision: String! }
+type GroupCostRow {
+ keyID: Int!, keyName: String!, channelID: Int, channelName: String, requests: Int!,
+ channelCost: Float, billedCost: Float, missingChannel: Int!, missingBilled: Int!, estimated: Int!
+}
+type GroupBillingItem { code: String!, variant: String!, channelRate: Decimal, channelSource: String!, channelAmount: Decimal, billedRate: Decimal, billedSource: String!, billedAmount: Decimal }
+type GroupCostEntry { items: [GroupBillingItem!]!, usageID: Int!, requestID: Int!, channelCost: Float, billedCost: Float, multiplier: Decimal, source: String!, groupName: String!, archived: Boolean!, mixed: Boolean! }
+type GroupCostComparison { total: GroupCostRow!, keys: [GroupCostRow!]!, channels: [GroupCostRow!]! }
+extend type Query {
+ keyChannelRates(keyID: Int, groupID: Int): KeyChannelRates!
+ groupCostEntries(groupID: Int!, keyID: Int!, channelID: Int!, start: String!, end: String!, before: Int): [GroupCostEntry!]!
+ groupCostComparison(groupID: Int!, start: String!, end: String!): GroupCostComparison!
+}
+extend type Mutation { saveKeyChannelRates(keyID: Int, groupID: Int, revision: String!, rules: [KeyChannelRateInput!]!): Boolean! }

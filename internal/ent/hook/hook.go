@@ -21,6 +21,18 @@ func (f APIKeyFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, erro
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.APIKeyMutation", m)
 }
 
+// The APIKeyChannelRateFunc type is an adapter to allow the use of ordinary
+// function as APIKeyChannelRate mutator.
+type APIKeyChannelRateFunc func(context.Context, *ent.APIKeyChannelRateMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f APIKeyChannelRateFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.APIKeyChannelRateMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.APIKeyChannelRateMutation", m)
+}
+
 // The APIKeyGroupFunc type is an adapter to allow the use of ordinary
 // function as APIKeyGroup mutator.
 type APIKeyGroupFunc func(context.Context, *ent.APIKeyGroupMutation) (ent.Value, error)
@@ -31,6 +43,18 @@ func (f APIKeyGroupFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value,
 		return f(ctx, mv)
 	}
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.APIKeyGroupMutation", m)
+}
+
+// The APIKeyGroupChannelRateFunc type is an adapter to allow the use of ordinary
+// function as APIKeyGroupChannelRate mutator.
+type APIKeyGroupChannelRateFunc func(context.Context, *ent.APIKeyGroupChannelRateMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f APIKeyGroupChannelRateFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.APIKeyGroupChannelRateMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.APIKeyGroupChannelRateMutation", m)
 }
 
 // The APIKeyOperationFunc type is an adapter to allow the use of ordinary

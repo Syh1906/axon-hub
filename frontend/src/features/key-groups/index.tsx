@@ -21,6 +21,7 @@ import { ApiKeysDialogs } from '@/features/apikeys/components/apikeys-dialogs';
 import { DeleteKeysDialog, type DeleteKeyTarget } from '@/features/apikeys/components/delete-keys-dialog';
 import { ApiKeysProvider, useApiKeysContext } from '@/features/apikeys/context/apikeys-context';
 import { useApiKey } from '@/features/apikeys/data/apikeys';
+import { ChannelRateDialog } from './channel-rate-dialog';
 import { BudgetDialog } from '@/features/budgets/budget-dialog';
 import { useGeneralSettings } from '@/features/system/data/system';
 import { CreateDialog } from './create-dialog';
@@ -48,7 +49,8 @@ function GroupPage() {
   const project = useSelectedProjectId();
   const { t, i18n } = useTranslation();
   const currencyDisplayDecimals = useCurrencyDisplayDecimals();
-  const { apiKeyPermissions } = usePermissions();
+  const [rateGroup,setRateGroup]=useState<Group|null>(null);
+  const { apiKeyPermissions,channelPermissions } = usePermissions();
   const writable = apiKeyPermissions.canWrite;
   const { data: settings } = useGeneralSettings();
   const api = useManagementAPI();
@@ -454,6 +456,7 @@ function GroupPage() {
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align='end'>
                                 <DropdownMenuGroup>
+                                  {writable && channelPermissions.canWrite && <DropdownMenuItem onSelect={()=>setRateGroup(g)}>{t('kg.rate.menu')}</DropdownMenuItem>}
                                   <DropdownMenuItem onSelect={() => setBudget(g)}>{t('kg.quick.advanced')}</DropdownMenuItem>
                                   <DropdownMenuItem disabled={!writable} onSelect={() => setEdit({ kind: 'group', items: [g] })}>
                                     {t('kg.editSettings')}
@@ -569,6 +572,7 @@ function GroupPage() {
           }}
         />
       )}
+      {rateGroup && <ChannelRateDialog target={{groupID:rateGroup.id,name:rateGroup.name}} onClose={()=>setRateGroup(null)}/>}
       {budget && (
         <BudgetDialog
           target={{ kind: 'group', ownerID: budget.id, name: budget.name }}

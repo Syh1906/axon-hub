@@ -7,8 +7,11 @@ import (
 	"time"
 
 	"github.com/looplj/axonhub/internal/ent"
+	"github.com/looplj/axonhub/internal/ent/apikeygroup"
 	"github.com/looplj/axonhub/internal/ent/usagelog"
 	"github.com/looplj/axonhub/internal/log"
+	"github.com/looplj/axonhub/internal/objects"
+	"github.com/samber/lo"
 )
 
 // Only immutable usage identity participates in restore matching. Late settlement
@@ -110,6 +113,18 @@ func (svc *BackupService) restoreUsageLogs(
 			restoredSourceIDs[usageData.ID] = struct{}{}
 		}
 		row := usageData.UsageLog
+		ref := objects.UsageRestoreRef(row.RestoreRef, "usage", row.ProjectID, row.ID, row.CreatedAt)
+		row.RestoreRef = &ref
+		if row.BillingGroupID != nil && *row.BillingGroupID != 0 {
+			targetID, err := restoredBillingGroup(ctx, db, projectID, usageData.BillingGroupName)
+			if err != nil {
+				return err
+			}
+			row.BillingGroupID = &targetID
+			if row.CostSnapshot != nil && row.CostSnapshot.Billing != nil {
+				row.CostSnapshot.Billing.GroupID = &targetID
+			}
+		}
 		row.RequestID, row.ProjectID, row.ChannelID, row.APIKeyID = requestID, projectID, channelID, apiKeyID
 		candidates = append(candidates, &row)
 	}
@@ -133,7 +148,7 @@ func (svc *BackupService) restoreUsageLogs(
 			continue
 		}
 		builders = append(builders, db.UsageLog.Create().
-			SetCreatedAt(usageData.CreatedAt).
+			SetNillableRestoreRef(usageData.RestoreRef).SetCreatedAt(usageData.CreatedAt).
 			SetUpdatedAt(usageData.UpdatedAt).
 			SetRequestID(usageData.RequestID).
 			SetNillableAPIKeyID(nilIfZero(usageData.APIKeyID)).
@@ -154,7 +169,7 @@ func (svc *BackupService) restoreUsageLogs(
 			SetCompletionRejectedPredictionTokens(usageData.CompletionRejectedPredictionTokens).
 			SetSource(usageData.Source).
 			SetFormat(usageData.Format).
-			SetNillableTotalCost(usageData.TotalCost).
+			SetNillableTotalCost(usageData.TotalCost).SetNillableBillingGroupID(usageData.BillingGroupID).SetBilledItems(usageData.BilledItems).SetNillableBilledCost(usageData.BilledCost).SetBillingEstimated(usageData.BillingEstimated).
 			SetCostItems(usageData.CostItems).
 			SetCostSnapshot(usageData.CostSnapshot).
 			SetNillableCostPriceReferenceID(nilIfEmpty(usageData.CostPriceReferenceID)))
@@ -182,11 +197,17 @@ func matchRestoredUsage(existing, incoming []*ent.UsageLog) ([]bool, error) {
 	fingerprint := func(row *ent.UsageLog) (contentKey, error) {
 		copy := *row
 		copy.ID, copy.RequestID, copy.ProjectID, copy.ChannelID, copy.APIKeyID = 0, 0, 0, 0, 0
+		copy.RestoreRef = nil
 		copy.CreatedAt, copy.UpdatedAt = time.Time{}, time.Time{}
 		data, err := (BackupUsageLog{UsageLog: copy}).MarshalJSON()
 		return contentKey{usageRestoreKey(row), sha256.Sum256(data)}, err
 	}
+	identified := map[string]bool{}
 	for _, row := range existing {
+		if row.RestoreRef != nil {
+			identified[*row.RestoreRef] = true
+			continue
+		}
 		key, err := fingerprint(row)
 		if err != nil {
 			return nil, err
@@ -197,6 +218,10 @@ func matchRestoredUsage(existing, incoming []*ent.UsageLog) ([]bool, error) {
 	keys := make([]contentKey, len(incoming))
 	matched := make([]bool, len(incoming))
 	for i, row := range incoming {
+		if row.RestoreRef != nil && identified[*row.RestoreRef] {
+			matched[i] = true
+			continue
+		}
 		key, err := fingerprint(row)
 		if err != nil {
 			return nil, err
@@ -215,4 +240,41 @@ func matchRestoredUsage(existing, incoming []*ent.UsageLog) ([]bool, error) {
 		}
 	}
 	return matched, nil
+}
+
+func restoredBillingGroup(ctx context.Context, db *ent.Client, project int, name string) (int, error) {
+	if name != "" {
+		id, err := db.APIKeyGroup.Query().Where(apikeygroup.ProjectIDEQ(project), apikeygroup.NameEQ(name)).OnlyID(ctx)
+		if !ent.IsNotFound(err) {
+			return id, err
+		}
+	}
+	return -1, nil
+}
+
+func requestShellRef(ref string) string { return fmt.Sprintf("shell:%x", sha256.Sum224([]byte(ref))) }
+
+func restoredBillParents(ctx context.Context, db *ent.Client, logs []*BackupUsageLog, resolver *usageRestoreResolver) (map[int]int, error) {
+	refs := map[string]*BackupUsageLog{}
+	for _, l := range logs {
+		if l != nil {
+			refs[objects.UsageRestoreRef(l.RestoreRef, "usage", l.ProjectID, l.ID, l.CreatedAt)] = l
+		}
+	}
+	result := map[int]int{}
+	keys := lo.Keys(refs)
+	for start := 0; start < len(keys); start += backupBatchSize {
+		rows, err := db.UsageLog.Query().Where(usagelog.RestoreRefIn(keys[start:min(start+backupBatchSize, len(keys))]...)).Select(usagelog.FieldProjectID, usagelog.FieldRestoreRef, usagelog.FieldRequestID).All(ctx)
+		if err != nil {
+			return nil, err
+		}
+		for _, r := range rows {
+			l := refs[*r.RestoreRef]
+			project, ok := resolver.resolveProjectID(l.ProjectID, l.ProjectName)
+			if ok && project == r.ProjectID {
+				result[l.RequestID] = r.RequestID
+			}
+		}
+	}
+	return result, nil
 }

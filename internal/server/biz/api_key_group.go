@@ -13,6 +13,7 @@ import (
 	"github.com/looplj/axonhub/internal/ent"
 	"github.com/looplj/axonhub/internal/ent/apikey"
 	"github.com/looplj/axonhub/internal/ent/apikeygroup"
+	"github.com/looplj/axonhub/internal/ent/apikeygroupchannelrate"
 	"github.com/looplj/axonhub/internal/ent/budgetaccount"
 	"github.com/looplj/axonhub/internal/ent/user"
 	"github.com/looplj/axonhub/internal/scopes"
@@ -106,6 +107,9 @@ func (s *APIKeyService) DeleteAPIKeyGroup(ctx context.Context, id int) error {
 			}
 		}
 		if _, err := client.APIKey.Update().Where(apikey.ProjectIDEQ(projectID), apikey.GroupRefEQ(id)).ClearGroupRef().Save(memberCtx); err != nil {
+			return err
+		}
+		if _, err := client.APIKeyGroupChannelRate.Delete().Where(apikeygroupchannelrate.GroupIDEQ(id)).Exec(memberCtx); err != nil {
 			return err
 		}
 		return client.APIKeyGroup.DeleteOne(group).Exec(ctx)

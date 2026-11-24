@@ -65,6 +65,11 @@ func UpdatedAt(v time.Time) predicate.Request {
 	return predicate.Request(sql.FieldEQ(FieldUpdatedAt, v))
 }
 
+// RestoreRef applies equality check predicate on the "restore_ref" field. It's identical to RestoreRefEQ.
+func RestoreRef(v string) predicate.Request {
+	return predicate.Request(sql.FieldEQ(FieldRestoreRef, v))
+}
+
 // APIKeyID applies equality check predicate on the "api_key_id" field. It's identical to APIKeyIDEQ.
 func APIKeyID(v int) predicate.Request {
 	return predicate.Request(sql.FieldEQ(FieldAPIKeyID, v))
@@ -73,6 +78,11 @@ func APIKeyID(v int) predicate.Request {
 // UserID applies equality check predicate on the "user_id" field. It's identical to UserIDEQ.
 func UserID(v int) predicate.Request {
 	return predicate.Request(sql.FieldEQ(FieldUserID, v))
+}
+
+// BillingGroupRef applies equality check predicate on the "billing_group_ref" field. It's identical to BillingGroupRefEQ.
+func BillingGroupRef(v int) predicate.Request {
+	return predicate.Request(sql.FieldEQ(FieldBillingGroupRef, v))
 }
 
 // ProjectID applies equality check predicate on the "project_id" field. It's identical to ProjectIDEQ.
@@ -265,6 +275,81 @@ func UpdatedAtLTE(v time.Time) predicate.Request {
 	return predicate.Request(sql.FieldLTE(FieldUpdatedAt, v))
 }
 
+// RestoreRefEQ applies the EQ predicate on the "restore_ref" field.
+func RestoreRefEQ(v string) predicate.Request {
+	return predicate.Request(sql.FieldEQ(FieldRestoreRef, v))
+}
+
+// RestoreRefNEQ applies the NEQ predicate on the "restore_ref" field.
+func RestoreRefNEQ(v string) predicate.Request {
+	return predicate.Request(sql.FieldNEQ(FieldRestoreRef, v))
+}
+
+// RestoreRefIn applies the In predicate on the "restore_ref" field.
+func RestoreRefIn(vs ...string) predicate.Request {
+	return predicate.Request(sql.FieldIn(FieldRestoreRef, vs...))
+}
+
+// RestoreRefNotIn applies the NotIn predicate on the "restore_ref" field.
+func RestoreRefNotIn(vs ...string) predicate.Request {
+	return predicate.Request(sql.FieldNotIn(FieldRestoreRef, vs...))
+}
+
+// RestoreRefGT applies the GT predicate on the "restore_ref" field.
+func RestoreRefGT(v string) predicate.Request {
+	return predicate.Request(sql.FieldGT(FieldRestoreRef, v))
+}
+
+// RestoreRefGTE applies the GTE predicate on the "restore_ref" field.
+func RestoreRefGTE(v string) predicate.Request {
+	return predicate.Request(sql.FieldGTE(FieldRestoreRef, v))
+}
+
+// RestoreRefLT applies the LT predicate on the "restore_ref" field.
+func RestoreRefLT(v string) predicate.Request {
+	return predicate.Request(sql.FieldLT(FieldRestoreRef, v))
+}
+
+// RestoreRefLTE applies the LTE predicate on the "restore_ref" field.
+func RestoreRefLTE(v string) predicate.Request {
+	return predicate.Request(sql.FieldLTE(FieldRestoreRef, v))
+}
+
+// RestoreRefContains applies the Contains predicate on the "restore_ref" field.
+func RestoreRefContains(v string) predicate.Request {
+	return predicate.Request(sql.FieldContains(FieldRestoreRef, v))
+}
+
+// RestoreRefHasPrefix applies the HasPrefix predicate on the "restore_ref" field.
+func RestoreRefHasPrefix(v string) predicate.Request {
+	return predicate.Request(sql.FieldHasPrefix(FieldRestoreRef, v))
+}
+
+// RestoreRefHasSuffix applies the HasSuffix predicate on the "restore_ref" field.
+func RestoreRefHasSuffix(v string) predicate.Request {
+	return predicate.Request(sql.FieldHasSuffix(FieldRestoreRef, v))
+}
+
+// RestoreRefIsNil applies the IsNil predicate on the "restore_ref" field.
+func RestoreRefIsNil() predicate.Request {
+	return predicate.Request(sql.FieldIsNull(FieldRestoreRef))
+}
+
+// RestoreRefNotNil applies the NotNil predicate on the "restore_ref" field.
+func RestoreRefNotNil() predicate.Request {
+	return predicate.Request(sql.FieldNotNull(FieldRestoreRef))
+}
+
+// RestoreRefEqualFold applies the EqualFold predicate on the "restore_ref" field.
+func RestoreRefEqualFold(v string) predicate.Request {
+	return predicate.Request(sql.FieldEqualFold(FieldRestoreRef, v))
+}
+
+// RestoreRefContainsFold applies the ContainsFold predicate on the "restore_ref" field.
+func RestoreRefContainsFold(v string) predicate.Request {
+	return predicate.Request(sql.FieldContainsFold(FieldRestoreRef, v))
+}
+
 // APIKeyIDEQ applies the EQ predicate on the "api_key_id" field.
 func APIKeyIDEQ(v int) predicate.Request {
 	return predicate.Request(sql.FieldEQ(FieldAPIKeyID, v))
@@ -343,6 +428,56 @@ func UserIDIsNil() predicate.Request {
 // UserIDNotNil applies the NotNil predicate on the "user_id" field.
 func UserIDNotNil() predicate.Request {
 	return predicate.Request(sql.FieldNotNull(FieldUserID))
+}
+
+// BillingGroupRefEQ applies the EQ predicate on the "billing_group_ref" field.
+func BillingGroupRefEQ(v int) predicate.Request {
+	return predicate.Request(sql.FieldEQ(FieldBillingGroupRef, v))
+}
+
+// BillingGroupRefNEQ applies the NEQ predicate on the "billing_group_ref" field.
+func BillingGroupRefNEQ(v int) predicate.Request {
+	return predicate.Request(sql.FieldNEQ(FieldBillingGroupRef, v))
+}
+
+// BillingGroupRefIn applies the In predicate on the "billing_group_ref" field.
+func BillingGroupRefIn(vs ...int) predicate.Request {
+	return predicate.Request(sql.FieldIn(FieldBillingGroupRef, vs...))
+}
+
+// BillingGroupRefNotIn applies the NotIn predicate on the "billing_group_ref" field.
+func BillingGroupRefNotIn(vs ...int) predicate.Request {
+	return predicate.Request(sql.FieldNotIn(FieldBillingGroupRef, vs...))
+}
+
+// BillingGroupRefGT applies the GT predicate on the "billing_group_ref" field.
+func BillingGroupRefGT(v int) predicate.Request {
+	return predicate.Request(sql.FieldGT(FieldBillingGroupRef, v))
+}
+
+// BillingGroupRefGTE applies the GTE predicate on the "billing_group_ref" field.
+func BillingGroupRefGTE(v int) predicate.Request {
+	return predicate.Request(sql.FieldGTE(FieldBillingGroupRef, v))
+}
+
+// BillingGroupRefLT applies the LT predicate on the "billing_group_ref" field.
+func BillingGroupRefLT(v int) predicate.Request {
+	return predicate.Request(sql.FieldLT(FieldBillingGroupRef, v))
+}
+
+// BillingGroupRefLTE applies the LTE predicate on the "billing_group_ref" field.
+func BillingGroupRefLTE(v int) predicate.Request {
+	return predicate.Request(sql.FieldLTE(FieldBillingGroupRef, v))
+}
+
+// BillingGroupRefIsNil applies the IsNil predicate on the "billing_group_ref" field.
+func BillingGroupRefIsNil() predicate.Request {
+	return predicate.Request(sql.FieldIsNull(FieldBillingGroupRef))
+}
+
+// BillingGroupRefNotNil applies the NotNil predicate on the "billing_group_ref" field.
+func BillingGroupRefNotNil() predicate.Request {
+	return predicate.Request(sql.FieldNotNull(FieldBillingGroupRef))
 }
 
 // ProjectIDEQ applies the EQ predicate on the "project_id" field.

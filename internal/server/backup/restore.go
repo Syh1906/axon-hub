@@ -141,7 +141,7 @@ func (svc *BackupService) restore(ctx context.Context, db *ent.Client, backupDat
 	}
 
 	if opts.IncludeAPIKeys {
-		if err := svc.restoreAPIKeyGroups(ctx, db, backupData.APIKeyGroups, opts.APIKeyConflictStrategy); err != nil {
+		if err := svc.restoreAPIKeyGroups(ctx, db, backupData.APIKeyGroups, opts.APIKeyConflictStrategy, channels); err != nil {
 			return err
 		}
 		if err := svc.restoreAPIKeys(ctx, db, backupData.APIKeys, opts, channels); err != nil {
@@ -155,7 +155,8 @@ func (svc *BackupService) restore(ctx context.Context, db *ent.Client, backupDat
 		}
 	}
 	if opts.IncludeUsageStats || opts.IncludeRequestLogs {
-		if err := svc.restoreUsageData(ctx, db, backupData.UsageRequests, backupData.UsageLogs, opts, channels); err != nil {
+		recoverLegacyBackupBilling(backupData)
+		if err := svc.restoreUsageData(ctx, db, backupData.UsageRequests, backupData.UsageLogs, backupData.UsageArchives, opts, channels); err != nil {
 			return err
 		}
 	}
@@ -279,6 +280,7 @@ type usageRestoreResolver struct {
 	projectIDs   map[int]struct{}
 	channels     *channelRestoreState
 	apiKeyKeys   map[string]int
+	liveParents  map[int]int
 }
 
 func newUsageRestoreResolver(ctx context.Context, db *ent.Client, channels *channelRestoreState) (*usageRestoreResolver, error) {
@@ -918,6 +920,9 @@ func (svc *BackupService) restoreAPIKeys(ctx context.Context, db *ent.Client, ap
 					SetScopes(akData.Scopes).
 					SetProfiles(akData.Profiles)
 
+				if err := restoreChannelRates(ctx, db, channels, &existing.ID, nil, akData.ChannelRates); err != nil {
+					return err
+				}
 				update.ClearGroupRef().SetNillableGroupRef(groupID)
 				if _, err := update.Save(ctx); err != nil {
 					log.Error(ctx, "failed to restore API key",
@@ -967,12 +972,16 @@ func (svc *BackupService) restoreAPIKeys(ctx context.Context, db *ent.Client, ap
 				SetUserID(user.ID).
 				SetProjectID(proj.ID)
 
-			if _, err := create.Save(ctx); err != nil {
+			created, err := create.Save(ctx)
+			if err != nil {
 				log.Error(ctx, "failed to create API key",
 					log.String("name", akData.Name),
 					log.Cause(err))
 
 				return fmt.Errorf("failed to create API key %s: %w", akData.Name, err)
+			}
+			if err = restoreChannelRates(ctx, db, channels, &created.ID, nil, akData.ChannelRates); err != nil {
+				return err
 			}
 		}
 	}
@@ -985,6 +994,7 @@ func (svc *BackupService) restoreUsageData(
 	db *ent.Client,
 	requestsData []*BackupUsageRequest,
 	usageLogs []*BackupUsageLog,
+	archives []*BackupUsageArchive,
 	opts RestoreOptions,
 	channels *channelRestoreState,
 ) error {
@@ -994,6 +1004,14 @@ func (svc *BackupService) restoreUsageData(
 	}
 
 	requestIDMap := map[int]int{}
+	resolver.liveParents, err = restoredBillParents(ctx, db, usageLogs, resolver)
+	if err != nil {
+		return err
+	}
+	requestsData, usageLogs, archivedParents, err := filterArchivedBackup(ctx, db, requestsData, usageLogs, resolver)
+	if err != nil {
+		return err
+	}
 	if opts.IncludeRequestLogs {
 		requestIDMap, err = svc.restoreUsageRequests(ctx, db, requestsData, resolver)
 		if err != nil {
@@ -1001,8 +1019,33 @@ func (svc *BackupService) restoreUsageData(
 		}
 	}
 
+	for old, id := range resolver.liveParents {
+		if requestIDMap[old] == 0 {
+			requestIDMap[old] = id
+		}
+	}
+	for old, id := range archivedParents {
+		requestIDMap[old] = id
+	}
 	if opts.IncludeUsageStats {
-		return svc.restoreUsageLogs(ctx, db, usageLogs, requestIDMap, resolver)
+		// An older backup can contain a bill missing from a previously restored archive.
+		// Keep it with its archived parent instead of manufacturing another request.
+		live := make([]*BackupUsageLog, 0, len(usageLogs))
+		for _, l := range usageLogs {
+			if l == nil {
+				continue
+			}
+			if id, ok := archivedParents[l.RequestID]; ok && id < 0 {
+				archives = append(archives, archiveBackupLog(l))
+			} else {
+				live = append(live, l)
+			}
+		}
+		usageLogs = live
+		if err := svc.restoreUsageLogs(ctx, db, usageLogs, requestIDMap, resolver); err != nil {
+			return err
+		}
+		return svc.restoreUsageArchives(ctx, db, archives, usageLogs, requestIDMap, resolver)
 	}
 
 	return nil
@@ -1062,18 +1105,32 @@ func (svc *BackupService) restoreUsageRequests(
 			)
 		}
 
-		if existing, ok := existingRequests.byID[oldID]; ok {
-			if sameUsageRequest(existing, reqData, projectID, channelID, apiKeyID) {
+		ref := objects.UsageRestoreRef(reqData.RestoreRef, "request", reqData.ProjectID, reqData.ID, reqData.CreatedAt)
+		match := request.RestoreRefIn(ref, requestShellRef(ref))
+		if id := resolver.liveParents[oldID]; id > 0 {
+			match = request.Or(match, request.IDEQ(id))
+		}
+		previous, err := db.Request.Query().Where(request.ProjectIDEQ(projectID), match).Select(request.FieldRestoreRef).Only(ctx)
+		if err != nil && !ent.IsNotFound(err) {
+			return nil, err
+		}
+		if previous != nil && !strings.HasPrefix(lo.FromPtr(previous.RestoreRef), "shell:") {
+			idMap[oldID] = previous.ID
+			continue
+		}
+		if previous == nil {
+			if existing, ok := existingRequests.byID[oldID]; ok {
+				if sameUsageRequest(existing, reqData, projectID, channelID, apiKeyID) {
+					idMap[oldID] = existing.ID
+					continue
+				}
+			}
+			if existing, ok := existingRequests.byFingerprint[usageRequestBackupFingerprint(reqData, channelID)]; ok {
 				idMap[oldID] = existing.ID
 				continue
 			}
 		}
-		if existing, ok := existingRequests.byFingerprint[usageRequestBackupFingerprint(reqData, channelID)]; ok {
-			idMap[oldID] = existing.ID
-			continue
-		}
-
-		created, err := db.Request.Create().
+		builder := db.Request.Create().SetRestoreRef(ref).
 			SetCreatedAt(reqData.CreatedAt).
 			SetUpdatedAt(reqData.UpdatedAt).
 			SetProjectID(projectID).
@@ -1099,12 +1156,21 @@ func (svc *BackupService) restoreUsageRequests(
 			SetNillableMetricsReasoningDurationMs(reqData.MetricsReasoningDurationMs).
 			SetNillableContentStorageID(reqData.ContentStorageID).
 			SetNillableContentStorageKey(reqData.ContentStorageKey).
-			SetNillableContentSavedAt(reqData.ContentSavedAt).
-			Save(ctx)
+			SetNillableContentSavedAt(reqData.ContentSavedAt)
+		if previous != nil {
+			// Replace only the placeholder we created for a usage-only restore.
+			// Keeping its primary key preserves links from existing bills.
+			err = builder.SetRestoreRef(*previous.RestoreRef).OnConflict(sql.ConflictColumns(request.FieldRestoreRef), sql.ResolveWithNewValues(), sql.ResolveWith(func(u *sql.UpdateSet) { u.Set(request.FieldRestoreRef, ref) })).Exec(ctx)
+			if err != nil {
+				return nil, err
+			}
+			idMap[oldID] = previous.ID
+			continue
+		}
+		created, err := builder.Save(ctx)
 		if err != nil {
 			return nil, fmt.Errorf("failed to restore usage request %d: %w", oldID, err)
 		}
-
 		idMap[oldID] = created.ID
 	}
 
@@ -1351,7 +1417,7 @@ func (svc *BackupService) ensureUsageLogRequests(
 			}
 		}
 
-		created, err := db.Request.Create().
+		created, err := db.Request.Create().SetRestoreRef(requestShellRef(objects.UsageRestoreRef(usageData.RestoreRef, "usage", usageData.ProjectID, usageData.ID, usageData.CreatedAt))).
 			SetCreatedAt(usageData.CreatedAt).
 			SetUpdatedAt(usageData.UpdatedAt).
 			SetProjectID(projectID).

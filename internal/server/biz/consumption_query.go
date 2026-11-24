@@ -74,11 +74,16 @@ func usageForConsumption(projectID int, dialect string, start *time.Time, end ti
 		boundedRequests.Where(sql.EQ(requests.C("project_id"), projectID))
 	}
 	query.Where(sql.In(table.C("request_id"), boundedRequests))
-	for _, field := range []string{"prompt_tokens", "completion_tokens", "total_tokens", "prompt_cached_tokens", "prompt_write_cached_tokens", "total_cost"} {
+	amount := table.C("total_cost")
+	if !byChannel {
+		amount = billedCostExpression(table.C("billing_group_id"), table.C("total_cost"), table.C("billed_cost"))
+	}
+	for _, field := range []string{"prompt_tokens", "completion_tokens", "total_tokens", "prompt_cached_tokens", "prompt_write_cached_tokens"} {
 		query.AppendSelect(sql.As("COALESCE(SUM("+table.C(field)+"), 0)", field))
 	}
+	query.AppendSelect(sql.As("COALESCE(SUM("+amount+"),0)", "total_cost"))
 	query.AppendSelect(sql.As(sql.Count("*"), "usage_count"))
-	query.AppendSelect(sql.As(sql.Count(table.C("total_cost")), "priced_count"))
+	query.AppendSelect(sql.As("COUNT("+amount+")", "priced_count"))
 	return query.As("usage")
 }
 

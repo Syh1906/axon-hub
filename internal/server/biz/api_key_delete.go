@@ -15,6 +15,7 @@ import (
 	"github.com/looplj/axonhub/internal/contexts"
 	"github.com/looplj/axonhub/internal/ent"
 	"github.com/looplj/axonhub/internal/ent/apikey"
+	"github.com/looplj/axonhub/internal/ent/apikeychannelrate"
 	"github.com/looplj/axonhub/internal/ent/budgetaccount"
 )
 
@@ -98,6 +99,11 @@ func (s *APIKeyService) DeleteAPIKeys(ctx context.Context, ids []int) error {
 				return fmt.Errorf("API key changed during deletion; reload before deleting")
 			}
 			originals = append(originals, key.Key)
+		}
+		if _, err := authz.RunAsHost(ctx, db, "delete-api-key-rates", func(ctx context.Context) (int, error) {
+			return db.APIKeyChannelRate.Delete().Where(apikeychannelrate.KeyIDIn(ids...)).Exec(ctx)
+		}); err != nil {
+			return err
 		}
 		runAfterCommit(ctx, func(committedCtx context.Context) {
 			for _, key := range originals {

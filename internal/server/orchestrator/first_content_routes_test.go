@@ -103,7 +103,10 @@ func TestFirstContentChannelTrialUsesExistingSelectorAndPricing(t *testing.T) {
 	}
 	raw := &httpclient.Request{Headers: make(http.Header), Body: []byte("{}")}
 	req := &llm.Request{Stream: new(true), ReasoningEffort: "high", RawRequest: raw}
-	state := &PersistenceState{routeHistory: new(firstContentRoutes), APIKey: &ent.APIKey{ID: 4}, Request: &ent.Request{ProjectID: 3, TraceID: 11, APIKeyID: 4},
+	project := db.Project.Create().SetName("price-trial").SaveX(ctx)
+	key := db.APIKey.Create().SetProjectID(project.ID).SetName("trial").SetKey("fixture-price-trial").SaveX(ctx)
+	ctx = contexts.WithTrace(ctx, &ent.Trace{ID: 11, ProjectID: project.ID, TraceID: session})
+	state := &PersistenceState{routeHistory: new(firstContentRoutes), APIKey: key, Request: &ent.Request{ProjectID: project.ID, TraceID: 11, APIKeyID: key.ID},
 		RequestService: rs, RawRequest: raw, LlmRequest: req, RoutingPolicy: EffectiveRoutingPolicy{LoadBalancerStrategy: biz.LoadBalancerStrategyAdaptive}}
 	ctx = context.WithValue(ctx, firstContentStateKey{}, state)
 	s := newFirstContentSort(ctx, state, req, group)

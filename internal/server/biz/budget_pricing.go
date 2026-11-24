@@ -20,7 +20,7 @@ import (
 // Estimate uses the selected attempt's immutable price and multiplier snapshot.
 // It is an estimate, not a provider-token upper bound. Actual costs are never capped.
 func (s *BudgetService) Estimate(ctx context.Context, execution *ent.RequestExecution, req *llm.Request, raw *httpclient.Request, promptTokens int64) (budget.Amount, error) {
-	snap := execution.CostSnapshot
+	snap := execution.CostSnapshot.BilledPrice()
 	currentPrice := snap.CurrentPrice()
 	if currentPrice == nil {
 		return 0, fmt.Errorf("the selected model has no price")
@@ -104,7 +104,7 @@ func (s *BudgetService) Estimate(ctx context.Context, execution *ent.RequestExec
 			if !priced {
 				return 0, fmt.Errorf("the requested output service tier has no configured price")
 			}
-			needsOutput = needsOutput || budgetPricingPositive(resolved)
+			needsOutput = needsOutput || (!snap.Applied.Value.IsZero() && budgetPricingPositive(resolved))
 		}
 	}
 	if needsOutput && output == 0 {
@@ -232,7 +232,7 @@ func (s *UsageLogService) actualBudgetCost(ctx context.Context, usage *llm.Usage
 	if len(effectiveModelPriceItems(usage, *price, snapshot.PricedAt)) == 0 {
 		return nil, nil
 	}
-	items, total := computeCostFromSnapshot(usage, *price, snapshot)
+	items, total := computeCostFromSnapshot(usage, *price, snapshot.BilledPrice())
 	for _, item := range items {
 		if item.Unpriced {
 			return nil, nil

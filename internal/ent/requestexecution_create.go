@@ -54,6 +54,20 @@ func (_c *RequestExecutionCreate) SetNillableUpdatedAt(v *time.Time) *RequestExe
 	return _c
 }
 
+// SetBillingDispatched sets the "billing_dispatched" field.
+func (_c *RequestExecutionCreate) SetBillingDispatched(v bool) *RequestExecutionCreate {
+	_c.mutation.SetBillingDispatched(v)
+	return _c
+}
+
+// SetNillableBillingDispatched sets the "billing_dispatched" field if the given value is not nil.
+func (_c *RequestExecutionCreate) SetNillableBillingDispatched(v *bool) *RequestExecutionCreate {
+	if v != nil {
+		_c.SetBillingDispatched(*v)
+	}
+	return _c
+}
+
 // SetStatisticsReady sets the "statistics_ready" field.
 func (_c *RequestExecutionCreate) SetStatisticsReady(v bool) *RequestExecutionCreate {
 	_c.mutation.SetStatisticsReady(v)
@@ -626,6 +640,10 @@ func (_c *RequestExecutionCreate) defaults() error {
 		v := requestexecution.DefaultUpdatedAt()
 		_c.mutation.SetUpdatedAt(v)
 	}
+	if _, ok := _c.mutation.BillingDispatched(); !ok {
+		v := requestexecution.DefaultBillingDispatched
+		_c.mutation.SetBillingDispatched(v)
+	}
 	if _, ok := _c.mutation.StatisticsReady(); !ok {
 		v := requestexecution.DefaultStatisticsReady
 		_c.mutation.SetStatisticsReady(v)
@@ -655,6 +673,9 @@ func (_c *RequestExecutionCreate) defaults() error {
 
 // check runs all checks and user-defined validators on the builder.
 func (_c *RequestExecutionCreate) check() error {
+	if _, ok := _c.mutation.BillingDispatched(); !ok {
+		return &ValidationError{Name: "billing_dispatched", err: errors.New(`ent: missing required field "RequestExecution.billing_dispatched"`)}
+	}
 	if _, ok := _c.mutation.StatisticsReady(); !ok {
 		return &ValidationError{Name: "statistics_ready", err: errors.New(`ent: missing required field "RequestExecution.statistics_ready"`)}
 	}
@@ -747,6 +768,10 @@ func (_c *RequestExecutionCreate) createSpec() (*RequestExecution, *sqlgraph.Cre
 	if value, ok := _c.mutation.UpdatedAt(); ok {
 		_spec.SetField(requestexecution.FieldUpdatedAt, field.TypeTime, value)
 		_node.UpdatedAt = value
+	}
+	if value, ok := _c.mutation.BillingDispatched(); ok {
+		_spec.SetField(requestexecution.FieldBillingDispatched, field.TypeBool, value)
+		_node.BillingDispatched = value
 	}
 	if value, ok := _c.mutation.StatisticsReady(); ok {
 		_spec.SetField(requestexecution.FieldStatisticsReady, field.TypeBool, value)
@@ -1023,6 +1048,18 @@ func (u *RequestExecutionUpsert) UpdateUpdatedAt() *RequestExecutionUpsert {
 	return u
 }
 
+// SetBillingDispatched sets the "billing_dispatched" field.
+func (u *RequestExecutionUpsert) SetBillingDispatched(v bool) *RequestExecutionUpsert {
+	u.Set(requestexecution.FieldBillingDispatched, v)
+	return u
+}
+
+// UpdateBillingDispatched sets the "billing_dispatched" field to the value that was provided on create.
+func (u *RequestExecutionUpsert) UpdateBillingDispatched() *RequestExecutionUpsert {
+	u.SetExcluded(requestexecution.FieldBillingDispatched)
+	return u
+}
+
 // SetStatisticsReady sets the "statistics_ready" field.
 func (u *RequestExecutionUpsert) SetStatisticsReady(v bool) *RequestExecutionUpsert {
 	u.Set(requestexecution.FieldStatisticsReady, v)
@@ -1182,6 +1219,24 @@ func (u *RequestExecutionUpsert) UpdateUpstreamModelID() *RequestExecutionUpsert
 // ClearUpstreamModelID clears the value of the "upstream_model_id" field.
 func (u *RequestExecutionUpsert) ClearUpstreamModelID() *RequestExecutionUpsert {
 	u.SetNull(requestexecution.FieldUpstreamModelID)
+	return u
+}
+
+// SetCostSnapshot sets the "cost_snapshot" field.
+func (u *RequestExecutionUpsert) SetCostSnapshot(v *objects.RequestCostSnapshot) *RequestExecutionUpsert {
+	u.Set(requestexecution.FieldCostSnapshot, v)
+	return u
+}
+
+// UpdateCostSnapshot sets the "cost_snapshot" field to the value that was provided on create.
+func (u *RequestExecutionUpsert) UpdateCostSnapshot() *RequestExecutionUpsert {
+	u.SetExcluded(requestexecution.FieldCostSnapshot)
+	return u
+}
+
+// ClearCostSnapshot clears the value of the "cost_snapshot" field.
+func (u *RequestExecutionUpsert) ClearCostSnapshot() *RequestExecutionUpsert {
+	u.SetNull(requestexecution.FieldCostSnapshot)
 	return u
 }
 
@@ -1589,9 +1644,6 @@ func (u *RequestExecutionUpsertOne) UpdateNewValues() *RequestExecutionUpsertOne
 		if _, exists := u.create.mutation.ModelID(); exists {
 			s.SetIgnore(requestexecution.FieldModelID)
 		}
-		if _, exists := u.create.mutation.CostSnapshot(); exists {
-			s.SetIgnore(requestexecution.FieldCostSnapshot)
-		}
 		if _, exists := u.create.mutation.Format(); exists {
 			s.SetIgnore(requestexecution.FieldFormat)
 		}
@@ -1661,6 +1713,20 @@ func (u *RequestExecutionUpsertOne) SetUpdatedAt(v time.Time) *RequestExecutionU
 func (u *RequestExecutionUpsertOne) UpdateUpdatedAt() *RequestExecutionUpsertOne {
 	return u.Update(func(s *RequestExecutionUpsert) {
 		s.UpdateUpdatedAt()
+	})
+}
+
+// SetBillingDispatched sets the "billing_dispatched" field.
+func (u *RequestExecutionUpsertOne) SetBillingDispatched(v bool) *RequestExecutionUpsertOne {
+	return u.Update(func(s *RequestExecutionUpsert) {
+		s.SetBillingDispatched(v)
+	})
+}
+
+// UpdateBillingDispatched sets the "billing_dispatched" field to the value that was provided on create.
+func (u *RequestExecutionUpsertOne) UpdateBillingDispatched() *RequestExecutionUpsertOne {
+	return u.Update(func(s *RequestExecutionUpsert) {
+		s.UpdateBillingDispatched()
 	})
 }
 
@@ -1850,6 +1916,27 @@ func (u *RequestExecutionUpsertOne) UpdateUpstreamModelID() *RequestExecutionUps
 func (u *RequestExecutionUpsertOne) ClearUpstreamModelID() *RequestExecutionUpsertOne {
 	return u.Update(func(s *RequestExecutionUpsert) {
 		s.ClearUpstreamModelID()
+	})
+}
+
+// SetCostSnapshot sets the "cost_snapshot" field.
+func (u *RequestExecutionUpsertOne) SetCostSnapshot(v *objects.RequestCostSnapshot) *RequestExecutionUpsertOne {
+	return u.Update(func(s *RequestExecutionUpsert) {
+		s.SetCostSnapshot(v)
+	})
+}
+
+// UpdateCostSnapshot sets the "cost_snapshot" field to the value that was provided on create.
+func (u *RequestExecutionUpsertOne) UpdateCostSnapshot() *RequestExecutionUpsertOne {
+	return u.Update(func(s *RequestExecutionUpsert) {
+		s.UpdateCostSnapshot()
+	})
+}
+
+// ClearCostSnapshot clears the value of the "cost_snapshot" field.
+func (u *RequestExecutionUpsertOne) ClearCostSnapshot() *RequestExecutionUpsertOne {
+	return u.Update(func(s *RequestExecutionUpsert) {
+		s.ClearCostSnapshot()
 	})
 }
 
@@ -2484,9 +2571,6 @@ func (u *RequestExecutionUpsertBulk) UpdateNewValues() *RequestExecutionUpsertBu
 			if _, exists := b.mutation.ModelID(); exists {
 				s.SetIgnore(requestexecution.FieldModelID)
 			}
-			if _, exists := b.mutation.CostSnapshot(); exists {
-				s.SetIgnore(requestexecution.FieldCostSnapshot)
-			}
 			if _, exists := b.mutation.Format(); exists {
 				s.SetIgnore(requestexecution.FieldFormat)
 			}
@@ -2557,6 +2641,20 @@ func (u *RequestExecutionUpsertBulk) SetUpdatedAt(v time.Time) *RequestExecution
 func (u *RequestExecutionUpsertBulk) UpdateUpdatedAt() *RequestExecutionUpsertBulk {
 	return u.Update(func(s *RequestExecutionUpsert) {
 		s.UpdateUpdatedAt()
+	})
+}
+
+// SetBillingDispatched sets the "billing_dispatched" field.
+func (u *RequestExecutionUpsertBulk) SetBillingDispatched(v bool) *RequestExecutionUpsertBulk {
+	return u.Update(func(s *RequestExecutionUpsert) {
+		s.SetBillingDispatched(v)
+	})
+}
+
+// UpdateBillingDispatched sets the "billing_dispatched" field to the value that was provided on create.
+func (u *RequestExecutionUpsertBulk) UpdateBillingDispatched() *RequestExecutionUpsertBulk {
+	return u.Update(func(s *RequestExecutionUpsert) {
+		s.UpdateBillingDispatched()
 	})
 }
 
@@ -2746,6 +2844,27 @@ func (u *RequestExecutionUpsertBulk) UpdateUpstreamModelID() *RequestExecutionUp
 func (u *RequestExecutionUpsertBulk) ClearUpstreamModelID() *RequestExecutionUpsertBulk {
 	return u.Update(func(s *RequestExecutionUpsert) {
 		s.ClearUpstreamModelID()
+	})
+}
+
+// SetCostSnapshot sets the "cost_snapshot" field.
+func (u *RequestExecutionUpsertBulk) SetCostSnapshot(v *objects.RequestCostSnapshot) *RequestExecutionUpsertBulk {
+	return u.Update(func(s *RequestExecutionUpsert) {
+		s.SetCostSnapshot(v)
+	})
+}
+
+// UpdateCostSnapshot sets the "cost_snapshot" field to the value that was provided on create.
+func (u *RequestExecutionUpsertBulk) UpdateCostSnapshot() *RequestExecutionUpsertBulk {
+	return u.Update(func(s *RequestExecutionUpsert) {
+		s.UpdateCostSnapshot()
+	})
+}
+
+// ClearCostSnapshot clears the value of the "cost_snapshot" field.
+func (u *RequestExecutionUpsertBulk) ClearCostSnapshot() *RequestExecutionUpsertBulk {
+	return u.Update(func(s *RequestExecutionUpsert) {
+		s.ClearCostSnapshot()
 	})
 }
 

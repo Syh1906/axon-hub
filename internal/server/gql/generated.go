@@ -912,14 +912,15 @@ type ComplexityRoot struct {
 	}
 
 	ChannelUpstreamState struct {
-		Accounts         func(childComplexity int) int
-		BalanceSummary   func(childComplexity int) int
-		ChannelID        func(childComplexity int) int
-		KeySessionReuse  func(childComplexity int) int
-		Keys             func(childComplexity int) int
-		ManualMultiplier func(childComplexity int) int
-		Provider         func(childComplexity int) int
-		Settings         func(childComplexity int) int
+		Accounts               func(childComplexity int) int
+		BalanceSummary         func(childComplexity int) int
+		ChannelID              func(childComplexity int) int
+		EnabledCredentialCount func(childComplexity int) int
+		KeySessionReuse        func(childComplexity int) int
+		Keys                   func(childComplexity int) int
+		ManualMultiplier       func(childComplexity int) int
+		Provider               func(childComplexity int) int
+		Settings               func(childComplexity int) int
 	}
 
 	ChannelWebSocketEvidence struct {
@@ -1353,6 +1354,49 @@ type ComplexityRoot struct {
 		Targets  func(childComplexity int) int
 	}
 
+	GroupBillingItem struct {
+		BilledAmount  func(childComplexity int) int
+		BilledRate    func(childComplexity int) int
+		BilledSource  func(childComplexity int) int
+		ChannelAmount func(childComplexity int) int
+		ChannelRate   func(childComplexity int) int
+		ChannelSource func(childComplexity int) int
+		Code          func(childComplexity int) int
+		Variant       func(childComplexity int) int
+	}
+
+	GroupCostComparison struct {
+		Channels func(childComplexity int) int
+		Keys     func(childComplexity int) int
+		Total    func(childComplexity int) int
+	}
+
+	GroupCostEntry struct {
+		Archived    func(childComplexity int) int
+		BilledCost  func(childComplexity int) int
+		ChannelCost func(childComplexity int) int
+		GroupName   func(childComplexity int) int
+		Items       func(childComplexity int) int
+		Mixed       func(childComplexity int) int
+		Multiplier  func(childComplexity int) int
+		RequestID   func(childComplexity int) int
+		Source      func(childComplexity int) int
+		UsageID     func(childComplexity int) int
+	}
+
+	GroupCostRow struct {
+		BilledCost     func(childComplexity int) int
+		ChannelCost    func(childComplexity int) int
+		ChannelID      func(childComplexity int) int
+		ChannelName    func(childComplexity int) int
+		Estimated      func(childComplexity int) int
+		KeyID          func(childComplexity int) int
+		KeyName        func(childComplexity int) int
+		MissingBilled  func(childComplexity int) int
+		MissingChannel func(childComplexity int) int
+		Requests       func(childComplexity int) int
+	}
+
 	HeaderEntry struct {
 		Key   func(childComplexity int) int
 		Value func(childComplexity int) int
@@ -1420,6 +1464,17 @@ type ComplexityRoot struct {
 		Success func(childComplexity int) int
 		Token   func(childComplexity int) int
 		User    func(childComplexity int) int
+	}
+
+	KeyChannelRate struct {
+		ChannelID  func(childComplexity int) int
+		Multiplier func(childComplexity int) int
+	}
+
+	KeyChannelRates struct {
+		Inherited func(childComplexity int) int
+		Revision  func(childComplexity int) int
+		Rules     func(childComplexity int) int
 	}
 
 	KeyManagementResult struct {
@@ -1754,6 +1809,7 @@ type ComplexityRoot struct {
 		SaveChannelEndpoints                  func(childComplexity int, input biz.SaveChannelEndpointsInput) int
 		SaveChannelModelPrices                func(childComplexity int, channelID objects.GUID, input []*biz.SaveChannelModelPriceInput, multiplier *decimal.Decimal, serviceTierBilling *objects.ServiceTierSettings, cacheWriteBilling *objects.CacheWriteBilling) int
 		SaveChannelUpstreamAccount            func(childComplexity int, channelID objects.GUID, input objects.SaveChannelUpstreamAccountInput) int
+		SaveKeyChannelRates                   func(childComplexity int, keyID *int, groupID *int, revision string, rules []*objects.KeyChannelRate) int
 		SaveProxyPreset                       func(childComplexity int, input biz.ProxyPreset) int
 		SetChannelKeySessionReuse             func(childComplexity int, channelID objects.GUID, enabled bool) int
 		SetCleanupTaskPaused                  func(childComplexity int, id string, paused bool) int
@@ -2360,6 +2416,9 @@ type ComplexityRoot struct {
 		FastestModels                   func(childComplexity int, input FastestChannelsInput) int
 		FetchModels                     func(childComplexity int, input biz.FetchModelsInput) int
 		GetCacheDiagnostics             func(childComplexity int, input *GetCacheDiagnosticsInput) int
+		GroupCostComparison             func(childComplexity int, groupID int, start string, end string) int
+		GroupCostEntries                func(childComplexity int, groupID int, keyID int, channelID int, start string, end string, before *int) int
+		KeyChannelRates                 func(childComplexity int, keyID *int, groupID *int) int
 		KeyManagementResults            func(childComplexity int, operationID string) int
 		ManagedGroupKeys                func(childComplexity int, groupRef int, offset int, limit int) int
 		ManagedGroupUsageMeta           func(childComplexity int, groupRef int) int
@@ -3848,6 +3907,7 @@ type MutationResolver interface {
 	BulkDisablePromptProtectionRules(ctx context.Context, ids []*objects.GUID) (bool, error)
 	PreviewPromptProtectionRule(ctx context.Context, input PromptProtectionRulePreviewInput) (*PromptProtectionRulePreviewResult, error)
 	SaveChannelModelPrices(ctx context.Context, channelID objects.GUID, input []*biz.SaveChannelModelPriceInput, multiplier *decimal.Decimal, serviceTierBilling *objects.ServiceTierSettings, cacheWriteBilling *objects.CacheWriteBilling) ([]*ent.ChannelModelPrice, error)
+	SaveKeyChannelRates(ctx context.Context, keyID *int, groupID *int, revision string, rules []*objects.KeyChannelRate) (bool, error)
 	DeleteAPIKeys(ctx context.Context, ids []*objects.GUID) (bool, error)
 	SaveAPIKeyGroup(ctx context.Context, id *int, name string) (*APIKeyGroupOption, error)
 	DeleteAPIKeyGroup(ctx context.Context, id int) (bool, error)
@@ -4013,6 +4073,9 @@ type QueryResolver interface {
 	UsageGroupOptions(ctx context.Context, input biz.ConsumptionFilter) ([]*biz.ConsumptionGroupOption, error)
 	ConsumptionLeaderboard(ctx context.Context, input biz.ConsumptionFilter) (*biz.ConsumptionResult, error)
 	UsageStatistics(ctx context.Context, input biz.ConsumptionFilter) (*biz.ConsumptionResult, error)
+	KeyChannelRates(ctx context.Context, keyID *int, groupID *int) (*objects.KeyChannelRates, error)
+	GroupCostEntries(ctx context.Context, groupID int, keyID int, channelID int, start string, end string, before *int) ([]*objects.GroupCostEntry, error)
+	GroupCostComparison(ctx context.Context, groupID int, start string, end string) (*objects.GroupCostComparison, error)
 	APIKeyGroupOptions(ctx context.Context) ([]*APIKeyGroupOption, error)
 	ManagedKeyGroups(ctx context.Context, search string, status string, offset int, limit int, descending bool) (*biz.ManagedKeyGroups, error)
 	ManagedGroupKeys(ctx context.Context, groupRef int, offset int, limit int) (*biz.ManagedKeyPage, error)
@@ -7455,6 +7518,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.ChannelUpstreamState.ChannelID(childComplexity), true
+	case "ChannelUpstreamState.enabledCredentialCount":
+		if e.complexity.ChannelUpstreamState.EnabledCredentialCount == nil {
+			break
+		}
+
+		return e.complexity.ChannelUpstreamState.EnabledCredentialCount(childComplexity), true
 	case "ChannelUpstreamState.keySessionReuse":
 		if e.complexity.ChannelUpstreamState.KeySessionReuse == nil {
 			break
@@ -9186,6 +9255,196 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.GetCacheDiagnosticsPayload.Targets(childComplexity), true
 
+	case "GroupBillingItem.billedAmount":
+		if e.complexity.GroupBillingItem.BilledAmount == nil {
+			break
+		}
+
+		return e.complexity.GroupBillingItem.BilledAmount(childComplexity), true
+	case "GroupBillingItem.billedRate":
+		if e.complexity.GroupBillingItem.BilledRate == nil {
+			break
+		}
+
+		return e.complexity.GroupBillingItem.BilledRate(childComplexity), true
+	case "GroupBillingItem.billedSource":
+		if e.complexity.GroupBillingItem.BilledSource == nil {
+			break
+		}
+
+		return e.complexity.GroupBillingItem.BilledSource(childComplexity), true
+	case "GroupBillingItem.channelAmount":
+		if e.complexity.GroupBillingItem.ChannelAmount == nil {
+			break
+		}
+
+		return e.complexity.GroupBillingItem.ChannelAmount(childComplexity), true
+	case "GroupBillingItem.channelRate":
+		if e.complexity.GroupBillingItem.ChannelRate == nil {
+			break
+		}
+
+		return e.complexity.GroupBillingItem.ChannelRate(childComplexity), true
+	case "GroupBillingItem.channelSource":
+		if e.complexity.GroupBillingItem.ChannelSource == nil {
+			break
+		}
+
+		return e.complexity.GroupBillingItem.ChannelSource(childComplexity), true
+	case "GroupBillingItem.code":
+		if e.complexity.GroupBillingItem.Code == nil {
+			break
+		}
+
+		return e.complexity.GroupBillingItem.Code(childComplexity), true
+	case "GroupBillingItem.variant":
+		if e.complexity.GroupBillingItem.Variant == nil {
+			break
+		}
+
+		return e.complexity.GroupBillingItem.Variant(childComplexity), true
+
+	case "GroupCostComparison.channels":
+		if e.complexity.GroupCostComparison.Channels == nil {
+			break
+		}
+
+		return e.complexity.GroupCostComparison.Channels(childComplexity), true
+	case "GroupCostComparison.keys":
+		if e.complexity.GroupCostComparison.Keys == nil {
+			break
+		}
+
+		return e.complexity.GroupCostComparison.Keys(childComplexity), true
+	case "GroupCostComparison.total":
+		if e.complexity.GroupCostComparison.Total == nil {
+			break
+		}
+
+		return e.complexity.GroupCostComparison.Total(childComplexity), true
+
+	case "GroupCostEntry.archived":
+		if e.complexity.GroupCostEntry.Archived == nil {
+			break
+		}
+
+		return e.complexity.GroupCostEntry.Archived(childComplexity), true
+	case "GroupCostEntry.billedCost":
+		if e.complexity.GroupCostEntry.BilledCost == nil {
+			break
+		}
+
+		return e.complexity.GroupCostEntry.BilledCost(childComplexity), true
+	case "GroupCostEntry.channelCost":
+		if e.complexity.GroupCostEntry.ChannelCost == nil {
+			break
+		}
+
+		return e.complexity.GroupCostEntry.ChannelCost(childComplexity), true
+	case "GroupCostEntry.groupName":
+		if e.complexity.GroupCostEntry.GroupName == nil {
+			break
+		}
+
+		return e.complexity.GroupCostEntry.GroupName(childComplexity), true
+	case "GroupCostEntry.items":
+		if e.complexity.GroupCostEntry.Items == nil {
+			break
+		}
+
+		return e.complexity.GroupCostEntry.Items(childComplexity), true
+	case "GroupCostEntry.mixed":
+		if e.complexity.GroupCostEntry.Mixed == nil {
+			break
+		}
+
+		return e.complexity.GroupCostEntry.Mixed(childComplexity), true
+	case "GroupCostEntry.multiplier":
+		if e.complexity.GroupCostEntry.Multiplier == nil {
+			break
+		}
+
+		return e.complexity.GroupCostEntry.Multiplier(childComplexity), true
+	case "GroupCostEntry.requestID":
+		if e.complexity.GroupCostEntry.RequestID == nil {
+			break
+		}
+
+		return e.complexity.GroupCostEntry.RequestID(childComplexity), true
+	case "GroupCostEntry.source":
+		if e.complexity.GroupCostEntry.Source == nil {
+			break
+		}
+
+		return e.complexity.GroupCostEntry.Source(childComplexity), true
+	case "GroupCostEntry.usageID":
+		if e.complexity.GroupCostEntry.UsageID == nil {
+			break
+		}
+
+		return e.complexity.GroupCostEntry.UsageID(childComplexity), true
+
+	case "GroupCostRow.billedCost":
+		if e.complexity.GroupCostRow.BilledCost == nil {
+			break
+		}
+
+		return e.complexity.GroupCostRow.BilledCost(childComplexity), true
+	case "GroupCostRow.channelCost":
+		if e.complexity.GroupCostRow.ChannelCost == nil {
+			break
+		}
+
+		return e.complexity.GroupCostRow.ChannelCost(childComplexity), true
+	case "GroupCostRow.channelID":
+		if e.complexity.GroupCostRow.ChannelID == nil {
+			break
+		}
+
+		return e.complexity.GroupCostRow.ChannelID(childComplexity), true
+	case "GroupCostRow.channelName":
+		if e.complexity.GroupCostRow.ChannelName == nil {
+			break
+		}
+
+		return e.complexity.GroupCostRow.ChannelName(childComplexity), true
+	case "GroupCostRow.estimated":
+		if e.complexity.GroupCostRow.Estimated == nil {
+			break
+		}
+
+		return e.complexity.GroupCostRow.Estimated(childComplexity), true
+	case "GroupCostRow.keyID":
+		if e.complexity.GroupCostRow.KeyID == nil {
+			break
+		}
+
+		return e.complexity.GroupCostRow.KeyID(childComplexity), true
+	case "GroupCostRow.keyName":
+		if e.complexity.GroupCostRow.KeyName == nil {
+			break
+		}
+
+		return e.complexity.GroupCostRow.KeyName(childComplexity), true
+	case "GroupCostRow.missingBilled":
+		if e.complexity.GroupCostRow.MissingBilled == nil {
+			break
+		}
+
+		return e.complexity.GroupCostRow.MissingBilled(childComplexity), true
+	case "GroupCostRow.missingChannel":
+		if e.complexity.GroupCostRow.MissingChannel == nil {
+			break
+		}
+
+		return e.complexity.GroupCostRow.MissingChannel(childComplexity), true
+	case "GroupCostRow.requests":
+		if e.complexity.GroupCostRow.Requests == nil {
+			break
+		}
+
+		return e.complexity.GroupCostRow.Requests(childComplexity), true
+
 	case "HeaderEntry.key":
 		if e.complexity.HeaderEntry.Key == nil {
 			break
@@ -9429,6 +9688,38 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.InitializeSystemPayload.User(childComplexity), true
+
+	case "KeyChannelRate.channelID":
+		if e.complexity.KeyChannelRate.ChannelID == nil {
+			break
+		}
+
+		return e.complexity.KeyChannelRate.ChannelID(childComplexity), true
+	case "KeyChannelRate.multiplier":
+		if e.complexity.KeyChannelRate.Multiplier == nil {
+			break
+		}
+
+		return e.complexity.KeyChannelRate.Multiplier(childComplexity), true
+
+	case "KeyChannelRates.inherited":
+		if e.complexity.KeyChannelRates.Inherited == nil {
+			break
+		}
+
+		return e.complexity.KeyChannelRates.Inherited(childComplexity), true
+	case "KeyChannelRates.revision":
+		if e.complexity.KeyChannelRates.Revision == nil {
+			break
+		}
+
+		return e.complexity.KeyChannelRates.Revision(childComplexity), true
+	case "KeyChannelRates.rules":
+		if e.complexity.KeyChannelRates.Rules == nil {
+			break
+		}
+
+		return e.complexity.KeyChannelRates.Rules(childComplexity), true
 
 	case "KeyManagementResult.error":
 		if e.complexity.KeyManagementResult.Error == nil {
@@ -11381,6 +11672,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Mutation.SaveChannelUpstreamAccount(childComplexity, args["channelId"].(objects.GUID), args["input"].(objects.SaveChannelUpstreamAccountInput)), true
+	case "Mutation.saveKeyChannelRates":
+		if e.complexity.Mutation.SaveKeyChannelRates == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_saveKeyChannelRates_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.SaveKeyChannelRates(childComplexity, args["keyID"].(*int), args["groupID"].(*int), args["revision"].(string), args["rules"].([]*objects.KeyChannelRate)), true
 	case "Mutation.saveProxyPreset":
 		if e.complexity.Mutation.SaveProxyPreset == nil {
 			break
@@ -14472,6 +14774,39 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Query.GetCacheDiagnostics(childComplexity, args["input"].(*GetCacheDiagnosticsInput)), true
+	case "Query.groupCostComparison":
+		if e.complexity.Query.GroupCostComparison == nil {
+			break
+		}
+
+		args, err := ec.field_Query_groupCostComparison_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.GroupCostComparison(childComplexity, args["groupID"].(int), args["start"].(string), args["end"].(string)), true
+	case "Query.groupCostEntries":
+		if e.complexity.Query.GroupCostEntries == nil {
+			break
+		}
+
+		args, err := ec.field_Query_groupCostEntries_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.GroupCostEntries(childComplexity, args["groupID"].(int), args["keyID"].(int), args["channelID"].(int), args["start"].(string), args["end"].(string), args["before"].(*int)), true
+	case "Query.keyChannelRates":
+		if e.complexity.Query.KeyChannelRates == nil {
+			break
+		}
+
+		args, err := ec.field_Query_keyChannelRates_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.KeyChannelRates(childComplexity, args["keyID"].(*int), args["groupID"].(*int)), true
 	case "Query.keyManagementResults":
 		if e.complexity.Query.KeyManagementResults == nil {
 			break
@@ -20164,6 +20499,7 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputImagePricingInput,
 		ec.unmarshalInputInitializeSystemInput,
 		ec.unmarshalInputKeyBudgetPatch,
+		ec.unmarshalInputKeyChannelRateInput,
 		ec.unmarshalInputKeyManagementRow,
 		ec.unmarshalInputLoadApiKeyProfileTemplateInput,
 		ec.unmarshalInputMaintenanceSettingsInput,
@@ -20406,7 +20742,7 @@ func (ec *executionContext) introspectType(name string) (*introspection.Type, er
 	return introspection.WrapTypeFromDef(ec.Schema(), ec.Schema().Types[name]), nil
 }
 
-//go:embed "request_reasoning_evidence.graphql" "request_stream_timing.graphql" "protocol_routes.graphql" "maintenance.graphql" "axonhub.graphql" "ent.graphql" "dashboard.graphql" "dashboard_cost.graphql" "scopes.graphql" "me.graphql" "system.graphql" "filter.graphql" "model.graphql" "backup.graphql" "channel_probe.graphql" "channel_health_gate.graphql" "channel_websocket.graphql" "channel_routing.graphql" "channel_upstream.graphql" "channel_usage.graphql" "channel_accounts.graphql" "request_routing.graphql" "request_diagnostics.graphql" "request_speed.graphql" "request_usage.graphql" "managed_group_usage.graphql" "prompt.graphql" "prompt_protection_rule.graphql" "service_tier.graphql" "cost_pricing_evidence.graphql" "price.graphql" "cost.graphql" "usage_cost.graphql" "analytics.graphql" "consumption.graphql" "api_key_group.graphql" "key_management.graphql" "budget_types.graphql" "budget.graphql" "plugin.graphql"
+//go:embed "request_reasoning_evidence.graphql" "request_stream_timing.graphql" "protocol_routes.graphql" "maintenance.graphql" "axonhub.graphql" "ent.graphql" "dashboard.graphql" "dashboard_cost.graphql" "scopes.graphql" "me.graphql" "system.graphql" "filter.graphql" "model.graphql" "backup.graphql" "channel_probe.graphql" "channel_health_gate.graphql" "channel_websocket.graphql" "channel_routing.graphql" "channel_upstream.graphql" "channel_usage.graphql" "channel_accounts.graphql" "request_routing.graphql" "request_diagnostics.graphql" "request_speed.graphql" "request_usage.graphql" "managed_group_usage.graphql" "prompt.graphql" "prompt_protection_rule.graphql" "service_tier.graphql" "cost_pricing_evidence.graphql" "price.graphql" "cost.graphql" "usage_cost.graphql" "analytics.graphql" "consumption.graphql" "key_channel_rate.graphql" "api_key_group.graphql" "key_management.graphql" "budget_types.graphql" "budget.graphql" "plugin.graphql"
 var sourcesFS embed.FS
 
 func sourceData(filename string) string {
@@ -20453,6 +20789,7 @@ var sources = []*ast.Source{
 	{Name: "usage_cost.graphql", Input: sourceData("usage_cost.graphql"), BuiltIn: false},
 	{Name: "analytics.graphql", Input: sourceData("analytics.graphql"), BuiltIn: false},
 	{Name: "consumption.graphql", Input: sourceData("consumption.graphql"), BuiltIn: false},
+	{Name: "key_channel_rate.graphql", Input: sourceData("key_channel_rate.graphql"), BuiltIn: false},
 	{Name: "api_key_group.graphql", Input: sourceData("api_key_group.graphql"), BuiltIn: false},
 	{Name: "key_management.graphql", Input: sourceData("key_management.graphql"), BuiltIn: false},
 	{Name: "budget_types.graphql", Input: sourceData("budget_types.graphql"), BuiltIn: false},
@@ -21929,6 +22266,32 @@ func (ec *executionContext) field_Mutation_saveChannelUpstreamAccount_args(ctx c
 		return nil, err
 	}
 	args["input"] = arg1
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_saveKeyChannelRates_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "keyID", ec.unmarshalOInt2ᚖint)
+	if err != nil {
+		return nil, err
+	}
+	args["keyID"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "groupID", ec.unmarshalOInt2ᚖint)
+	if err != nil {
+		return nil, err
+	}
+	args["groupID"] = arg1
+	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "revision", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["revision"] = arg2
+	arg3, err := graphql.ProcessArgField(ctx, rawArgs, "rules", ec.unmarshalNKeyChannelRateInput2ᚕᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐKeyChannelRateᚄ)
+	if err != nil {
+		return nil, err
+	}
+	args["rules"] = arg3
 	return args, nil
 }
 
@@ -23787,6 +24150,79 @@ func (ec *executionContext) field_Query_getCacheDiagnostics_args(ctx context.Con
 		return nil, err
 	}
 	args["input"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_groupCostComparison_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "groupID", ec.unmarshalNInt2int)
+	if err != nil {
+		return nil, err
+	}
+	args["groupID"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "start", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["start"] = arg1
+	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "end", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["end"] = arg2
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_groupCostEntries_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "groupID", ec.unmarshalNInt2int)
+	if err != nil {
+		return nil, err
+	}
+	args["groupID"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "keyID", ec.unmarshalNInt2int)
+	if err != nil {
+		return nil, err
+	}
+	args["keyID"] = arg1
+	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "channelID", ec.unmarshalNInt2int)
+	if err != nil {
+		return nil, err
+	}
+	args["channelID"] = arg2
+	arg3, err := graphql.ProcessArgField(ctx, rawArgs, "start", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["start"] = arg3
+	arg4, err := graphql.ProcessArgField(ctx, rawArgs, "end", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["end"] = arg4
+	arg5, err := graphql.ProcessArgField(ctx, rawArgs, "before", ec.unmarshalOInt2ᚖint)
+	if err != nil {
+		return nil, err
+	}
+	args["before"] = arg5
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_keyChannelRates_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "keyID", ec.unmarshalOInt2ᚖint)
+	if err != nil {
+		return nil, err
+	}
+	args["keyID"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "groupID", ec.unmarshalOInt2ᚖint)
+	if err != nil {
+		return nil, err
+	}
+	args["groupID"] = arg1
 	return args, nil
 }
 
@@ -42476,6 +42912,35 @@ func (ec *executionContext) fieldContext_ChannelUpstreamSettings_costMode(_ cont
 	return fc, nil
 }
 
+func (ec *executionContext) _ChannelUpstreamState_enabledCredentialCount(ctx context.Context, field graphql.CollectedField, obj *objects.ChannelUpstreamState) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ChannelUpstreamState_enabledCredentialCount,
+		func(ctx context.Context) (any, error) {
+			return obj.EnabledCredentialCount, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ChannelUpstreamState_enabledCredentialCount(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ChannelUpstreamState",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _ChannelUpstreamState_channelId(ctx context.Context, field graphql.CollectedField, obj *objects.ChannelUpstreamState) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -51404,6 +51869,989 @@ func (ec *executionContext) fieldContext_GetCacheDiagnosticsPayload_targets(_ co
 	return fc, nil
 }
 
+func (ec *executionContext) _GroupBillingItem_code(ctx context.Context, field graphql.CollectedField, obj *objects.GroupBillingItem) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_GroupBillingItem_code,
+		func(ctx context.Context) (any, error) {
+			return obj.Code, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_GroupBillingItem_code(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "GroupBillingItem",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _GroupBillingItem_variant(ctx context.Context, field graphql.CollectedField, obj *objects.GroupBillingItem) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_GroupBillingItem_variant,
+		func(ctx context.Context) (any, error) {
+			return obj.Variant, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_GroupBillingItem_variant(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "GroupBillingItem",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _GroupBillingItem_channelRate(ctx context.Context, field graphql.CollectedField, obj *objects.GroupBillingItem) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_GroupBillingItem_channelRate,
+		func(ctx context.Context) (any, error) {
+			return obj.ChannelRate, nil
+		},
+		nil,
+		ec.marshalODecimal2ᚖgithubᚗcomᚋshopspringᚋdecimalᚐDecimal,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_GroupBillingItem_channelRate(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "GroupBillingItem",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Decimal does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _GroupBillingItem_channelSource(ctx context.Context, field graphql.CollectedField, obj *objects.GroupBillingItem) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_GroupBillingItem_channelSource,
+		func(ctx context.Context) (any, error) {
+			return obj.ChannelSource, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_GroupBillingItem_channelSource(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "GroupBillingItem",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _GroupBillingItem_channelAmount(ctx context.Context, field graphql.CollectedField, obj *objects.GroupBillingItem) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_GroupBillingItem_channelAmount,
+		func(ctx context.Context) (any, error) {
+			return obj.ChannelAmount, nil
+		},
+		nil,
+		ec.marshalODecimal2ᚖgithubᚗcomᚋshopspringᚋdecimalᚐDecimal,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_GroupBillingItem_channelAmount(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "GroupBillingItem",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Decimal does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _GroupBillingItem_billedRate(ctx context.Context, field graphql.CollectedField, obj *objects.GroupBillingItem) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_GroupBillingItem_billedRate,
+		func(ctx context.Context) (any, error) {
+			return obj.BilledRate, nil
+		},
+		nil,
+		ec.marshalODecimal2ᚖgithubᚗcomᚋshopspringᚋdecimalᚐDecimal,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_GroupBillingItem_billedRate(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "GroupBillingItem",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Decimal does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _GroupBillingItem_billedSource(ctx context.Context, field graphql.CollectedField, obj *objects.GroupBillingItem) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_GroupBillingItem_billedSource,
+		func(ctx context.Context) (any, error) {
+			return obj.BilledSource, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_GroupBillingItem_billedSource(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "GroupBillingItem",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _GroupBillingItem_billedAmount(ctx context.Context, field graphql.CollectedField, obj *objects.GroupBillingItem) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_GroupBillingItem_billedAmount,
+		func(ctx context.Context) (any, error) {
+			return obj.BilledAmount, nil
+		},
+		nil,
+		ec.marshalODecimal2ᚖgithubᚗcomᚋshopspringᚋdecimalᚐDecimal,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_GroupBillingItem_billedAmount(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "GroupBillingItem",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Decimal does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _GroupCostComparison_total(ctx context.Context, field graphql.CollectedField, obj *objects.GroupCostComparison) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_GroupCostComparison_total,
+		func(ctx context.Context) (any, error) {
+			return obj.Total, nil
+		},
+		nil,
+		ec.marshalNGroupCostRow2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐGroupCostRow,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_GroupCostComparison_total(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "GroupCostComparison",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "keyID":
+				return ec.fieldContext_GroupCostRow_keyID(ctx, field)
+			case "keyName":
+				return ec.fieldContext_GroupCostRow_keyName(ctx, field)
+			case "channelID":
+				return ec.fieldContext_GroupCostRow_channelID(ctx, field)
+			case "channelName":
+				return ec.fieldContext_GroupCostRow_channelName(ctx, field)
+			case "requests":
+				return ec.fieldContext_GroupCostRow_requests(ctx, field)
+			case "channelCost":
+				return ec.fieldContext_GroupCostRow_channelCost(ctx, field)
+			case "billedCost":
+				return ec.fieldContext_GroupCostRow_billedCost(ctx, field)
+			case "missingChannel":
+				return ec.fieldContext_GroupCostRow_missingChannel(ctx, field)
+			case "missingBilled":
+				return ec.fieldContext_GroupCostRow_missingBilled(ctx, field)
+			case "estimated":
+				return ec.fieldContext_GroupCostRow_estimated(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type GroupCostRow", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _GroupCostComparison_keys(ctx context.Context, field graphql.CollectedField, obj *objects.GroupCostComparison) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_GroupCostComparison_keys,
+		func(ctx context.Context) (any, error) {
+			return obj.Keys, nil
+		},
+		nil,
+		ec.marshalNGroupCostRow2ᚕᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐGroupCostRowᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_GroupCostComparison_keys(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "GroupCostComparison",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "keyID":
+				return ec.fieldContext_GroupCostRow_keyID(ctx, field)
+			case "keyName":
+				return ec.fieldContext_GroupCostRow_keyName(ctx, field)
+			case "channelID":
+				return ec.fieldContext_GroupCostRow_channelID(ctx, field)
+			case "channelName":
+				return ec.fieldContext_GroupCostRow_channelName(ctx, field)
+			case "requests":
+				return ec.fieldContext_GroupCostRow_requests(ctx, field)
+			case "channelCost":
+				return ec.fieldContext_GroupCostRow_channelCost(ctx, field)
+			case "billedCost":
+				return ec.fieldContext_GroupCostRow_billedCost(ctx, field)
+			case "missingChannel":
+				return ec.fieldContext_GroupCostRow_missingChannel(ctx, field)
+			case "missingBilled":
+				return ec.fieldContext_GroupCostRow_missingBilled(ctx, field)
+			case "estimated":
+				return ec.fieldContext_GroupCostRow_estimated(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type GroupCostRow", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _GroupCostComparison_channels(ctx context.Context, field graphql.CollectedField, obj *objects.GroupCostComparison) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_GroupCostComparison_channels,
+		func(ctx context.Context) (any, error) {
+			return obj.Channels, nil
+		},
+		nil,
+		ec.marshalNGroupCostRow2ᚕᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐGroupCostRowᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_GroupCostComparison_channels(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "GroupCostComparison",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "keyID":
+				return ec.fieldContext_GroupCostRow_keyID(ctx, field)
+			case "keyName":
+				return ec.fieldContext_GroupCostRow_keyName(ctx, field)
+			case "channelID":
+				return ec.fieldContext_GroupCostRow_channelID(ctx, field)
+			case "channelName":
+				return ec.fieldContext_GroupCostRow_channelName(ctx, field)
+			case "requests":
+				return ec.fieldContext_GroupCostRow_requests(ctx, field)
+			case "channelCost":
+				return ec.fieldContext_GroupCostRow_channelCost(ctx, field)
+			case "billedCost":
+				return ec.fieldContext_GroupCostRow_billedCost(ctx, field)
+			case "missingChannel":
+				return ec.fieldContext_GroupCostRow_missingChannel(ctx, field)
+			case "missingBilled":
+				return ec.fieldContext_GroupCostRow_missingBilled(ctx, field)
+			case "estimated":
+				return ec.fieldContext_GroupCostRow_estimated(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type GroupCostRow", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _GroupCostEntry_items(ctx context.Context, field graphql.CollectedField, obj *objects.GroupCostEntry) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_GroupCostEntry_items,
+		func(ctx context.Context) (any, error) {
+			return obj.Items, nil
+		},
+		nil,
+		ec.marshalNGroupBillingItem2ᚕᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐGroupBillingItemᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_GroupCostEntry_items(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "GroupCostEntry",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "code":
+				return ec.fieldContext_GroupBillingItem_code(ctx, field)
+			case "variant":
+				return ec.fieldContext_GroupBillingItem_variant(ctx, field)
+			case "channelRate":
+				return ec.fieldContext_GroupBillingItem_channelRate(ctx, field)
+			case "channelSource":
+				return ec.fieldContext_GroupBillingItem_channelSource(ctx, field)
+			case "channelAmount":
+				return ec.fieldContext_GroupBillingItem_channelAmount(ctx, field)
+			case "billedRate":
+				return ec.fieldContext_GroupBillingItem_billedRate(ctx, field)
+			case "billedSource":
+				return ec.fieldContext_GroupBillingItem_billedSource(ctx, field)
+			case "billedAmount":
+				return ec.fieldContext_GroupBillingItem_billedAmount(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type GroupBillingItem", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _GroupCostEntry_usageID(ctx context.Context, field graphql.CollectedField, obj *objects.GroupCostEntry) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_GroupCostEntry_usageID,
+		func(ctx context.Context) (any, error) {
+			return obj.UsageID, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_GroupCostEntry_usageID(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "GroupCostEntry",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _GroupCostEntry_requestID(ctx context.Context, field graphql.CollectedField, obj *objects.GroupCostEntry) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_GroupCostEntry_requestID,
+		func(ctx context.Context) (any, error) {
+			return obj.RequestID, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_GroupCostEntry_requestID(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "GroupCostEntry",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _GroupCostEntry_channelCost(ctx context.Context, field graphql.CollectedField, obj *objects.GroupCostEntry) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_GroupCostEntry_channelCost,
+		func(ctx context.Context) (any, error) {
+			return obj.ChannelCost, nil
+		},
+		nil,
+		ec.marshalOFloat2ᚖfloat64,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_GroupCostEntry_channelCost(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "GroupCostEntry",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _GroupCostEntry_billedCost(ctx context.Context, field graphql.CollectedField, obj *objects.GroupCostEntry) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_GroupCostEntry_billedCost,
+		func(ctx context.Context) (any, error) {
+			return obj.BilledCost, nil
+		},
+		nil,
+		ec.marshalOFloat2ᚖfloat64,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_GroupCostEntry_billedCost(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "GroupCostEntry",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _GroupCostEntry_multiplier(ctx context.Context, field graphql.CollectedField, obj *objects.GroupCostEntry) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_GroupCostEntry_multiplier,
+		func(ctx context.Context) (any, error) {
+			return obj.Multiplier, nil
+		},
+		nil,
+		ec.marshalODecimal2ᚖgithubᚗcomᚋshopspringᚋdecimalᚐDecimal,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_GroupCostEntry_multiplier(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "GroupCostEntry",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Decimal does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _GroupCostEntry_source(ctx context.Context, field graphql.CollectedField, obj *objects.GroupCostEntry) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_GroupCostEntry_source,
+		func(ctx context.Context) (any, error) {
+			return obj.Source, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_GroupCostEntry_source(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "GroupCostEntry",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _GroupCostEntry_groupName(ctx context.Context, field graphql.CollectedField, obj *objects.GroupCostEntry) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_GroupCostEntry_groupName,
+		func(ctx context.Context) (any, error) {
+			return obj.GroupName, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_GroupCostEntry_groupName(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "GroupCostEntry",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _GroupCostEntry_archived(ctx context.Context, field graphql.CollectedField, obj *objects.GroupCostEntry) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_GroupCostEntry_archived,
+		func(ctx context.Context) (any, error) {
+			return obj.Archived, nil
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_GroupCostEntry_archived(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "GroupCostEntry",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _GroupCostEntry_mixed(ctx context.Context, field graphql.CollectedField, obj *objects.GroupCostEntry) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_GroupCostEntry_mixed,
+		func(ctx context.Context) (any, error) {
+			return obj.Mixed, nil
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_GroupCostEntry_mixed(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "GroupCostEntry",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _GroupCostRow_keyID(ctx context.Context, field graphql.CollectedField, obj *objects.GroupCostRow) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_GroupCostRow_keyID,
+		func(ctx context.Context) (any, error) {
+			return obj.KeyID, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_GroupCostRow_keyID(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "GroupCostRow",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _GroupCostRow_keyName(ctx context.Context, field graphql.CollectedField, obj *objects.GroupCostRow) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_GroupCostRow_keyName,
+		func(ctx context.Context) (any, error) {
+			return obj.KeyName, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_GroupCostRow_keyName(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "GroupCostRow",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _GroupCostRow_channelID(ctx context.Context, field graphql.CollectedField, obj *objects.GroupCostRow) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_GroupCostRow_channelID,
+		func(ctx context.Context) (any, error) {
+			return obj.ChannelID, nil
+		},
+		nil,
+		ec.marshalOInt2ᚖint,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_GroupCostRow_channelID(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "GroupCostRow",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _GroupCostRow_channelName(ctx context.Context, field graphql.CollectedField, obj *objects.GroupCostRow) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_GroupCostRow_channelName,
+		func(ctx context.Context) (any, error) {
+			return obj.ChannelName, nil
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_GroupCostRow_channelName(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "GroupCostRow",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _GroupCostRow_requests(ctx context.Context, field graphql.CollectedField, obj *objects.GroupCostRow) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_GroupCostRow_requests,
+		func(ctx context.Context) (any, error) {
+			return obj.Requests, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_GroupCostRow_requests(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "GroupCostRow",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _GroupCostRow_channelCost(ctx context.Context, field graphql.CollectedField, obj *objects.GroupCostRow) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_GroupCostRow_channelCost,
+		func(ctx context.Context) (any, error) {
+			return obj.ChannelCost, nil
+		},
+		nil,
+		ec.marshalOFloat2ᚖfloat64,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_GroupCostRow_channelCost(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "GroupCostRow",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _GroupCostRow_billedCost(ctx context.Context, field graphql.CollectedField, obj *objects.GroupCostRow) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_GroupCostRow_billedCost,
+		func(ctx context.Context) (any, error) {
+			return obj.BilledCost, nil
+		},
+		nil,
+		ec.marshalOFloat2ᚖfloat64,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_GroupCostRow_billedCost(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "GroupCostRow",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _GroupCostRow_missingChannel(ctx context.Context, field graphql.CollectedField, obj *objects.GroupCostRow) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_GroupCostRow_missingChannel,
+		func(ctx context.Context) (any, error) {
+			return obj.MissingChannel, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_GroupCostRow_missingChannel(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "GroupCostRow",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _GroupCostRow_missingBilled(ctx context.Context, field graphql.CollectedField, obj *objects.GroupCostRow) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_GroupCostRow_missingBilled,
+		func(ctx context.Context) (any, error) {
+			return obj.MissingBilled, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_GroupCostRow_missingBilled(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "GroupCostRow",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _GroupCostRow_estimated(ctx context.Context, field graphql.CollectedField, obj *objects.GroupCostRow) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_GroupCostRow_estimated,
+		func(ctx context.Context) (any, error) {
+			return obj.Estimated, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_GroupCostRow_estimated(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "GroupCostRow",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _HeaderEntry_key(ctx context.Context, field graphql.CollectedField, obj *objects.HeaderEntry) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -52599,6 +54047,163 @@ func (ec *executionContext) _InitializeSystemPayload_token(ctx context.Context, 
 func (ec *executionContext) fieldContext_InitializeSystemPayload_token(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "InitializeSystemPayload",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _KeyChannelRate_channelID(ctx context.Context, field graphql.CollectedField, obj *objects.KeyChannelRate) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_KeyChannelRate_channelID,
+		func(ctx context.Context) (any, error) {
+			return obj.ChannelID, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_KeyChannelRate_channelID(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "KeyChannelRate",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _KeyChannelRate_multiplier(ctx context.Context, field graphql.CollectedField, obj *objects.KeyChannelRate) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_KeyChannelRate_multiplier,
+		func(ctx context.Context) (any, error) {
+			return obj.Multiplier, nil
+		},
+		nil,
+		ec.marshalNDecimal2githubᚗcomᚋshopspringᚋdecimalᚐDecimal,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_KeyChannelRate_multiplier(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "KeyChannelRate",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Decimal does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _KeyChannelRates_rules(ctx context.Context, field graphql.CollectedField, obj *objects.KeyChannelRates) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_KeyChannelRates_rules,
+		func(ctx context.Context) (any, error) {
+			return obj.Rules, nil
+		},
+		nil,
+		ec.marshalNKeyChannelRate2ᚕᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐKeyChannelRateᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_KeyChannelRates_rules(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "KeyChannelRates",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "channelID":
+				return ec.fieldContext_KeyChannelRate_channelID(ctx, field)
+			case "multiplier":
+				return ec.fieldContext_KeyChannelRate_multiplier(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type KeyChannelRate", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _KeyChannelRates_inherited(ctx context.Context, field graphql.CollectedField, obj *objects.KeyChannelRates) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_KeyChannelRates_inherited,
+		func(ctx context.Context) (any, error) {
+			return obj.Inherited, nil
+		},
+		nil,
+		ec.marshalNKeyChannelRate2ᚕᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐKeyChannelRateᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_KeyChannelRates_inherited(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "KeyChannelRates",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "channelID":
+				return ec.fieldContext_KeyChannelRate_channelID(ctx, field)
+			case "multiplier":
+				return ec.fieldContext_KeyChannelRate_multiplier(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type KeyChannelRate", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _KeyChannelRates_revision(ctx context.Context, field graphql.CollectedField, obj *objects.KeyChannelRates) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_KeyChannelRates_revision,
+		func(ctx context.Context) (any, error) {
+			return obj.Revision, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_KeyChannelRates_revision(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "KeyChannelRates",
 		Field:      field,
 		IsMethod:   false,
 		IsResolver: false,
@@ -64196,6 +65801,8 @@ func (ec *executionContext) fieldContext_Mutation_updateChannelUpstream(ctx cont
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "enabledCredentialCount":
+				return ec.fieldContext_ChannelUpstreamState_enabledCredentialCount(ctx, field)
 			case "channelId":
 				return ec.fieldContext_ChannelUpstreamState_channelId(ctx, field)
 			case "settings":
@@ -64306,6 +65913,8 @@ func (ec *executionContext) fieldContext_Mutation_saveChannelUpstreamAccount(ctx
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "enabledCredentialCount":
+				return ec.fieldContext_ChannelUpstreamState_enabledCredentialCount(ctx, field)
 			case "channelId":
 				return ec.fieldContext_ChannelUpstreamState_channelId(ctx, field)
 			case "settings":
@@ -64365,6 +65974,8 @@ func (ec *executionContext) fieldContext_Mutation_deleteChannelUpstreamAccount(c
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "enabledCredentialCount":
+				return ec.fieldContext_ChannelUpstreamState_enabledCredentialCount(ctx, field)
 			case "channelId":
 				return ec.fieldContext_ChannelUpstreamState_channelId(ctx, field)
 			case "settings":
@@ -64424,6 +66035,8 @@ func (ec *executionContext) fieldContext_Mutation_updateChannelKeySettings(ctx c
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "enabledCredentialCount":
+				return ec.fieldContext_ChannelUpstreamState_enabledCredentialCount(ctx, field)
 			case "channelId":
 				return ec.fieldContext_ChannelUpstreamState_channelId(ctx, field)
 			case "settings":
@@ -64483,6 +66096,8 @@ func (ec *executionContext) fieldContext_Mutation_setChannelKeySessionReuse(ctx 
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "enabledCredentialCount":
+				return ec.fieldContext_ChannelUpstreamState_enabledCredentialCount(ctx, field)
 			case "channelId":
 				return ec.fieldContext_ChannelUpstreamState_channelId(ctx, field)
 			case "settings":
@@ -65424,6 +67039,47 @@ func (ec *executionContext) fieldContext_Mutation_saveChannelModelPrices(ctx con
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Mutation_saveChannelModelPrices_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_saveKeyChannelRates(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_saveKeyChannelRates,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Mutation().SaveKeyChannelRates(ctx, fc.Args["keyID"].(*int), fc.Args["groupID"].(*int), fc.Args["revision"].(string), fc.Args["rules"].([]*objects.KeyChannelRate))
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_saveKeyChannelRates(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_saveKeyChannelRates_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -79858,6 +81514,8 @@ func (ec *executionContext) fieldContext_Query_channelUpstreamStates(ctx context
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "enabledCredentialCount":
+				return ec.fieldContext_ChannelUpstreamState_enabledCredentialCount(ctx, field)
 			case "channelId":
 				return ec.fieldContext_ChannelUpstreamState_channelId(ctx, field)
 			case "settings":
@@ -81212,6 +82870,167 @@ func (ec *executionContext) fieldContext_Query_usageStatistics(ctx context.Conte
 	return fc, nil
 }
 
+func (ec *executionContext) _Query_keyChannelRates(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Query_keyChannelRates,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Query().KeyChannelRates(ctx, fc.Args["keyID"].(*int), fc.Args["groupID"].(*int))
+		},
+		nil,
+		ec.marshalNKeyChannelRates2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐKeyChannelRates,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Query_keyChannelRates(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "rules":
+				return ec.fieldContext_KeyChannelRates_rules(ctx, field)
+			case "inherited":
+				return ec.fieldContext_KeyChannelRates_inherited(ctx, field)
+			case "revision":
+				return ec.fieldContext_KeyChannelRates_revision(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type KeyChannelRates", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_keyChannelRates_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_groupCostEntries(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Query_groupCostEntries,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Query().GroupCostEntries(ctx, fc.Args["groupID"].(int), fc.Args["keyID"].(int), fc.Args["channelID"].(int), fc.Args["start"].(string), fc.Args["end"].(string), fc.Args["before"].(*int))
+		},
+		nil,
+		ec.marshalNGroupCostEntry2ᚕᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐGroupCostEntryᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Query_groupCostEntries(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "items":
+				return ec.fieldContext_GroupCostEntry_items(ctx, field)
+			case "usageID":
+				return ec.fieldContext_GroupCostEntry_usageID(ctx, field)
+			case "requestID":
+				return ec.fieldContext_GroupCostEntry_requestID(ctx, field)
+			case "channelCost":
+				return ec.fieldContext_GroupCostEntry_channelCost(ctx, field)
+			case "billedCost":
+				return ec.fieldContext_GroupCostEntry_billedCost(ctx, field)
+			case "multiplier":
+				return ec.fieldContext_GroupCostEntry_multiplier(ctx, field)
+			case "source":
+				return ec.fieldContext_GroupCostEntry_source(ctx, field)
+			case "groupName":
+				return ec.fieldContext_GroupCostEntry_groupName(ctx, field)
+			case "archived":
+				return ec.fieldContext_GroupCostEntry_archived(ctx, field)
+			case "mixed":
+				return ec.fieldContext_GroupCostEntry_mixed(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type GroupCostEntry", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_groupCostEntries_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_groupCostComparison(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Query_groupCostComparison,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Query().GroupCostComparison(ctx, fc.Args["groupID"].(int), fc.Args["start"].(string), fc.Args["end"].(string))
+		},
+		nil,
+		ec.marshalNGroupCostComparison2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐGroupCostComparison,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Query_groupCostComparison(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "total":
+				return ec.fieldContext_GroupCostComparison_total(ctx, field)
+			case "keys":
+				return ec.fieldContext_GroupCostComparison_keys(ctx, field)
+			case "channels":
+				return ec.fieldContext_GroupCostComparison_channels(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type GroupCostComparison", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_groupCostComparison_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Query_apiKeyGroupOptions(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -82129,6 +83948,8 @@ func (ec *executionContext) fieldContext_RefreshChannelUpstreamsResult_channels(
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "enabledCredentialCount":
+				return ec.fieldContext_ChannelUpstreamState_enabledCredentialCount(ctx, field)
 			case "channelId":
 				return ec.fieldContext_ChannelUpstreamState_channelId(ctx, field)
 			case "settings":
@@ -119867,6 +121688,40 @@ func (ec *executionContext) unmarshalInputKeyBudgetPatch(ctx context.Context, ob
 	return it, nil
 }
 
+func (ec *executionContext) unmarshalInputKeyChannelRateInput(ctx context.Context, obj any) (objects.KeyChannelRate, error) {
+	var it objects.KeyChannelRate
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"channelID", "multiplier"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "channelID":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("channelID"))
+			data, err := ec.unmarshalNInt2int(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ChannelID = data
+		case "multiplier":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("multiplier"))
+			data, err := ec.unmarshalNDecimal2githubᚗcomᚋshopspringᚋdecimalᚐDecimal(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Multiplier = data
+		}
+	}
+
+	return it, nil
+}
+
 func (ec *executionContext) unmarshalInputKeyManagementRow(ctx context.Context, obj any) (biz.KeyManagementRow, error) {
 	var it biz.KeyManagementRow
 	asMap := map[string]any{}
@@ -146932,6 +148787,11 @@ func (ec *executionContext) _ChannelUpstreamState(ctx context.Context, sel ast.S
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("ChannelUpstreamState")
+		case "enabledCredentialCount":
+			out.Values[i] = ec._ChannelUpstreamState_enabledCredentialCount(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "channelId":
 			out.Values[i] = ec._ChannelUpstreamState_channelId(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -150113,6 +151973,264 @@ func (ec *executionContext) _GetCacheDiagnosticsPayload(ctx context.Context, sel
 	return out
 }
 
+var groupBillingItemImplementors = []string{"GroupBillingItem"}
+
+func (ec *executionContext) _GroupBillingItem(ctx context.Context, sel ast.SelectionSet, obj *objects.GroupBillingItem) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, groupBillingItemImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("GroupBillingItem")
+		case "code":
+			out.Values[i] = ec._GroupBillingItem_code(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "variant":
+			out.Values[i] = ec._GroupBillingItem_variant(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "channelRate":
+			out.Values[i] = ec._GroupBillingItem_channelRate(ctx, field, obj)
+		case "channelSource":
+			out.Values[i] = ec._GroupBillingItem_channelSource(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "channelAmount":
+			out.Values[i] = ec._GroupBillingItem_channelAmount(ctx, field, obj)
+		case "billedRate":
+			out.Values[i] = ec._GroupBillingItem_billedRate(ctx, field, obj)
+		case "billedSource":
+			out.Values[i] = ec._GroupBillingItem_billedSource(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "billedAmount":
+			out.Values[i] = ec._GroupBillingItem_billedAmount(ctx, field, obj)
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var groupCostComparisonImplementors = []string{"GroupCostComparison"}
+
+func (ec *executionContext) _GroupCostComparison(ctx context.Context, sel ast.SelectionSet, obj *objects.GroupCostComparison) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, groupCostComparisonImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("GroupCostComparison")
+		case "total":
+			out.Values[i] = ec._GroupCostComparison_total(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "keys":
+			out.Values[i] = ec._GroupCostComparison_keys(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "channels":
+			out.Values[i] = ec._GroupCostComparison_channels(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var groupCostEntryImplementors = []string{"GroupCostEntry"}
+
+func (ec *executionContext) _GroupCostEntry(ctx context.Context, sel ast.SelectionSet, obj *objects.GroupCostEntry) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, groupCostEntryImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("GroupCostEntry")
+		case "items":
+			out.Values[i] = ec._GroupCostEntry_items(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "usageID":
+			out.Values[i] = ec._GroupCostEntry_usageID(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "requestID":
+			out.Values[i] = ec._GroupCostEntry_requestID(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "channelCost":
+			out.Values[i] = ec._GroupCostEntry_channelCost(ctx, field, obj)
+		case "billedCost":
+			out.Values[i] = ec._GroupCostEntry_billedCost(ctx, field, obj)
+		case "multiplier":
+			out.Values[i] = ec._GroupCostEntry_multiplier(ctx, field, obj)
+		case "source":
+			out.Values[i] = ec._GroupCostEntry_source(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "groupName":
+			out.Values[i] = ec._GroupCostEntry_groupName(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "archived":
+			out.Values[i] = ec._GroupCostEntry_archived(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "mixed":
+			out.Values[i] = ec._GroupCostEntry_mixed(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var groupCostRowImplementors = []string{"GroupCostRow"}
+
+func (ec *executionContext) _GroupCostRow(ctx context.Context, sel ast.SelectionSet, obj *objects.GroupCostRow) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, groupCostRowImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("GroupCostRow")
+		case "keyID":
+			out.Values[i] = ec._GroupCostRow_keyID(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "keyName":
+			out.Values[i] = ec._GroupCostRow_keyName(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "channelID":
+			out.Values[i] = ec._GroupCostRow_channelID(ctx, field, obj)
+		case "channelName":
+			out.Values[i] = ec._GroupCostRow_channelName(ctx, field, obj)
+		case "requests":
+			out.Values[i] = ec._GroupCostRow_requests(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "channelCost":
+			out.Values[i] = ec._GroupCostRow_channelCost(ctx, field, obj)
+		case "billedCost":
+			out.Values[i] = ec._GroupCostRow_billedCost(ctx, field, obj)
+		case "missingChannel":
+			out.Values[i] = ec._GroupCostRow_missingChannel(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "missingBilled":
+			out.Values[i] = ec._GroupCostRow_missingBilled(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "estimated":
+			out.Values[i] = ec._GroupCostRow_estimated(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
 var headerEntryImplementors = []string{"HeaderEntry"}
 
 func (ec *executionContext) _HeaderEntry(ctx context.Context, sel ast.SelectionSet, obj *objects.HeaderEntry) graphql.Marshaler {
@@ -150610,6 +152728,99 @@ func (ec *executionContext) _InitializeSystemPayload(ctx context.Context, sel as
 			out.Values[i] = ec._InitializeSystemPayload_user(ctx, field, obj)
 		case "token":
 			out.Values[i] = ec._InitializeSystemPayload_token(ctx, field, obj)
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var keyChannelRateImplementors = []string{"KeyChannelRate"}
+
+func (ec *executionContext) _KeyChannelRate(ctx context.Context, sel ast.SelectionSet, obj *objects.KeyChannelRate) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, keyChannelRateImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("KeyChannelRate")
+		case "channelID":
+			out.Values[i] = ec._KeyChannelRate_channelID(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "multiplier":
+			out.Values[i] = ec._KeyChannelRate_multiplier(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var keyChannelRatesImplementors = []string{"KeyChannelRates"}
+
+func (ec *executionContext) _KeyChannelRates(ctx context.Context, sel ast.SelectionSet, obj *objects.KeyChannelRates) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, keyChannelRatesImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("KeyChannelRates")
+		case "rules":
+			out.Values[i] = ec._KeyChannelRates_rules(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "inherited":
+			out.Values[i] = ec._KeyChannelRates_inherited(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "revision":
+			out.Values[i] = ec._KeyChannelRates_revision(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -153392,6 +155603,13 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 		case "saveChannelModelPrices":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_saveChannelModelPrices(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "saveKeyChannelRates":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_saveKeyChannelRates(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
@@ -160247,6 +162465,72 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 					}
 				}()
 				res = ec._Query_usageStatistics(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "keyChannelRates":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_keyChannelRates(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "groupCostEntries":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_groupCostEntries(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "groupCostComparison":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_groupCostComparison(ctx, field)
 				if res == graphql.Null {
 					atomic.AddUint32(&fs.Invalids, 1)
 				}
@@ -175957,6 +178241,182 @@ func (ec *executionContext) unmarshalNGetChannelProbeDataInput2githubᚗcomᚋlo
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
+func (ec *executionContext) marshalNGroupBillingItem2ᚕᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐGroupBillingItemᚄ(ctx context.Context, sel ast.SelectionSet, v []*objects.GroupBillingItem) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNGroupBillingItem2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐGroupBillingItem(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNGroupBillingItem2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐGroupBillingItem(ctx context.Context, sel ast.SelectionSet, v *objects.GroupBillingItem) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._GroupBillingItem(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNGroupCostComparison2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐGroupCostComparison(ctx context.Context, sel ast.SelectionSet, v objects.GroupCostComparison) graphql.Marshaler {
+	return ec._GroupCostComparison(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNGroupCostComparison2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐGroupCostComparison(ctx context.Context, sel ast.SelectionSet, v *objects.GroupCostComparison) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._GroupCostComparison(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNGroupCostEntry2ᚕᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐGroupCostEntryᚄ(ctx context.Context, sel ast.SelectionSet, v []*objects.GroupCostEntry) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNGroupCostEntry2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐGroupCostEntry(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNGroupCostEntry2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐGroupCostEntry(ctx context.Context, sel ast.SelectionSet, v *objects.GroupCostEntry) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._GroupCostEntry(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNGroupCostRow2ᚕᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐGroupCostRowᚄ(ctx context.Context, sel ast.SelectionSet, v []*objects.GroupCostRow) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNGroupCostRow2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐGroupCostRow(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNGroupCostRow2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐGroupCostRow(ctx context.Context, sel ast.SelectionSet, v *objects.GroupCostRow) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._GroupCostRow(ctx, sel, v)
+}
+
 func (ec *executionContext) marshalNHeaderEntry2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐHeaderEntry(ctx context.Context, sel ast.SelectionSet, v objects.HeaderEntry) graphql.Marshaler {
 	return ec._HeaderEntry(ctx, sel, &v)
 }
@@ -176301,6 +178761,94 @@ func (ec *executionContext) marshalNJSONRawMessageInput2githubᚗcomᚋloopljᚋ
 		return graphql.Null
 	}
 	return v
+}
+
+func (ec *executionContext) marshalNKeyChannelRate2ᚕᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐKeyChannelRateᚄ(ctx context.Context, sel ast.SelectionSet, v []*objects.KeyChannelRate) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNKeyChannelRate2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐKeyChannelRate(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNKeyChannelRate2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐKeyChannelRate(ctx context.Context, sel ast.SelectionSet, v *objects.KeyChannelRate) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._KeyChannelRate(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalNKeyChannelRateInput2ᚕᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐKeyChannelRateᚄ(ctx context.Context, v any) ([]*objects.KeyChannelRate, error) {
+	var vSlice []any
+	vSlice = graphql.CoerceList(v)
+	var err error
+	res := make([]*objects.KeyChannelRate, len(vSlice))
+	for i := range vSlice {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
+		res[i], err = ec.unmarshalNKeyChannelRateInput2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐKeyChannelRate(ctx, vSlice[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
+}
+
+func (ec *executionContext) unmarshalNKeyChannelRateInput2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐKeyChannelRate(ctx context.Context, v any) (*objects.KeyChannelRate, error) {
+	res, err := ec.unmarshalInputKeyChannelRateInput(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNKeyChannelRates2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐKeyChannelRates(ctx context.Context, sel ast.SelectionSet, v objects.KeyChannelRates) graphql.Marshaler {
+	return ec._KeyChannelRates(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNKeyChannelRates2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐKeyChannelRates(ctx context.Context, sel ast.SelectionSet, v *objects.KeyChannelRates) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._KeyChannelRates(ctx, sel, v)
 }
 
 func (ec *executionContext) marshalNKeyManagementResult2ᚕᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐKeyManagementResultᚄ(ctx context.Context, sel ast.SelectionSet, v []*biz.KeyManagementResult) graphql.Marshaler {

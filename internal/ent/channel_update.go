@@ -12,6 +12,8 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/dialect/sql/sqljson"
 	"entgo.io/ent/schema/field"
+	"github.com/looplj/axonhub/internal/ent/apikeychannelrate"
+	"github.com/looplj/axonhub/internal/ent/apikeygroupchannelrate"
 	"github.com/looplj/axonhub/internal/ent/channel"
 	"github.com/looplj/axonhub/internal/ent/channelmodelprice"
 	"github.com/looplj/axonhub/internal/ent/channelprobe"
@@ -438,6 +440,36 @@ func (_u *ChannelUpdate) ClearEndpoints() *ChannelUpdate {
 	return _u
 }
 
+// AddKeyRateIDs adds the "key_rates" edge to the APIKeyChannelRate entity by IDs.
+func (_u *ChannelUpdate) AddKeyRateIDs(ids ...int) *ChannelUpdate {
+	_u.mutation.AddKeyRateIDs(ids...)
+	return _u
+}
+
+// AddKeyRates adds the "key_rates" edges to the APIKeyChannelRate entity.
+func (_u *ChannelUpdate) AddKeyRates(v ...*APIKeyChannelRate) *ChannelUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddKeyRateIDs(ids...)
+}
+
+// AddGroupRateIDs adds the "group_rates" edge to the APIKeyGroupChannelRate entity by IDs.
+func (_u *ChannelUpdate) AddGroupRateIDs(ids ...int) *ChannelUpdate {
+	_u.mutation.AddGroupRateIDs(ids...)
+	return _u
+}
+
+// AddGroupRates adds the "group_rates" edges to the APIKeyGroupChannelRate entity.
+func (_u *ChannelUpdate) AddGroupRates(v ...*APIKeyGroupChannelRate) *ChannelUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddGroupRateIDs(ids...)
+}
+
 // AddUpstreamStatusIDs adds the "upstream_statuses" edge to the ChannelUpstreamStatus entity by IDs.
 func (_u *ChannelUpdate) AddUpstreamStatusIDs(ids ...int) *ChannelUpdate {
 	_u.mutation.AddUpstreamStatusIDs(ids...)
@@ -550,6 +582,48 @@ func (_u *ChannelUpdate) SetProviderQuotaStatus(v *ProviderQuotaStatus) *Channel
 // Mutation returns the ChannelMutation object of the builder.
 func (_u *ChannelUpdate) Mutation() *ChannelMutation {
 	return _u.mutation
+}
+
+// ClearKeyRates clears all "key_rates" edges to the APIKeyChannelRate entity.
+func (_u *ChannelUpdate) ClearKeyRates() *ChannelUpdate {
+	_u.mutation.ClearKeyRates()
+	return _u
+}
+
+// RemoveKeyRateIDs removes the "key_rates" edge to APIKeyChannelRate entities by IDs.
+func (_u *ChannelUpdate) RemoveKeyRateIDs(ids ...int) *ChannelUpdate {
+	_u.mutation.RemoveKeyRateIDs(ids...)
+	return _u
+}
+
+// RemoveKeyRates removes "key_rates" edges to APIKeyChannelRate entities.
+func (_u *ChannelUpdate) RemoveKeyRates(v ...*APIKeyChannelRate) *ChannelUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveKeyRateIDs(ids...)
+}
+
+// ClearGroupRates clears all "group_rates" edges to the APIKeyGroupChannelRate entity.
+func (_u *ChannelUpdate) ClearGroupRates() *ChannelUpdate {
+	_u.mutation.ClearGroupRates()
+	return _u
+}
+
+// RemoveGroupRateIDs removes the "group_rates" edge to APIKeyGroupChannelRate entities by IDs.
+func (_u *ChannelUpdate) RemoveGroupRateIDs(ids ...int) *ChannelUpdate {
+	_u.mutation.RemoveGroupRateIDs(ids...)
+	return _u
+}
+
+// RemoveGroupRates removes "group_rates" edges to APIKeyGroupChannelRate entities.
+func (_u *ChannelUpdate) RemoveGroupRates(v ...*APIKeyGroupChannelRate) *ChannelUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveGroupRateIDs(ids...)
 }
 
 // ClearUpstreamStatuses clears all "upstream_statuses" edges to the ChannelUpstreamStatus entity.
@@ -908,6 +982,96 @@ func (_u *ChannelUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if _u.mutation.EndpointsCleared() {
 		_spec.ClearField(channel.FieldEndpoints, field.TypeJSON)
+	}
+	if _u.mutation.KeyRatesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   channel.KeyRatesTable,
+			Columns: []string{channel.KeyRatesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(apikeychannelrate.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedKeyRatesIDs(); len(nodes) > 0 && !_u.mutation.KeyRatesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   channel.KeyRatesTable,
+			Columns: []string{channel.KeyRatesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(apikeychannelrate.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.KeyRatesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   channel.KeyRatesTable,
+			Columns: []string{channel.KeyRatesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(apikeychannelrate.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.GroupRatesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   channel.GroupRatesTable,
+			Columns: []string{channel.GroupRatesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(apikeygroupchannelrate.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedGroupRatesIDs(); len(nodes) > 0 && !_u.mutation.GroupRatesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   channel.GroupRatesTable,
+			Columns: []string{channel.GroupRatesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(apikeygroupchannelrate.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.GroupRatesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   channel.GroupRatesTable,
+			Columns: []string{channel.GroupRatesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(apikeygroupchannelrate.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
 	if _u.mutation.UpstreamStatusesCleared() {
 		edge := &sqlgraph.EdgeSpec{
@@ -1630,6 +1794,36 @@ func (_u *ChannelUpdateOne) ClearEndpoints() *ChannelUpdateOne {
 	return _u
 }
 
+// AddKeyRateIDs adds the "key_rates" edge to the APIKeyChannelRate entity by IDs.
+func (_u *ChannelUpdateOne) AddKeyRateIDs(ids ...int) *ChannelUpdateOne {
+	_u.mutation.AddKeyRateIDs(ids...)
+	return _u
+}
+
+// AddKeyRates adds the "key_rates" edges to the APIKeyChannelRate entity.
+func (_u *ChannelUpdateOne) AddKeyRates(v ...*APIKeyChannelRate) *ChannelUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddKeyRateIDs(ids...)
+}
+
+// AddGroupRateIDs adds the "group_rates" edge to the APIKeyGroupChannelRate entity by IDs.
+func (_u *ChannelUpdateOne) AddGroupRateIDs(ids ...int) *ChannelUpdateOne {
+	_u.mutation.AddGroupRateIDs(ids...)
+	return _u
+}
+
+// AddGroupRates adds the "group_rates" edges to the APIKeyGroupChannelRate entity.
+func (_u *ChannelUpdateOne) AddGroupRates(v ...*APIKeyGroupChannelRate) *ChannelUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddGroupRateIDs(ids...)
+}
+
 // AddUpstreamStatusIDs adds the "upstream_statuses" edge to the ChannelUpstreamStatus entity by IDs.
 func (_u *ChannelUpdateOne) AddUpstreamStatusIDs(ids ...int) *ChannelUpdateOne {
 	_u.mutation.AddUpstreamStatusIDs(ids...)
@@ -1742,6 +1936,48 @@ func (_u *ChannelUpdateOne) SetProviderQuotaStatus(v *ProviderQuotaStatus) *Chan
 // Mutation returns the ChannelMutation object of the builder.
 func (_u *ChannelUpdateOne) Mutation() *ChannelMutation {
 	return _u.mutation
+}
+
+// ClearKeyRates clears all "key_rates" edges to the APIKeyChannelRate entity.
+func (_u *ChannelUpdateOne) ClearKeyRates() *ChannelUpdateOne {
+	_u.mutation.ClearKeyRates()
+	return _u
+}
+
+// RemoveKeyRateIDs removes the "key_rates" edge to APIKeyChannelRate entities by IDs.
+func (_u *ChannelUpdateOne) RemoveKeyRateIDs(ids ...int) *ChannelUpdateOne {
+	_u.mutation.RemoveKeyRateIDs(ids...)
+	return _u
+}
+
+// RemoveKeyRates removes "key_rates" edges to APIKeyChannelRate entities.
+func (_u *ChannelUpdateOne) RemoveKeyRates(v ...*APIKeyChannelRate) *ChannelUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveKeyRateIDs(ids...)
+}
+
+// ClearGroupRates clears all "group_rates" edges to the APIKeyGroupChannelRate entity.
+func (_u *ChannelUpdateOne) ClearGroupRates() *ChannelUpdateOne {
+	_u.mutation.ClearGroupRates()
+	return _u
+}
+
+// RemoveGroupRateIDs removes the "group_rates" edge to APIKeyGroupChannelRate entities by IDs.
+func (_u *ChannelUpdateOne) RemoveGroupRateIDs(ids ...int) *ChannelUpdateOne {
+	_u.mutation.RemoveGroupRateIDs(ids...)
+	return _u
+}
+
+// RemoveGroupRates removes "group_rates" edges to APIKeyGroupChannelRate entities.
+func (_u *ChannelUpdateOne) RemoveGroupRates(v ...*APIKeyGroupChannelRate) *ChannelUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveGroupRateIDs(ids...)
 }
 
 // ClearUpstreamStatuses clears all "upstream_statuses" edges to the ChannelUpstreamStatus entity.
@@ -2130,6 +2366,96 @@ func (_u *ChannelUpdateOne) sqlSave(ctx context.Context) (_node *Channel, err er
 	}
 	if _u.mutation.EndpointsCleared() {
 		_spec.ClearField(channel.FieldEndpoints, field.TypeJSON)
+	}
+	if _u.mutation.KeyRatesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   channel.KeyRatesTable,
+			Columns: []string{channel.KeyRatesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(apikeychannelrate.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedKeyRatesIDs(); len(nodes) > 0 && !_u.mutation.KeyRatesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   channel.KeyRatesTable,
+			Columns: []string{channel.KeyRatesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(apikeychannelrate.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.KeyRatesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   channel.KeyRatesTable,
+			Columns: []string{channel.KeyRatesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(apikeychannelrate.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.GroupRatesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   channel.GroupRatesTable,
+			Columns: []string{channel.GroupRatesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(apikeygroupchannelrate.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedGroupRatesIDs(); len(nodes) > 0 && !_u.mutation.GroupRatesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   channel.GroupRatesTable,
+			Columns: []string{channel.GroupRatesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(apikeygroupchannelrate.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.GroupRatesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   channel.GroupRatesTable,
+			Columns: []string{channel.GroupRatesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(apikeygroupchannelrate.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
 	if _u.mutation.UpstreamStatusesCleared() {
 		edge := &sqlgraph.EdgeSpec{

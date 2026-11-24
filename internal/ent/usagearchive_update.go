@@ -12,6 +12,7 @@ import (
 	"entgo.io/ent/schema/field"
 	"github.com/looplj/axonhub/internal/ent/predicate"
 	"github.com/looplj/axonhub/internal/ent/usagearchive"
+	"github.com/looplj/axonhub/internal/objects"
 )
 
 // UsageArchiveUpdate is the builder for updating UsageArchive entities.
@@ -45,6 +46,86 @@ func (_u *UsageArchiveUpdate) SetNillableClientSessionID(v *string) *UsageArchiv
 // ClearClientSessionID clears the value of the "client_session_id" field.
 func (_u *UsageArchiveUpdate) ClearClientSessionID() *UsageArchiveUpdate {
 	_u.mutation.ClearClientSessionID()
+	return _u
+}
+
+// SetBillingGroupID sets the "billing_group_id" field.
+func (_u *UsageArchiveUpdate) SetBillingGroupID(v int) *UsageArchiveUpdate {
+	_u.mutation.ResetBillingGroupID()
+	_u.mutation.SetBillingGroupID(v)
+	return _u
+}
+
+// SetNillableBillingGroupID sets the "billing_group_id" field if the given value is not nil.
+func (_u *UsageArchiveUpdate) SetNillableBillingGroupID(v *int) *UsageArchiveUpdate {
+	if v != nil {
+		_u.SetBillingGroupID(*v)
+	}
+	return _u
+}
+
+// AddBillingGroupID adds value to the "billing_group_id" field.
+func (_u *UsageArchiveUpdate) AddBillingGroupID(v int) *UsageArchiveUpdate {
+	_u.mutation.AddBillingGroupID(v)
+	return _u
+}
+
+// ClearBillingGroupID clears the value of the "billing_group_id" field.
+func (_u *UsageArchiveUpdate) ClearBillingGroupID() *UsageArchiveUpdate {
+	_u.mutation.ClearBillingGroupID()
+	return _u
+}
+
+// SetBillingEvidence sets the "billing_evidence" field.
+func (_u *UsageArchiveUpdate) SetBillingEvidence(v *objects.GroupBillingEvidence) *UsageArchiveUpdate {
+	_u.mutation.SetBillingEvidence(v)
+	return _u
+}
+
+// ClearBillingEvidence clears the value of the "billing_evidence" field.
+func (_u *UsageArchiveUpdate) ClearBillingEvidence() *UsageArchiveUpdate {
+	_u.mutation.ClearBillingEvidence()
+	return _u
+}
+
+// SetBilledCost sets the "billed_cost" field.
+func (_u *UsageArchiveUpdate) SetBilledCost(v float64) *UsageArchiveUpdate {
+	_u.mutation.ResetBilledCost()
+	_u.mutation.SetBilledCost(v)
+	return _u
+}
+
+// SetNillableBilledCost sets the "billed_cost" field if the given value is not nil.
+func (_u *UsageArchiveUpdate) SetNillableBilledCost(v *float64) *UsageArchiveUpdate {
+	if v != nil {
+		_u.SetBilledCost(*v)
+	}
+	return _u
+}
+
+// AddBilledCost adds value to the "billed_cost" field.
+func (_u *UsageArchiveUpdate) AddBilledCost(v float64) *UsageArchiveUpdate {
+	_u.mutation.AddBilledCost(v)
+	return _u
+}
+
+// ClearBilledCost clears the value of the "billed_cost" field.
+func (_u *UsageArchiveUpdate) ClearBilledCost() *UsageArchiveUpdate {
+	_u.mutation.ClearBilledCost()
+	return _u
+}
+
+// SetBillingEstimated sets the "billing_estimated" field.
+func (_u *UsageArchiveUpdate) SetBillingEstimated(v bool) *UsageArchiveUpdate {
+	_u.mutation.SetBillingEstimated(v)
+	return _u
+}
+
+// SetNillableBillingEstimated sets the "billing_estimated" field if the given value is not nil.
+func (_u *UsageArchiveUpdate) SetNillableBillingEstimated(v *bool) *UsageArchiveUpdate {
+	if v != nil {
+		_u.SetBillingEstimated(*v)
+	}
 	return _u
 }
 
@@ -512,11 +593,41 @@ func (_u *UsageArchiveUpdate) sqlSave(ctx context.Context) (_node int, err error
 			}
 		}
 	}
+	if _u.mutation.RestoreRefCleared() {
+		_spec.ClearField(usagearchive.FieldRestoreRef, field.TypeString)
+	}
 	if value, ok := _u.mutation.ClientSessionID(); ok {
 		_spec.SetField(usagearchive.FieldClientSessionID, field.TypeString, value)
 	}
 	if _u.mutation.ClientSessionIDCleared() {
 		_spec.ClearField(usagearchive.FieldClientSessionID, field.TypeString)
+	}
+	if value, ok := _u.mutation.BillingGroupID(); ok {
+		_spec.SetField(usagearchive.FieldBillingGroupID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedBillingGroupID(); ok {
+		_spec.AddField(usagearchive.FieldBillingGroupID, field.TypeInt, value)
+	}
+	if _u.mutation.BillingGroupIDCleared() {
+		_spec.ClearField(usagearchive.FieldBillingGroupID, field.TypeInt)
+	}
+	if value, ok := _u.mutation.BillingEvidence(); ok {
+		_spec.SetField(usagearchive.FieldBillingEvidence, field.TypeJSON, value)
+	}
+	if _u.mutation.BillingEvidenceCleared() {
+		_spec.ClearField(usagearchive.FieldBillingEvidence, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.BilledCost(); ok {
+		_spec.SetField(usagearchive.FieldBilledCost, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedBilledCost(); ok {
+		_spec.AddField(usagearchive.FieldBilledCost, field.TypeFloat64, value)
+	}
+	if _u.mutation.BilledCostCleared() {
+		_spec.ClearField(usagearchive.FieldBilledCost, field.TypeFloat64)
+	}
+	if value, ok := _u.mutation.BillingEstimated(); ok {
+		_spec.SetField(usagearchive.FieldBillingEstimated, field.TypeBool, value)
 	}
 	if value, ok := _u.mutation.TotalCost(); ok {
 		_spec.SetField(usagearchive.FieldTotalCost, field.TypeFloat64, value)
@@ -674,6 +785,86 @@ func (_u *UsageArchiveUpdateOne) SetNillableClientSessionID(v *string) *UsageArc
 // ClearClientSessionID clears the value of the "client_session_id" field.
 func (_u *UsageArchiveUpdateOne) ClearClientSessionID() *UsageArchiveUpdateOne {
 	_u.mutation.ClearClientSessionID()
+	return _u
+}
+
+// SetBillingGroupID sets the "billing_group_id" field.
+func (_u *UsageArchiveUpdateOne) SetBillingGroupID(v int) *UsageArchiveUpdateOne {
+	_u.mutation.ResetBillingGroupID()
+	_u.mutation.SetBillingGroupID(v)
+	return _u
+}
+
+// SetNillableBillingGroupID sets the "billing_group_id" field if the given value is not nil.
+func (_u *UsageArchiveUpdateOne) SetNillableBillingGroupID(v *int) *UsageArchiveUpdateOne {
+	if v != nil {
+		_u.SetBillingGroupID(*v)
+	}
+	return _u
+}
+
+// AddBillingGroupID adds value to the "billing_group_id" field.
+func (_u *UsageArchiveUpdateOne) AddBillingGroupID(v int) *UsageArchiveUpdateOne {
+	_u.mutation.AddBillingGroupID(v)
+	return _u
+}
+
+// ClearBillingGroupID clears the value of the "billing_group_id" field.
+func (_u *UsageArchiveUpdateOne) ClearBillingGroupID() *UsageArchiveUpdateOne {
+	_u.mutation.ClearBillingGroupID()
+	return _u
+}
+
+// SetBillingEvidence sets the "billing_evidence" field.
+func (_u *UsageArchiveUpdateOne) SetBillingEvidence(v *objects.GroupBillingEvidence) *UsageArchiveUpdateOne {
+	_u.mutation.SetBillingEvidence(v)
+	return _u
+}
+
+// ClearBillingEvidence clears the value of the "billing_evidence" field.
+func (_u *UsageArchiveUpdateOne) ClearBillingEvidence() *UsageArchiveUpdateOne {
+	_u.mutation.ClearBillingEvidence()
+	return _u
+}
+
+// SetBilledCost sets the "billed_cost" field.
+func (_u *UsageArchiveUpdateOne) SetBilledCost(v float64) *UsageArchiveUpdateOne {
+	_u.mutation.ResetBilledCost()
+	_u.mutation.SetBilledCost(v)
+	return _u
+}
+
+// SetNillableBilledCost sets the "billed_cost" field if the given value is not nil.
+func (_u *UsageArchiveUpdateOne) SetNillableBilledCost(v *float64) *UsageArchiveUpdateOne {
+	if v != nil {
+		_u.SetBilledCost(*v)
+	}
+	return _u
+}
+
+// AddBilledCost adds value to the "billed_cost" field.
+func (_u *UsageArchiveUpdateOne) AddBilledCost(v float64) *UsageArchiveUpdateOne {
+	_u.mutation.AddBilledCost(v)
+	return _u
+}
+
+// ClearBilledCost clears the value of the "billed_cost" field.
+func (_u *UsageArchiveUpdateOne) ClearBilledCost() *UsageArchiveUpdateOne {
+	_u.mutation.ClearBilledCost()
+	return _u
+}
+
+// SetBillingEstimated sets the "billing_estimated" field.
+func (_u *UsageArchiveUpdateOne) SetBillingEstimated(v bool) *UsageArchiveUpdateOne {
+	_u.mutation.SetBillingEstimated(v)
+	return _u
+}
+
+// SetNillableBillingEstimated sets the "billing_estimated" field if the given value is not nil.
+func (_u *UsageArchiveUpdateOne) SetNillableBillingEstimated(v *bool) *UsageArchiveUpdateOne {
+	if v != nil {
+		_u.SetBillingEstimated(*v)
+	}
 	return _u
 }
 
@@ -1171,11 +1362,41 @@ func (_u *UsageArchiveUpdateOne) sqlSave(ctx context.Context) (_node *UsageArchi
 			}
 		}
 	}
+	if _u.mutation.RestoreRefCleared() {
+		_spec.ClearField(usagearchive.FieldRestoreRef, field.TypeString)
+	}
 	if value, ok := _u.mutation.ClientSessionID(); ok {
 		_spec.SetField(usagearchive.FieldClientSessionID, field.TypeString, value)
 	}
 	if _u.mutation.ClientSessionIDCleared() {
 		_spec.ClearField(usagearchive.FieldClientSessionID, field.TypeString)
+	}
+	if value, ok := _u.mutation.BillingGroupID(); ok {
+		_spec.SetField(usagearchive.FieldBillingGroupID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedBillingGroupID(); ok {
+		_spec.AddField(usagearchive.FieldBillingGroupID, field.TypeInt, value)
+	}
+	if _u.mutation.BillingGroupIDCleared() {
+		_spec.ClearField(usagearchive.FieldBillingGroupID, field.TypeInt)
+	}
+	if value, ok := _u.mutation.BillingEvidence(); ok {
+		_spec.SetField(usagearchive.FieldBillingEvidence, field.TypeJSON, value)
+	}
+	if _u.mutation.BillingEvidenceCleared() {
+		_spec.ClearField(usagearchive.FieldBillingEvidence, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.BilledCost(); ok {
+		_spec.SetField(usagearchive.FieldBilledCost, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedBilledCost(); ok {
+		_spec.AddField(usagearchive.FieldBilledCost, field.TypeFloat64, value)
+	}
+	if _u.mutation.BilledCostCleared() {
+		_spec.ClearField(usagearchive.FieldBilledCost, field.TypeFloat64)
+	}
+	if value, ok := _u.mutation.BillingEstimated(); ok {
+		_spec.SetField(usagearchive.FieldBillingEstimated, field.TypeBool, value)
 	}
 	if value, ok := _u.mutation.TotalCost(); ok {
 		_spec.SetField(usagearchive.FieldTotalCost, field.TypeFloat64, value)

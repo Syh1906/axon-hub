@@ -55,6 +55,8 @@ type APIKey struct {
 
 // APIKeyEdges holds the relations/edges for other nodes in the graph.
 type APIKeyEdges struct {
+	// ChannelRates holds the value of the channel_rates edge.
+	ChannelRates []*APIKeyChannelRate `json:"channel_rates,omitempty"`
 	// User holds the value of the user edge.
 	User *User `json:"user,omitempty"`
 	// Project holds the value of the project edge.
@@ -63,11 +65,21 @@ type APIKeyEdges struct {
 	Requests []*Request `json:"requests,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [3]bool
+	loadedTypes [4]bool
 	// totalCount holds the count of the edges above.
 	totalCount [3]map[string]int
 
-	namedRequests map[string][]*Request
+	namedChannelRates map[string][]*APIKeyChannelRate
+	namedRequests     map[string][]*Request
+}
+
+// ChannelRatesOrErr returns the ChannelRates value or an error if the edge
+// was not loaded in eager-loading.
+func (e APIKeyEdges) ChannelRatesOrErr() ([]*APIKeyChannelRate, error) {
+	if e.loadedTypes[0] {
+		return e.ChannelRates, nil
+	}
+	return nil, &NotLoadedError{edge: "channel_rates"}
 }
 
 // UserOrErr returns the User value or an error if the edge
@@ -75,7 +87,7 @@ type APIKeyEdges struct {
 func (e APIKeyEdges) UserOrErr() (*User, error) {
 	if e.User != nil {
 		return e.User, nil
-	} else if e.loadedTypes[0] {
+	} else if e.loadedTypes[1] {
 		return nil, &NotFoundError{label: user.Label}
 	}
 	return nil, &NotLoadedError{edge: "user"}
@@ -86,7 +98,7 @@ func (e APIKeyEdges) UserOrErr() (*User, error) {
 func (e APIKeyEdges) ProjectOrErr() (*Project, error) {
 	if e.Project != nil {
 		return e.Project, nil
-	} else if e.loadedTypes[1] {
+	} else if e.loadedTypes[2] {
 		return nil, &NotFoundError{label: project.Label}
 	}
 	return nil, &NotLoadedError{edge: "project"}
@@ -95,7 +107,7 @@ func (e APIKeyEdges) ProjectOrErr() (*Project, error) {
 // RequestsOrErr returns the Requests value or an error if the edge
 // was not loaded in eager-loading.
 func (e APIKeyEdges) RequestsOrErr() ([]*Request, error) {
-	if e.loadedTypes[2] {
+	if e.loadedTypes[3] {
 		return e.Requests, nil
 	}
 	return nil, &NotLoadedError{edge: "requests"}
@@ -233,6 +245,11 @@ func (_m *APIKey) Value(name string) (ent.Value, error) {
 	return _m.selectValues.Get(name)
 }
 
+// QueryChannelRates queries the "channel_rates" edge of the APIKey entity.
+func (_m *APIKey) QueryChannelRates() *APIKeyChannelRateQuery {
+	return NewAPIKeyClient(_m.config).QueryChannelRates(_m)
+}
+
 // QueryUser queries the "user" edge of the APIKey entity.
 func (_m *APIKey) QueryUser() *UserQuery {
 	return NewAPIKeyClient(_m.config).QueryUser(_m)
@@ -313,6 +330,30 @@ func (_m *APIKey) String() string {
 	builder.WriteString(fmt.Sprintf("%v", _m.AllowedIps))
 	builder.WriteByte(')')
 	return builder.String()
+}
+
+// NamedChannelRates returns the ChannelRates named value or an error if the edge was not
+// loaded in eager-loading with this name.
+func (_m *APIKey) NamedChannelRates(name string) ([]*APIKeyChannelRate, error) {
+	if _m.Edges.namedChannelRates == nil {
+		return nil, &NotLoadedError{edge: name}
+	}
+	nodes, ok := _m.Edges.namedChannelRates[name]
+	if !ok {
+		return nil, &NotLoadedError{edge: name}
+	}
+	return nodes, nil
+}
+
+func (_m *APIKey) appendNamedChannelRates(name string, edges ...*APIKeyChannelRate) {
+	if _m.Edges.namedChannelRates == nil {
+		_m.Edges.namedChannelRates = make(map[string][]*APIKeyChannelRate)
+	}
+	if len(edges) == 0 {
+		_m.Edges.namedChannelRates[name] = []*APIKeyChannelRate{}
+	} else {
+		_m.Edges.namedChannelRates[name] = append(_m.Edges.namedChannelRates[name], edges...)
+	}
 }
 
 // NamedRequests returns the Requests named value or an error if the edge was not

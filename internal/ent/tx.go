@@ -14,8 +14,12 @@ type Tx struct {
 	config
 	// APIKey is the client for interacting with the APIKey builders.
 	APIKey *APIKeyClient
+	// APIKeyChannelRate is the client for interacting with the APIKeyChannelRate builders.
+	APIKeyChannelRate *APIKeyChannelRateClient
 	// APIKeyGroup is the client for interacting with the APIKeyGroup builders.
 	APIKeyGroup *APIKeyGroupClient
+	// APIKeyGroupChannelRate is the client for interacting with the APIKeyGroupChannelRate builders.
+	APIKeyGroupChannelRate *APIKeyGroupChannelRateClient
 	// APIKeyOperation is the client for interacting with the APIKeyOperation builders.
 	APIKeyOperation *APIKeyOperationClient
 	// APIKeyProfileTemplate is the client for interacting with the APIKeyProfileTemplate builders.
@@ -224,7 +228,9 @@ func (tx *Tx) Client() *Client {
 
 func (tx *Tx) init() {
 	tx.APIKey = NewAPIKeyClient(tx.config)
+	tx.APIKeyChannelRate = NewAPIKeyChannelRateClient(tx.config)
 	tx.APIKeyGroup = NewAPIKeyGroupClient(tx.config)
+	tx.APIKeyGroupChannelRate = NewAPIKeyGroupChannelRateClient(tx.config)
 	tx.APIKeyOperation = NewAPIKeyOperationClient(tx.config)
 	tx.APIKeyProfileTemplate = NewAPIKeyProfileTemplateClient(tx.config)
 	tx.BudgetAccount = NewBudgetAccountClient(tx.config)
