@@ -17,6 +17,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/tidwall/gjson"
 
 	"github.com/looplj/axonhub/llm/auth"
 	"github.com/looplj/axonhub/llm/httpclient"
@@ -499,7 +500,7 @@ func TestWebSocketExecutorReusesConnectionForSameSession(t *testing.T) {
 				require.Equal(t, "session-1", r.Header.Get(webSocketSessionHeader))
 				upgrades.Add(1)
 
-				conn, err := upgrader.Upgrade(w, r, nil)
+				conn, err := upgrader.Upgrade(w, r, http.Header{IndependentRequestsHeader: {"1"}})
 				require.NoError(t, err)
 				defer conn.Close()
 
@@ -789,34 +790,10 @@ func TestWebSocketExecutorKeepsConnectionForMatchingExplicitPreviousResponseID(t
 func TestPrepareWebSocketPayloadChecksExplicitPreviousIDWithEmptyCachedInput(t *testing.T) {
 	pooled := &pooledWebSocketConn{lastResponseID: "resp_cached"}
 	lease := &webSocketLease{pooled: pooled, reused: true}
-	payload := map[string]any{
-		"model":                "gpt-5",
-		"previous_response_id": "resp_other",
-		"input":                []any{map[string]any{"type": "message", "role": "user", "content": "next"}},
-	}
-
-	err := prepareWebSocketPayloadForLease(payload, lease)
+	payload, err := buildWebSocketCreatePayload([]byte(`{"model":"gpt-5","previous_response_id":"resp_other","input":[]}`))
+	require.NoError(t, err)
+	_, err = prepareWebSocketPayloadForLease(payload, lease, false)
 	require.ErrorIs(t, err, shared.ErrResponsesContinuationUnavailable)
-}
-
-func TestRestorePayloadMapRestoresMutatedPayload(t *testing.T) {
-	originalInput := []any{
-		map[string]any{"id": "user_1", "type": "message", "role": "user"},
-		map[string]any{"id": "user_2", "type": "message", "role": "user"},
-	}
-	payload := map[string]any{
-		"model": "gpt-5",
-		"input": originalInput,
-	}
-	original := clonePayloadMap(payload)
-
-	payload["input"] = []json.RawMessage{json.RawMessage(`{"id":"user_2","type":"message","role":"user"}`)}
-	payload["previous_response_id"] = "resp_1"
-	restorePayloadMap(payload, original)
-
-	require.Equal(t, "gpt-5", payload["model"])
-	require.Equal(t, originalInput, payload["input"])
-	require.NotContains(t, payload, "previous_response_id")
 }
 
 func TestWebSocketExecutorReconnectsWhenSuffixStartsWithAssistantOutput(t *testing.T) {
@@ -1200,7 +1177,7 @@ func TestWebSocketExecutorKeepsConnectionWhenInputExceedsRetainedLimit(t *testin
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		upgrades.Add(1)
 
-		conn, err := upgrader.Upgrade(w, r, nil)
+		conn, err := upgrader.Upgrade(w, r, http.Header{IndependentRequestsHeader: {"1"}})
 		require.NoError(t, err)
 		defer conn.Close()
 
@@ -1454,12 +1431,16 @@ func TestWebSocketExecutorDoesNotReplayAfterReusedSessionWriteFailure(t *testing
 	require.NotNil(t, pooled)
 	require.False(t, pooled.isClosed())
 	secondRequest := *request
+	secondRequest.TransportTrace = new(httpclient.TransportTrace)
 	secondRequest.OnReplayUnsafe = func() { _ = pooled.conn.Close() }
 	secondRequest.Body = []byte(`{"model":"gpt-5","input":[{"id":"first","type":"message"},{"id":"second","type":"message"}]}`)
 	second, err := executor.DoStream(ctx, &secondRequest)
 	require.Error(t, err, "a failed write on a reused session must be surfaced")
 	require.Contains(t, err.Error(), "failed to write response.create")
 	require.Nil(t, second)
+	require.ErrorIs(t, err, httpclient.ErrRequestMayHaveExecuted)
+	require.False(t, secondRequest.TransportTrace.UploadedBody())
+	require.Zero(t, secondRequest.TransportTrace.Snapshot().WebSocket.FrameBytes)
 	require.Equal(t, int32(1), upgrades.Load(),
 		"the request must not be resent on a new upstream connection")
 }
@@ -1748,4 +1729,183 @@ func TestWebSocketExecutorObservesHandshakeHeaders(t *testing.T) {
 	}
 	require.NoError(t, stream.Err())
 	require.Equal(t, 1, observed)
+}
+
+func TestWebSocketIndependentRequests(t *testing.T) {
+	for _, advertise := range []bool{true, false} {
+		t.Run(fmt.Sprintf("advertised_%t", advertise), func(t *testing.T) {
+			var upgrades, writes atomic.Int32
+			frames := make(chan []byte, 1)
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				require.Empty(t, r.Header.Get(IndependentRequestsHeader))
+				headers := http.Header{}
+				if advertise {
+					headers.Set(IndependentRequestsHeader, "1")
+				}
+				conn, err := new(websocket.Upgrader).Upgrade(w, r, headers)
+				require.NoError(t, err)
+				upgrades.Add(1)
+				defer conn.Close()
+				for {
+					_, msg, err := conn.ReadMessage()
+					if err != nil {
+						return
+					}
+					frames <- msg
+					reply := fmt.Sprintf(`{"type":"response.completed","response":{"status":"completed","id":"r%d","output":[]}}`, writes.Add(1))
+					require.NoError(t, conn.WriteMessage(websocket.TextMessage, []byte(reply)))
+				}
+			}))
+			defer server.Close()
+			e := NewWebSocketExecutor(nil)
+			defer e.Close()
+			ctx := shared.WithSessionID(webSocketTestContext(), "history")
+			headers := http.Header{}
+			headers.Set(IndependentRequestsHeader, "1") // Inbound headers cannot grant this capability.
+			send := func(input, expectedInput, previous, connection, reason string) {
+				t.Helper()
+				req := &httpclient.Request{URL: server.URL, Headers: headers, TransportTrace: new(httpclient.TransportTrace), Body: []byte(`{"model":"m","unknown_option":9007199254740993,"input":` + input + `}`)}
+				stream, err := e.DoStream(ctx, req)
+				require.NoError(t, err)
+				for stream.Next() {
+				}
+				require.NoError(t, stream.Err())
+				require.NoError(t, stream.Close())
+				frame := <-frames
+				require.Equal(t, "9007199254740993", gjson.GetBytes(frame, "unknown_option").Raw)
+				require.JSONEq(t, expectedInput, gjson.GetBytes(frame, "input").Raw)
+				id := gjson.GetBytes(frame, "previous_response_id")
+				require.Equal(t, previous != "", id.Exists())
+				require.Equal(t, previous, id.String())
+				got := req.TransportTrace.Snapshot().WebSocket
+				require.NotNil(t, got)
+				require.Equal(t, len(frame), got.FrameBytes)
+				require.Equal(t, reason, got.Reason)
+				require.Equal(t, connection, got.Connection)
+				mode := "full"
+				if previous != "" {
+					mode = "delta"
+				}
+				require.Equal(t, mode, got.Payload)
+				t.Logf("input %d bytes, message %d bytes, %s, %s", len(input), got.FrameBytes, got.Connection, got.Reason)
+			}
+			first := `[{"role":"user","content":"old"}]`
+			item := `{"role":"user","content":"` + strings.Repeat("b", 1<<20) + `"}`
+			next := `{"role":"user","content":"next"}`
+			send(first, first, "", "new", "first_use")
+			rewriteConn := "new"
+			if advertise {
+				rewriteConn = "reused"
+			}
+			send("["+item+"]", "["+item+"]", "", rewriteConn, "history_changed")
+			// An obsolete continuation must leave the newer completed turn available.
+			_, err := e.DoStream(ctx, &httpclient.Request{URL: server.URL, Headers: headers, Body: []byte(`{"previous_response_id":"r1","input":[]}`)})
+			require.ErrorIs(t, err, shared.ErrResponsesContinuationUnavailable)
+			send("["+item+","+next+"]", "["+next+"]", "r2", "reused", "matched_prefix")
+			send(`"new question"`, `"new question"`, "", rewriteConn, "non_array_input")
+			send(first, first, "", rewriteConn, "history_unavailable")
+			require.EqualValues(t, 5, writes.Load())
+			wantUpgrades := 1
+			if !advertise {
+				wantUpgrades = 4
+			}
+			require.EqualValues(t, wantUpgrades, upgrades.Load())
+		})
+	}
+}
+
+func TestIndependentRequestCapabilityIsScopedToEndpoint(t *testing.T) {
+	require.True(t, supportsIndependentRequests("wss://api.openai.com/v1/responses", nil))
+	for _, url := range []string{"ws://api.openai.com/v1/responses", "wss://api.openai.com.example/v1/responses", "wss://api.openai.com/other"} {
+		require.False(t, supportsIndependentRequests(url, nil))
+	}
+}
+
+func TestConcurrentHistoryRewritesOnConservativePeer(t *testing.T) {
+	var handshakes, writes atomic.Int32
+	dialStarted, resumeDial := make(chan struct{}), make(chan struct{})
+	ctx, cancel := context.WithTimeout(shared.WithSessionID(webSocketTestContext(), "shared"), 5*time.Second)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if handshakes.Add(1) == 2 {
+			close(dialStarted)
+			select {
+			case <-resumeDial:
+			case <-ctx.Done():
+				return
+			}
+		}
+		conn, err := new(websocket.Upgrader).Upgrade(w, r, nil)
+		if err != nil {
+			return
+		}
+		defer conn.Close()
+		for {
+			_, body, err := conn.ReadMessage()
+			if err != nil {
+				return
+			}
+			if gjson.GetBytes(body, "previous_response_id").Exists() {
+				t.Error("independent rewrite carried a previous response ID")
+			}
+			reply := fmt.Sprintf(`{"type":"response.completed","response":{"status":"completed","id":"r%d","output":[]}}`, writes.Add(1))
+			if conn.WriteMessage(websocket.TextMessage, []byte(reply)) != nil {
+				return
+			}
+		}
+	}))
+	defer server.Close()
+	defer cancel()
+	executor := NewWebSocketExecutor(nil)
+	defer executor.Close()
+	send := func(question string) error {
+		body := fmt.Sprintf(`{"model":"m","input":[{"role":"user","content":%q}]}`, question)
+		_, err := executor.Do(ctx, &httpclient.Request{URL: server.URL, Body: []byte(body)})
+		return err
+	}
+	require.NoError(t, send("first"))
+	pending := make(chan error, 1)
+	go func() {
+		defer func() {
+			if v := recover(); v != nil {
+				pending <- fmt.Errorf("concurrent request panicked: %v", v)
+			}
+		}()
+		pending <- send("rewritten A")
+	}()
+	select {
+	case <-dialStarted:
+	case <-ctx.Done():
+		t.Fatal(ctx.Err())
+	}
+	err := send("rewritten B")
+	close(resumeDial)
+	require.NoError(t, err)
+	require.NoError(t, <-pending)
+	require.EqualValues(t, 3, writes.Load())
+}
+
+func TestRestoredAndProviderManagedHistoryCannotInferContinuation(t *testing.T) {
+	pooled := &pooledWebSocketConn{independentRequests: true, lastResponseID: "old", lastInput: []json.RawMessage{json.RawMessage(`{"role":"user","content":"a"}`)}}
+	for _, tc := range []struct {
+		name     string
+		fields   string
+		restored bool
+	}{
+		{"restored", "", true},
+		{"conversation", `"conversation":{"id":"external"},`, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			input := `[{"role":"user","content":"a"},{"role":"user","content":"b"}]`
+			payload, err := buildWebSocketCreatePayload([]byte("{" + tc.fields + `"input":` + input + "}"))
+			require.NoError(t, err)
+			lease := &webSocketLease{pooled: pooled, reused: true}
+			_, err = prepareWebSocketPayloadForLease(payload, lease, tc.restored)
+			require.NoError(t, err)
+			require.NotContains(t, payload, "previous_response_id")
+			require.JSONEq(t, input, string(payload["input"]))
+			if tc.name == "conversation" {
+				require.Empty(t, lease.nextFullInput)
+			}
+		})
+	}
 }

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"math/rand/v2"
 	"sync"
 	"time"
 
@@ -172,7 +173,8 @@ func (t *executionTransport) record(ctx context.Context, failed bool) {
 	timings := t.trace.Snapshot()
 	slowUpload := timings.UploadMs != nil && *timings.UploadMs >= 2000
 	poolChanged := timings.PoolAction != "" && timings.PoolAction != "http1_preferred"
-	info := failed || largeRequest || slowUpload || timings.PoolRecovery != "" || poolChanged
+	sampleWS := timings.WebSocket != nil && (timings.WebSocket.CheckoutMs >= 2000 || rand.IntN(32) == 0)
+	info := failed || sampleWS || largeRequest || slowUpload || timings.PoolRecovery != "" || poolChanged
 	// Transport completion can precede decoding or aggregate-response failure.
 	// Permit a debug record to become visible at info once, without duplicates.
 	if t.recorded && (t.recordedInfo || !info) {

@@ -12,7 +12,12 @@ import (
 func (pc *pooledWebSocketConn) canContinue(id string, generation uint64, now time.Time, idleTTL, maxLifetime time.Duration) bool {
 	pc.mu.Lock()
 	defer pc.mu.Unlock()
-	return !pc.closed && pc.used && pc.generation == generation && pc.lastResponseID == id &&
+	return pc.generation == generation && pc.lastResponseID == id && pc.liveForContinuation(now, idleTTL, maxLifetime)
+}
+
+// Caller holds pc.mu.
+func (pc *pooledWebSocketConn) liveForContinuation(now time.Time, idleTTL, maxLifetime time.Duration) bool {
+	return !pc.closed && pc.used &&
 		(maxLifetime <= 0 || now.Sub(pc.createdAt) < maxLifetime) &&
 		(idleTTL <= 0 || now.Sub(pc.lastUsedAt) < idleTTL)
 }
@@ -20,8 +25,8 @@ func (pc *pooledWebSocketConn) canContinue(id string, generation uint64, now tim
 // An old ID has no meaning on a newly dialed store=false connection. Fail before
 // the handshake; the orchestrator can rebuild known history before dispatch.
 func (e *WebSocketExecutor) acquireContinuation(ctx context.Context, request *httpclient.Request, wsURL string, headers http.Header, id string) (*webSocketLease, error) {
-	key, ok := e.poolKey(ctx, request, wsURL, headers)
-	if !ok {
+	key, bypass := e.poolKey(ctx, request, wsURL, headers)
+	if bypass != "" {
 		return nil, shared.ResponsesRecoveryError()
 	}
 	e.mu.Lock()
@@ -33,9 +38,15 @@ func (e *WebSocketExecutor) acquireContinuation(ctx context.Context, request *ht
 	}
 	select {
 	case pc.inFlight <- struct{}{}:
-		if !pc.canContinue(id, pc.generation, time.Now(), e.idleTTL, e.maxLifetime) {
-			<-pc.inFlight
-			e.evict(pc)
+		pc.mu.Lock()
+		live := pc.liveForContinuation(time.Now(), e.idleTTL, e.maxLifetime)
+		matches := pc.lastResponseID == id
+		used := pc.used
+		pc.mu.Unlock()
+		if !live || !matches {
+			// A stale ID does not invalidate a healthy socket owned by a newer turn.
+			// An unused socket may also have been published by a concurrent dial.
+			e.releasePooled(pc, used && !live, false)
 			return nil, shared.ResponsesRecoveryError()
 		}
 		return &webSocketLease{conn: pc.conn, owner: e, pooled: pc, reused: true, generation: pc.generation}, nil

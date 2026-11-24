@@ -654,32 +654,9 @@ func normalizeResponseSessionItems(items []json.RawMessage) ([]json.RawMessage, 
 	normalized := make([]json.RawMessage, 0, len(items))
 	changed := false
 	for _, item := range items {
-		if !bytes.Contains(item, []byte(`"status"`)) && !bytes.Contains(item, []byte(`\`)) {
-			normalized = append(normalized, item)
-			continue
-		}
-		var object map[string]json.RawMessage
-		if json.Unmarshal(item, &object) != nil || object == nil {
-			normalized = append(normalized, cloneResponseSessionValue(item))
-			continue
-		}
-		if _, ok := object["status"]; !ok {
-			normalized = append(normalized, cloneResponseSessionValue(item))
-			continue
-		}
-		if responseSessionString(object["type"]) == "web_search_call" {
-			normalized = append(normalized, cloneResponseSessionValue(item))
-			continue
-		}
-
-		delete(object, "status")
-		encoded, err := json.Marshal(object)
-		if err != nil {
-			normalized = append(normalized, cloneResponseSessionValue(item))
-			continue
-		}
+		encoded, itemChanged := responses.NormalizeHistoryItem(item)
 		normalized = append(normalized, encoded)
-		changed = true
+		changed = changed || itemChanged
 	}
 	return normalized, changed
 }

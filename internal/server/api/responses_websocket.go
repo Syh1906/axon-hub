@@ -62,6 +62,7 @@ func serveResponsesWebSocket(
 	c.Request = c.Request.WithContext(ctx)
 
 	responseHeaders := c.Writer.Header().Clone()
+	responseHeaders.Set(responses.IndependentRequestsHeader, "1")
 	if c.Request.Header.Get(httpclient.AcceptBillingTierHeader) == "1" {
 		responseHeaders.Set(httpclient.BillingTierAckHeader, "1")
 	}
@@ -697,6 +698,7 @@ func responseWebSocketRequestHeaders(headers http.Header) http.Header {
 			result.Del(key)
 		}
 	}
+	result.Del(responses.IndependentRequestsHeader)
 	result.Del("Content-Encoding")
 	result.Del("Content-Length")
 	result.Set("Content-Type", "application/json")

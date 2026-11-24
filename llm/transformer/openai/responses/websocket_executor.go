@@ -28,6 +28,10 @@ import (
 	"github.com/looplj/axonhub/llm/transformer/shared"
 )
 
+// IndependentRequestsHeader advertises that a complete response.create without
+// a previous response ID starts an independent turn on this connection.
+const IndependentRequestsHeader = "X-Axonhub-Ws-Independent-Requests"
+
 const WebSocketBetaHeaderValue = "responses_websockets=2026-02-06"
 
 const (
@@ -263,11 +267,13 @@ func (e *WebSocketExecutor) DoStream(ctx context.Context, request *httpclient.Re
 		headers.Set(webSocketSessionHeader, lane.ID())
 	}
 
-	lease, err := e.acquireAndWrite(ctx, request, wsURL, headers, payload)
+	var timing httpclient.WebSocketTimings
+	defer func() { request.TransportTrace.RecordWebSocket(timing) }()
+	lease, err := e.acquireAndWrite(ctx, request, wsURL, headers, payload, &timing)
 	if errors.Is(err, shared.ErrResponsesContinuationUnavailable) {
-		// Both checkout and the lease's generation check run before WriteJSON.
-		// Rebuild only the original, unsent request. A peer's error frame or a
-		// failed WriteJSON never enters this path.
+		// Both checkout and the lease's generation check run before the business frame is written.
+		// Rebuild only the original, unsent request. A peer's error frame or an
+		// ambiguous write never enters this path.
 		if err := ctx.Err(); err != nil {
 			return nil, errors.Join(httpclient.ErrRequestNotSent, err)
 		}
@@ -284,7 +290,8 @@ func (e *WebSocketExecutor) DoStream(ctx context.Context, request *httpclient.Re
 		if err != nil || explicitPreviousResponseID(payload) != "" {
 			return nil, errors.Join(httpclient.ErrRequestNotSent, shared.ResponsesRecoveryError())
 		}
-		lease, err = e.acquireAndWrite(ctx, request, wsURL, headers, payload)
+		timing.Restored = true
+		lease, err = e.acquireAndWrite(ctx, request, wsURL, headers, payload, &timing)
 	}
 	if err != nil {
 		// A write failure is ambiguous: the upstream may already have accepted and
@@ -310,8 +317,8 @@ func (e *WebSocketExecutor) DoStream(ctx context.Context, request *httpclient.Re
 	return stream, nil
 }
 
-func (e *WebSocketExecutor) acquireAndWrite(ctx context.Context, request *httpclient.Request, wsURL string, headers http.Header, payload map[string]any) (*webSocketLease, error) {
-	lease, err := e.acquirePreparedLease(ctx, request, wsURL, headers, payload)
+func (e *WebSocketExecutor) acquireAndWrite(ctx context.Context, request *httpclient.Request, wsURL string, headers http.Header, payload webSocketCreatePayload, timing *httpclient.WebSocketTimings) (*webSocketLease, error) {
+	lease, err := e.acquirePreparedLease(ctx, request, wsURL, headers, payload, timing)
 	if err == nil {
 		if pc := lease.pooled; pc != nil {
 			if pc.firstHeaders != nil {
@@ -321,14 +328,14 @@ func (e *WebSocketExecutor) acquireAndWrite(ctx context.Context, request *httpcl
 				request.ObserveResponseHeaders(ctx, http.Header{httpclient.BillingTierAckHeader: {"1"}})
 			}
 		}
-		err = lease.write(ctx, payload, request.OnReplayUnsafe)
+		timing.FrameBytes, err = lease.write(ctx, payload, request.OnReplayUnsafe)
 		if err != nil {
 			lease.release(true)
 		}
 	}
 	if err != nil {
 		if !errors.Is(err, httpclient.ErrRequestMayHaveExecuted) {
-			// No business frame entered WriteJSON. Keep the handshake error
+			// No business frame was sent. Keep the handshake error
 			// available to the existing protocol-negotiation policy.
 			return nil, errors.Join(httpclient.ErrRequestNotSent, err)
 		}
@@ -398,18 +405,19 @@ type webSocketPoolKey struct {
 }
 
 type pooledWebSocketConn struct {
-	firstHeaders   http.Header // delivered once, under the inFlight lease
-	billingTierAck bool
-	key            webSocketPoolKey
-	conn           *websocket.Conn
-	inFlight       chan struct{}
-	createdAt      time.Time
-	lastUsedAt     time.Time
-	used           bool
-	readerDone     chan struct{}
-	readerExited   chan struct{}
-	readErr        error
-	readerLease    *webSocketLease
+	firstHeaders        http.Header // delivered once, under the inFlight lease
+	billingTierAck      bool
+	independentRequests bool
+	key                 webSocketPoolKey
+	conn                *websocket.Conn
+	inFlight            chan struct{}
+	createdAt           time.Time
+	lastUsedAt          time.Time
+	used                bool
+	readerDone          chan struct{}
+	readerExited        chan struct{}
+	readErr             error
+	readerLease         *webSocketLease
 
 	mu             sync.Mutex
 	closed         bool
@@ -427,6 +435,7 @@ type webSocketLease struct {
 	owner         *WebSocketExecutor
 	pooled        *pooledWebSocketConn
 	reused        bool
+	poolBypass    string
 	nextFullInput []json.RawMessage
 	once          sync.Once
 	generation    uint64
@@ -434,43 +443,65 @@ type webSocketLease struct {
 	frames        chan pooledWebSocketFrame
 }
 
-func (e *WebSocketExecutor) acquirePreparedLease(ctx context.Context, request *httpclient.Request, wsURL string, headers http.Header, payload map[string]any) (*webSocketLease, error) {
-	originalPayload := clonePayloadMap(payload)
+func (e *WebSocketExecutor) acquirePreparedLease(ctx context.Context, request *httpclient.Request, wsURL string, headers http.Header, payload webSocketCreatePayload, timing *httpclient.WebSocketTimings) (*webSocketLease, error) {
+	previous := explicitPreviousResponseID(payload)
 	var lease *webSocketLease
 	var err error
-	if id := explicitPreviousResponseID(payload); id != "" {
-		lease, err = e.acquireContinuation(ctx, request, wsURL, headers, id)
-	} else {
-		lease, err = e.acquire(ctx, request, wsURL, headers)
-	}
-	if err != nil {
-		return nil, err
-	}
-
-	lease.native = shared.IsResponsesWebSocket(ctx)
-	if err := prepareWebSocketPayloadForLease(payload, lease); err != nil {
-		lease.release(true)
-		var reconnectErr *webSocketReconnectRequiredError
-		if !errors.As(err, &reconnectErr) {
+	timing.Connection, timing.Payload = "", ""
+	var reconnectReason string
+	for {
+		if err := ctx.Err(); err != nil {
+			timing.Reason = "checkout_canceled"
 			return nil, err
 		}
-
-		restorePayloadMap(payload, originalPayload)
-		lease, err = e.acquire(ctx, request, wsURL, headers)
+		started := time.Now()
+		if previous != "" {
+			lease, err = e.acquireContinuation(ctx, request, wsURL, headers, previous)
+		} else {
+			lease, err = e.acquire(ctx, request, wsURL, headers)
+		}
+		timing.CheckoutMs += time.Since(started).Milliseconds()
 		if err != nil {
+			timing.Reason = "checkout_failed"
+			if errors.Is(err, shared.ErrResponsesContinuationUnavailable) {
+				timing.Reason = "continuation_unavailable"
+			}
 			return nil, err
 		}
 		lease.native = shared.IsResponsesWebSocket(ctx)
-		if err := prepareWebSocketPayloadForLease(payload, lease); err != nil {
-			lease.release(true)
+		timing.Reason, err = prepareWebSocketPayloadForLease(payload, lease, timing.Restored)
+		if err == nil {
+			if reconnectReason != "" && !lease.reused {
+				timing.Reason = reconnectReason
+			}
+			break
+		}
+		lease.release(true)
+		if !errors.Is(err, errWebSocketReconnectRequired) {
 			return nil, err
 		}
+		// Another turn may take the replacement before this one gets its slot.
+		// Recheck the acquired socket while this request is still unsent.
+		reconnectReason = timing.Reason
 	}
-	lease.native = shared.IsResponsesWebSocket(ctx)
+	switch {
+	case lease.pooled == nil:
+		timing.Connection = "unpooled"
+	case lease.reused:
+		timing.Connection = "reused"
+	default:
+		timing.Connection = "new"
+	}
+	timing.Payload = "full"
+	hasPreviousID := explicitPreviousResponseID(payload) != ""
+	if hasPreviousID {
+		timing.Payload = "delta"
+	}
 	if attempt := shared.GetResponsesAttempt(ctx); attempt != nil {
 		origin := attempt.Origin()
-		if explicitPreviousResponseID(payload) != "" && origin.Generation != 0 && origin.Generation != lease.generation {
-			lease.release(true)
+		if hasPreviousID && origin.Generation != 0 && origin.Generation != lease.generation {
+			timing.Reason = "generation_changed"
+			lease.release(false)
 			return nil, shared.ResponsesRecoveryError()
 		}
 		origin.Generation = lease.generation
@@ -495,35 +526,15 @@ func (e *WebSocketExecutor) acquirePreparedLease(ctx context.Context, request *h
 	return lease, nil
 }
 
-func clonePayloadMap(payload map[string]any) map[string]any {
-	if payload == nil {
-		return nil
-	}
-	clone := make(map[string]any, len(payload))
-	for key, value := range payload {
-		clone[key] = value
-	}
-	return clone
-}
-
-func restorePayloadMap(payload, original map[string]any) {
-	for key := range payload {
-		delete(payload, key)
-	}
-	for key, value := range original {
-		payload[key] = value
-	}
-}
-
 func (e *WebSocketExecutor) acquire(ctx context.Context, request *httpclient.Request, wsURL string, headers http.Header) (*webSocketLease, error) {
-	key, ok := e.poolKey(ctx, request, wsURL, headers)
-	if !ok {
+	key, bypass := e.poolKey(ctx, request, wsURL, headers)
+	if bypass != "" {
 		conn, handshake, err := e.dial(ctx, request, wsURL, headers)
 		if err != nil {
 			return nil, err
 		}
 		request.ObserveResponseHeaders(ctx, handshake)
-		return &webSocketLease{conn: conn}, nil
+		return &webSocketLease{conn: conn, poolBypass: bypass}, nil
 	}
 
 	for {
@@ -567,15 +578,16 @@ func (e *WebSocketExecutor) getOrDialPooled(ctx context.Context, request *httpcl
 	}
 
 	pc := &pooledWebSocketConn{
-		firstHeaders:   handshake,
-		billingTierAck: handshake.Get(httpclient.BillingTierAckHeader) == "1",
-		key:            key,
-		conn:           conn,
-		inFlight:       make(chan struct{}, 1),
-		createdAt:      now,
-		lastUsedAt:     now,
-		readerDone:     make(chan struct{}),
-		readerExited:   make(chan struct{}),
+		firstHeaders:        handshake,
+		billingTierAck:      handshake.Get(httpclient.BillingTierAckHeader) == "1",
+		independentRequests: supportsIndependentRequests(wsURL, handshake),
+		key:                 key,
+		conn:                conn,
+		inFlight:            make(chan struct{}, 1),
+		createdAt:           now,
+		lastUsedAt:          now,
+		readerDone:          make(chan struct{}),
+		readerExited:        make(chan struct{}),
 	}
 
 	e.mu.Lock()
@@ -639,9 +651,9 @@ func (e *WebSocketExecutor) dial(ctx context.Context, request *httpclient.Reques
 	return conn, resp.Header, nil
 }
 
-func (e *WebSocketExecutor) poolKey(ctx context.Context, request *httpclient.Request, wsURL string, headers http.Header) (webSocketPoolKey, bool) {
+func (e *WebSocketExecutor) poolKey(ctx context.Context, request *httpclient.Request, wsURL string, headers http.Header) (webSocketPoolKey, string) {
 	if policy := request.ResponsesWebSocket; policy != nil && policy.Probe {
-		return webSocketPoolKey{}, false
+		return webSocketPoolKey{}, "probe"
 	}
 	sessionID := strings.TrimSpace(headers.Get(webSocketSessionHeader))
 	if lane := shared.GetResponsesLane(ctx); lane != nil {
@@ -653,11 +665,11 @@ func (e *WebSocketExecutor) poolKey(ctx context.Context, request *httpclient.Req
 		}
 	}
 	if sessionID == "" {
-		return webSocketPoolKey{}, false
+		return webSocketPoolKey{}, "missing_session"
 	}
 	scope, ok := shared.GetSessionScope(ctx)
 	if !ok || strings.TrimSpace(scope) == "" {
-		return webSocketPoolKey{}, false
+		return webSocketPoolKey{}, "missing_scope"
 	}
 
 	key := webSocketPoolKey{
@@ -677,7 +689,7 @@ func (e *WebSocketExecutor) poolKey(ctx context.Context, request *httpclient.Req
 		origin := attempt.Origin()
 		key.ChannelID, key.Model = origin.ChannelID, origin.Model
 	}
-	return key, true
+	return key, ""
 }
 
 func headerPoolIdentity(headers http.Header) string {
@@ -728,6 +740,7 @@ var webSocketPoolIdentityExcludedHeaders = canonicalHeaderSet(
 	"Accept",
 	"Cache-Control",
 	"Connection",
+	IndependentRequestsHeader,
 
 	// Per-request observability headers must not shard the session pool.
 	"Baggage",
@@ -986,7 +999,7 @@ func (l *webSocketLease) release(evict bool) {
 		}
 		l.pooled.mu.Unlock()
 		if l.owner != nil {
-			l.owner.releasePooled(l.pooled, evict)
+			l.owner.releasePooled(l.pooled, evict, true)
 			return
 		}
 		if evict {
@@ -1001,7 +1014,7 @@ func (l *webSocketLease) release(evict bool) {
 	})
 }
 
-func (e *WebSocketExecutor) releasePooled(pc *pooledWebSocketConn, evict bool) {
+func (e *WebSocketExecutor) releasePooled(pc *pooledWebSocketConn, evict, used bool) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	retire := evict || e.closed || pc.isClosed()
@@ -1010,7 +1023,7 @@ func (e *WebSocketExecutor) releasePooled(pc *pooledWebSocketConn, evict bool) {
 	}
 	if retire {
 		pc.close()
-	} else {
+	} else if used {
 		pc.markUsed()
 	}
 	// Hand off the slot before Close inspects the pool, or shutdown can miss
@@ -1038,81 +1051,90 @@ func toWebSocketURL(rawURL string) (string, error) {
 	return u.String(), nil
 }
 
-type webSocketReconnectRequiredError struct{}
+var errWebSocketReconnectRequired = errors.New("websocket session context changed; reconnect and send full context")
 
-func (e *webSocketReconnectRequiredError) Error() string {
-	return "websocket session context changed; reconnect and send full context"
+func supportsIndependentRequests(wsURL string, handshake http.Header) bool {
+	return handshake.Get(IndependentRequestsHeader) == "1" ||
+		wsURL == "wss://api.openai.com/v1/responses" || wsURL == "wss://api.openai.com:443/v1/responses"
 }
 
-func prepareWebSocketPayloadForLease(payload map[string]any, lease *webSocketLease) error {
+type webSocketCreatePayload map[string]json.RawMessage
+
+func (lease *webSocketLease) independentRequest(reason string) (string, error) {
+	if lease.reused && !lease.pooled.independentRequests {
+		return reason, errWebSocketReconnectRequired
+	}
+	return reason, nil
+}
+
+func prepareWebSocketPayloadForLease(payload webSocketCreatePayload, lease *webSocketLease, restored bool) (string, error) {
 	if explicitID := explicitPreviousResponseID(payload); explicitID != "" {
-		if lease == nil || lease.pooled == nil || !lease.reused {
-			return shared.ResponsesRecoveryError()
+		if lease.pooled == nil || !lease.reused {
+			return "continuation_unavailable", shared.ResponsesRecoveryError()
 		}
 		lease.pooled.mu.Lock()
 		valid := !lease.pooled.closed && lease.pooled.generation == lease.generation && lease.pooled.lastResponseID == explicitID
 		lease.pooled.mu.Unlock()
 		if !valid {
-			return shared.ResponsesRecoveryError()
+			return "continuation_unavailable", shared.ResponsesRecoveryError()
 		}
-		return nil
+		return "explicit_previous_id", nil
 	}
-	if lease == nil || lease.pooled == nil {
-		return nil
+	if lease.pooled == nil {
+		return lease.poolBypass, nil
 	}
 	if lease.native {
-		return nil
+		return "native_request", nil
 	}
 
-	fullInput, ok, err := payloadInputItems(payload)
-	if err != nil {
-		return err
+	// A provider-managed conversation supplies history outside the input array.
+	// It cannot serve as the basis for an inferred previous_response_id.
+	if raw := payload["conversation"]; len(raw) != 0 && !bytes.Equal(raw, []byte("null")) {
+		return lease.independentRequest("provider_conversation")
 	}
-	if !ok {
-		return nil
+	var fullInput []json.RawMessage
+	input := payload["input"]
+	if len(input) == 0 || input[0] != '[' || json.Unmarshal(input, &fullInput) != nil {
+		return lease.independentRequest("non_array_input")
 	}
-	if !lease.native && (lease.owner == nil || rawMessagesSize(fullInput) <= lease.owner.maxRetainedInput) {
+	if lease.owner == nil || rawMessagesSize(fullInput) <= lease.owner.maxRetainedInput {
 		lease.nextFullInput = fullInput
 	}
-
+	if !lease.reused {
+		return "first_use", nil
+	}
 	previousInput, previousResponseID := lease.pooled.previousTurn()
-	if !lease.reused || previousResponseID == "" {
-		return nil
+	if len(previousInput) == 0 || previousResponseID == "" {
+		return lease.independentRequest("history_unavailable")
 	}
-	if explicitID := explicitPreviousResponseID(payload); explicitID != "" {
-		if explicitID != previousResponseID {
-			return &webSocketReconnectRequiredError{}
+
+	reason := "restored_history"
+	if !restored {
+		suffix, matched := inputSuffix(previousInput, fullInput)
+		switch {
+		case !matched:
+			reason = "history_changed"
+		case suffixStartsWithResponseOutput(suffix):
+			reason = "suffix_starts_with_output"
+		default:
+			input, err := json.Marshal(suffix)
+			if err != nil {
+				return "", err
+			}
+			id, _ := json.Marshal(previousResponseID) // A Go string is always JSON encodable.
+			payload["input"], payload["previous_response_id"] = input, id
+			return "matched_prefix", nil
 		}
-
-		// Native WebSocket clients send only the new input together with the
-		// response ID returned on this connection. Preserve that delta as-is.
-		return nil
 	}
-	if len(previousInput) == 0 {
-		return nil
-	}
-
-	suffix, ok := inputSuffix(previousInput, fullInput)
-	if !ok || len(suffix) == 0 || suffixStartsWithResponseOutput(suffix) {
-		return &webSocketReconnectRequiredError{}
-	}
-
-	payload["input"] = suffix
-	payload["previous_response_id"] = previousResponseID
-
-	return nil
+	return lease.independentRequest(reason)
 }
 
-func explicitPreviousResponseID(payload map[string]any) string {
-	value, ok := payload["previous_response_id"]
-	if !ok {
-		return ""
+func explicitPreviousResponseID(payload webSocketCreatePayload) string {
+	var id string
+	if raw := payload["previous_response_id"]; len(raw) > 0 {
+		_ = json.Unmarshal(raw, &id)
 	}
-	previousResponseID, ok := value.(string)
-	if !ok {
-		return ""
-	}
-	return strings.TrimSpace(previousResponseID)
+	return strings.TrimSpace(id)
 }
 
 func suffixStartsWithResponseOutput(suffix []json.RawMessage) bool {
@@ -1135,25 +1157,6 @@ func suffixStartsWithResponseOutput(suffix []json.RawMessage) bool {
 	return item.Role == "assistant"
 }
 
-func payloadInputItems(payload map[string]any) ([]json.RawMessage, bool, error) {
-	inputValue, ok := payload["input"]
-	if !ok || inputValue == nil {
-		return nil, false, nil
-	}
-
-	inputRaw, err := json.Marshal(inputValue)
-	if err != nil {
-		return nil, false, fmt.Errorf("failed to encode websocket input payload: %w", err)
-	}
-
-	var items []json.RawMessage
-	if err := json.Unmarshal(inputRaw, &items); err != nil {
-		return nil, false, nil
-	}
-
-	return items, true, nil
-}
-
 func inputSuffix(previous, current []json.RawMessage) ([]json.RawMessage, bool) {
 	if len(previous) >= len(current) {
 		return nil, false
@@ -1171,17 +1174,6 @@ func jsonRawEqual(a, b json.RawMessage) bool {
 	return bytes.Equal(a, b) || equalJSONValues(string(a), string(b))
 }
 
-func cloneRawMessages(src []json.RawMessage) []json.RawMessage {
-	if len(src) == 0 {
-		return nil
-	}
-	out := make([]json.RawMessage, len(src))
-	for i := range src {
-		out[i] = append(json.RawMessage(nil), src[i]...)
-	}
-	return out
-}
-
 func rawMessagesSize(messages []json.RawMessage) int {
 	total := 0
 	for _, msg := range messages {
@@ -1190,20 +1182,18 @@ func rawMessagesSize(messages []json.RawMessage) int {
 	return total
 }
 
-func buildWebSocketCreatePayload(body []byte) (map[string]any, error) {
-	payload := map[string]any{}
+func buildWebSocketCreatePayload(body []byte) (webSocketCreatePayload, error) {
+	payload := make(webSocketCreatePayload)
 	if len(body) > 0 {
-		decoder := json.NewDecoder(bytes.NewReader(body))
-		decoder.UseNumber()
-		if err := decoder.Decode(&payload); err != nil {
+		if err := json.Unmarshal(body, &payload); err != nil {
 			return nil, fmt.Errorf("failed to decode responses request body: %w", err)
 		}
-		if payload == nil || len(bytes.TrimSpace(body[decoder.InputOffset():])) != 0 {
-			return nil, errors.New("expected exactly one responses request object")
+		if payload == nil {
+			return nil, errors.New("expected a responses request object")
 		}
 	}
 
-	payload["type"] = "response.create"
+	payload["type"] = json.RawMessage(`"response.create"`)
 	delete(payload, "stream")
 	delete(payload, "background")
 
@@ -1228,9 +1218,10 @@ func applyWebSocketAuth(headers http.Header, auth *httpclient.AuthConfig) error 
 
 func managedWebSocketHeaders() map[string]struct{} {
 	return map[string]struct{}{
-		"Content-Length": {},
-		"Content-Type":   {},
-		"Host":           {},
+		IndependentRequestsHeader: {},
+		"Content-Length":          {},
+		"Content-Type":            {},
+		"Host":                    {},
 	}
 }
 
@@ -1350,21 +1341,7 @@ func (s *webSocketStream) Next() bool {
 			if responseID == "" {
 				evict = true
 			} else {
-				// Retaining the full input is a local cache optimization for
-				// future incremental sends. If the input exceeds the memory
-				// budget, keep the healthy WebSocket connection and let the
-				// next turn send full context instead of evicting the session.
-				if s.lease.native || (s.lease.owner != nil && len(msg) > s.lease.owner.maxRetainedInput) {
-					s.lease.nextFullInput = nil
-					s.lease.rememberTurn(responseID, nil)
-				} else {
-					if len(s.lease.nextFullInput) > 0 {
-						if _, ok := s.historyOutput.Complete([]byte(gjson.GetBytes(msg, "response").Raw)); !ok {
-							s.lease.nextFullInput = nil
-						}
-					}
-					s.lease.rememberTurn(responseID, responseOutputFromWebSocketEvent(msg))
-				}
+				s.rememberCompletedTurn(responseID, msg)
 			}
 		}
 		s.finish(evict)
@@ -1479,7 +1456,7 @@ func responseOutputFromWebSocketEvent(raw []byte) []json.RawMessage {
 		} `json:"response"`
 	}
 	_ = json.Unmarshal(raw, &payload)
-	return cloneRawMessages(payload.Response.Output)
+	return payload.Response.Output
 }
 
 func streamEventType(raw []byte) string {

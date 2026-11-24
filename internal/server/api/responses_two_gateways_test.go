@@ -15,6 +15,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gorilla/websocket"
 	"github.com/stretchr/testify/require"
 	"github.com/tidwall/gjson"
 
@@ -25,6 +26,9 @@ import (
 	"github.com/looplj/axonhub/internal/ent/usagelog"
 	"github.com/looplj/axonhub/internal/objects"
 	"github.com/looplj/axonhub/internal/server/biz"
+	"github.com/looplj/axonhub/internal/server/lifecycle"
+	"github.com/looplj/axonhub/internal/server/middleware"
+	"github.com/looplj/axonhub/internal/tracing"
 	"github.com/looplj/axonhub/llm/httpclient"
 )
 
@@ -276,5 +280,84 @@ func TestResponsesHTTPGatewaysNegotiatePerHop(t *testing.T) {
 		defer res.Body.Close()
 		require.Equal(t, 200, res.StatusCode)
 		require.Empty(t, res.Header.Get("Accept-Encoding"), "the supplier's own declaration must never leak across the disabled gateway")
+	})
+}
+
+func TestHTTPClientsRewriteHistoryAcrossTwoGateways(t *testing.T) {
+	const answer = `{"type":"message","id":"reply","role":"assistant","status":"completed","content":[{"type":"output_text","text":"ok"}]}`
+	inputs := make(chan string, 3)
+	var calls, upgrades atomic.Int32
+	supplier := responsesIntegrationServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		require.Equal(t, http.MethodPost, r.Method)
+		req, err := httpclient.ReadHTTPRequest(r)
+		require.NoError(t, err)
+		inputs <- gjson.GetBytes(req.Body, "input").Raw
+		require.False(t, gjson.GetBytes(req.Body, "previous_response_id").Exists())
+		w.Header().Set("Content-Type", "text/event-stream")
+		fmt.Fprint(w, `data: {"type":"response.output_item.added","output_index":0,"item":{"id":"reply","type":"message","role":"assistant","status":"in_progress","content":[]}}`+"\n\n")
+		fmt.Fprint(w, `data: {"type":"response.content_part.added","item_id":"reply","output_index":0,"content_index":0,"part":{"type":"output_text","text":""}}`+"\n\n")
+		fmt.Fprint(w, `data: {"type":"response.output_text.delta","item_id":"reply","output_index":0,"content_index":0,"delta":"ok"}`+"\n\n")
+		fmt.Fprintf(w, `data: {"type":"response.output_item.done","output_index":0,"item":%s}`+"\n\n", answer)
+		fmt.Fprintf(w, `data: {"type":"response.completed","response":{"id":"turn-%d","model":"synthetic-model","object":"response","status":"completed","output":[%s]}}`+"\n\n", calls.Add(1), answer)
+	}))
+	innerDB, innerHandlers, innerProject := newResponsesIntegrationFixture(t, supplier.URL)
+	shutdown := lifecycle.New()
+	inner := responsesIntegrationGateway(t, innerDB, innerHandlers, innerProject, shutdown)
+	counted := responsesIntegrationServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		require.True(t, websocket.IsWebSocketUpgrade(r))
+		upgrades.Add(1)
+		inner.Config.Handler.ServeHTTP(w, r)
+	}))
+	defer shutdown.Shutdown(nil)
+
+	t.Run("outer", func(t *testing.T) {
+		db, h, project := newResponsesIntegrationFixture(t, counted.URL, func(c *ent.ChannelCreate) {
+			c.SetEndpoints([]objects.ChannelEndpoint{{APIFormat: "openai/responses"}, {APIFormat: "openai/responses-ws"}})
+			c.SetSettings(&objects.ChannelSettings{ResponsesTransportMode: objects.ResponsesTransportWSOnly})
+		})
+		router := responsesFixtureRouter(db, project)
+		rs := h.ResponseCompletionHandlers.ChatCompletionOrchestrator.RequestService
+		router.Use(middleware.WithInferenceBody(rs.PayloadService), middleware.WithTrace(tracing.Config{CodexTraceEnabled: true}, biz.NewTraceService(biz.TraceServiceParams{Ent: db, RequestService: rs})))
+		router.POST("/v1/responses", h.CreateResponse)
+		site := responsesIntegrationServer(t, router)
+		ctx := authz.WithTestBypass(ent.NewContext(t.Context(), innerDB))
+		var previousItem, previousAnswer string
+		for i, input := range []string{"old-question", "fresh-question", "follow-up"} {
+			item := `{"type":"message","role":"user","content":[{"type":"input_text","text":"` + input + `"}]}`
+			itemsJSON := item
+			if i == 2 {
+				itemsJSON = previousItem + "," + previousAnswer + "," + item
+			}
+			body := `{"model":"synthetic-model","input":[` + itemsJSON + `]}`
+			req, err := http.NewRequestWithContext(t.Context(), http.MethodPost, site.URL+"/v1/responses", strings.NewReader(body))
+			require.NoError(t, err)
+			req.Header.Set("Session_id", "rewrite-session")
+			req.Header.Set("Content-Type", "application/json")
+			res, err := site.Client().Do(req)
+			require.NoError(t, err)
+			data, err := io.ReadAll(res.Body)
+			require.NoError(t, res.Body.Close())
+			require.NoError(t, err)
+			require.Equal(t, http.StatusOK, res.StatusCode, string(data))
+			require.Equal(t, fmt.Sprintf("turn-%d", i+1), gjson.GetBytes(data, "id").String(), string(data))
+			items := gjson.Parse(<-inputs).Array()
+			if i < 2 {
+				require.Len(t, items, 1)
+			} else {
+				require.Len(t, items, 3)
+				require.Equal(t, "fresh-question", items[0].Get("content.0.text").String())
+				require.Equal(t, "reply", items[1].Get("id").String())
+				last := innerDB.Request.Query().Order(ent.Desc(request.FieldID)).FirstX(ctx)
+				received, err := innerHandlers.ResponseCompletionHandlers.ChatCompletionOrchestrator.RequestService.LoadRequestBody(ctx, last)
+				require.NoError(t, err)
+				require.Equal(t, "turn-2", gjson.GetBytes(received, "previous_response_id").String(), "inner gateway must receive a delta")
+				require.Len(t, gjson.GetBytes(received, "input").Array(), 1)
+			}
+			require.Equal(t, input, items[len(items)-1].Get("content.0.text").String())
+			previousItem, previousAnswer = item, gjson.GetBytes(data, "output.0").Raw
+			require.NotEmpty(t, previousAnswer, string(data))
+		}
+		require.EqualValues(t, 1, upgrades.Load())
+		require.EqualValues(t, 3, calls.Load())
 	})
 }

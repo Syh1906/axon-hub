@@ -45,6 +45,26 @@ type TransportTrace struct {
 	verifyUpload       func() bool
 	rejectProtocol     func()
 	finishProtocol     func(time.Time)
+	webSocket          *WebSocketTimings
+}
+
+// WebSocketTimings describes the upstream response.create message. Checkout
+// includes dialing and waiting for the existing session's current turn to end.
+type WebSocketTimings struct {
+	Connection string `json:"connection,omitempty"`
+	Reason     string `json:"reason,omitempty"`
+	Payload    string `json:"payload,omitempty"`
+	CheckoutMs int64  `json:"checkout_ms"`
+	FrameBytes int    `json:"frame_bytes,omitempty"`
+	Restored   bool   `json:"restored_before_write,omitempty"`
+}
+
+func (t *TransportTrace) RecordWebSocket(timings WebSocketTimings) {
+	if t != nil {
+		t.mu.Lock()
+		t.webSocket = &timings
+		t.mu.Unlock()
+	}
 }
 
 // FinishProtocolObservation receives the first meaningful upstream output of a
@@ -61,6 +81,7 @@ func (t *TransportTrace) FinishProtocolObservation(first time.Time) {
 
 // TransportTimings uses nullable durations: absent evidence is not zero latency.
 type TransportTimings struct {
+	WebSocket          *WebSocketTimings   `json:"websocket,omitempty"`
 	StreamStart        *StreamStartTimings `json:"stream_start,omitempty"`
 	WireBodyBytes      int64               `json:"wire_body_bytes,omitempty"`
 	ZstdEncoded        bool                `json:"zstd_encoded,omitempty"`
@@ -260,6 +281,7 @@ func (t *TransportTrace) Snapshot() TransportTimings {
 		return new(b.Sub(a).Milliseconds())
 	}
 	return TransportTimings{
+		WebSocket:     t.webSocket,
 		StreamStart:   t.streamStart.snapshot(),
 		WireBodyBytes: t.wireBytes, ZstdEncoded: t.zstdEncoded, EncodeMs: t.encodeDuration.Milliseconds(),
 		HTTPObserved:     !t.times[TransportStarted].IsZero(),

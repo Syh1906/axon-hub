@@ -12,6 +12,30 @@ import (
 	"github.com/tidwall/sjson"
 )
 
+// NormalizeHistoryItem converts an item to the representation accepted in HTTP
+// Responses history. Web search calls retain their protocol-defined status.
+// Unchanged items share the caller's bytes.
+func NormalizeHistoryItem(item json.RawMessage) (json.RawMessage, bool) {
+	if !bytes.Contains(item, []byte(`"status"`)) && !bytes.Contains(item, []byte(`\`)) {
+		return item, false
+	}
+	var fields map[string]json.RawMessage
+	if json.Unmarshal(item, &fields) != nil || fields["status"] == nil {
+		return item, false
+	}
+	var kind string
+	_ = json.Unmarshal(fields["type"], &kind)
+	if kind == "web_search_call" {
+		return item, false
+	}
+	delete(fields, "status")
+	normalized, err := json.Marshal(fields)
+	if err != nil {
+		return item, false
+	}
+	return normalized, true
+}
+
 // HistoryOutput tracks output indexes actually emitted before the terminal.
 // The transport needs only digests. A history owner may also retain completed
 // items, within its existing budget, to repair a sparse relay terminal.

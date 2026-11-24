@@ -4,7 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"time"
+
+	"github.com/gorilla/websocket"
 
 	"github.com/looplj/axonhub/llm/httpclient"
 	"github.com/looplj/axonhub/llm/transformer/shared"
@@ -30,21 +33,32 @@ func isWebSocketRecoveryEvent(raw []byte) bool {
 	return json.Unmarshal(raw, &event) == nil && (event.Code == "previous_response_not_found" || event.Error.Code == "previous_response_not_found")
 }
 
-func (l *webSocketLease) write(ctx context.Context, payload map[string]any, onWrite func()) error {
+type webSocketMessageWriter struct {
+	io.Writer
+	bytes int
+}
+
+func (w *webSocketMessageWriter) Write(p []byte) (int, error) {
+	n, err := w.Writer.Write(p)
+	w.bytes += n
+	return n, err
+}
+
+func (l *webSocketLease) write(ctx context.Context, payload webSocketCreatePayload, onWrite func()) (int, error) {
 	if l.pooled != nil {
 		l.pooled.mu.Lock()
 		defer l.pooled.mu.Unlock()
 		if l.pooled.closed || l.pooled.generation != l.generation {
-			return shared.ResponsesRecoveryError()
+			return 0, shared.ResponsesRecoveryError()
 		}
 		if id := explicitPreviousResponseID(payload); id != "" && id != l.pooled.lastResponseID {
-			return shared.ResponsesRecoveryError()
+			return 0, shared.ResponsesRecoveryError()
 		}
 		l.frames = make(chan pooledWebSocketFrame)
 		l.pooled.readerLease = l
 	}
 	if err := ctx.Err(); err != nil {
-		return err
+		return 0, err
 	}
 	stop := context.AfterFunc(ctx, func() { _ = l.conn.Close() })
 	defer stop()
@@ -53,13 +67,23 @@ func (l *webSocketLease) write(ctx context.Context, payload map[string]any, onWr
 		deadline = expires
 	}
 	if err := l.conn.SetWriteDeadline(deadline); err != nil {
-		return err
+		return 0, err
 	}
 	if onWrite != nil {
 		onWrite()
 	}
-	if err := l.conn.WriteJSON(payload); err != nil {
-		return fmt.Errorf("%w: failed to write response.create: %w", httpclient.ErrRequestMayHaveExecuted, err)
+	writer, err := l.conn.NextWriter(websocket.TextMessage)
+	if err != nil {
+		return 0, fmt.Errorf("%w: failed to open response.create writer: %w", httpclient.ErrRequestMayHaveExecuted, err)
 	}
-	return nil
+	counted := webSocketMessageWriter{Writer: writer}
+	err = json.NewEncoder(&counted).Encode(payload)
+	closeErr := writer.Close()
+	if err == nil {
+		err = closeErr
+	}
+	if err != nil {
+		return 0, fmt.Errorf("%w: failed to write response.create: %w", httpclient.ErrRequestMayHaveExecuted, err)
+	}
+	return counted.bytes, nil
 }
