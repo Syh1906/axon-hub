@@ -128,8 +128,7 @@
       ],
       "input_modalities": [
         "text",
-        "image",
-        "audio"
+        "image"
       ],
       "supports_search_tool": true,
       "supports_experimental_context": false,

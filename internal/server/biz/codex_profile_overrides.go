@@ -14,23 +14,13 @@ import (
 	"github.com/looplj/axonhub/llm"
 )
 
-func (a *publicCatalogArchive) minimumClientVersion(entry map[string]any) string {
-	if minimum, _ := entry["minimal_client_version"].(string); minimum != "" {
-		return minimum
-	}
-	if a.source() != "official" {
-		return a.ClientVersion
-	}
-	return ""
-}
-
 func snapshotCodexProfile(snapshot *codexSnapshot, modelID string) *codexModelProfile {
 	if snapshot == nil {
 		return nil
 	}
 	if snapshot.public != nil {
 		entry := snapshot.public.models[modelID]
-		minimum := snapshot.public.minimumClientVersion(entry)
+		minimum, _ := entry["minimal_client_version"].(string)
 		kind := "official_public"
 		if snapshot.public.source() != "official" {
 			kind = importedCatalogKind

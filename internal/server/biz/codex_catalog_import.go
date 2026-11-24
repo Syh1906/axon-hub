@@ -110,11 +110,10 @@ func catalogChanges(previous, next *publicCatalogArchive) []CatalogChange {
 			}
 		}
 		var minimumVersion *catalogVersionChange
-		if from, to := previous.minimumClientVersion(old), next.minimumClientVersion(m); from != to {
+		from, _ := old["minimal_client_version"].(string)
+		to, _ := m["minimal_client_version"].(string)
+		if from != to {
 			minimumVersion = &catalogVersionChange{From: from, To: to}
-			if !slices.Contains(fields, "minimal_client_version") {
-				fields = append(fields, "minimal_client_version")
-			}
 		}
 		if len(fields) > 0 {
 			slices.Sort(fields)

@@ -1,6 +1,7 @@
 package biz
 
 import (
+	"bytes"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -77,7 +78,7 @@ func TestCatalogImportSwitchesOnlyAfterMatchingPreview(t *testing.T) {
 	require.NoError(t, svc.CheckPublicCatalog(ctx))
 	require.Equal(t, count, customCalls)
 	require.Zero(t, officialCalls)
-	require.Nil(t, snapshotCodexProfile(svc.Load(ctx, "0.170.0", ""), "test-model"))
+	require.NotNil(t, snapshotCodexProfile(svc.Load(ctx, "0.170.0", ""), "test-model"))
 	require.NotContains(t, string(svc.public.archive.Body), "omit-me")
 	restarted, err := NewCodexSnapshotService(CodexCatalogConfig{Offline: true}, db)
 	require.NoError(t, err)
@@ -451,24 +452,17 @@ func TestRepositoryCatalogServesKeyScopedModelAndSpeed(t *testing.T) {
 	ctx, db, models, channels, _ := setupListEnabledModelsTest(t)
 	file, err := os.ReadFile("../../../catalogs/codex/models.json")
 	require.NoError(t, err)
-	var source struct {
-		ClientVersion string           `json:"client_version"`
-		Models        []map[string]any `json:"models"`
-	}
-	require.NoError(t, json.Unmarshal(file, &source))
-	require.GreaterOrEqual(t, len(source.Models), 2)
-	base := source.Models[0]
-	slug := base["slug"].(string)
-	other := source.Models[1]["slug"].(string)
-	svc, err := NewCodexSnapshotService(CodexCatalogConfig{Offline: true}, db)
+	const slug, other = "gpt-6.2-sol", "gpt-6.2-astra"
+	svc, err := NewCodexSnapshotService(CodexCatalogConfig{}, db)
 	require.NoError(t, err)
 	models.codexSnapshots = svc
-	in := CatalogImport{Source: "manual", Catalog: file}
-	preview, err := svc.ImportCatalog(ctx, in, false)
-	require.NoError(t, err)
-	in.Preview = preview.Revision
-	_, err = svc.ImportCatalog(ctx, in, true)
-	require.NoError(t, err)
+	svc.catalogTransport = snapshotTransport(func(*http.Request) (*http.Response, error) {
+		return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(bytes.NewReader(file))}, nil
+	})
+	applyTestCatalog(t, ctx, svc, CatalogImport{Source: "url", Subscribe: true, URL: "https://catalog.example.invalid/models.json"})
+	source := svc.cachedPublicState().archive
+	base := source.models[slug]
+	require.Equal(t, []any{"text", "image"}, base["input_modalities"])
 	ch := db.Channel.Create().SetName("fast").SetType(channel.TypeOpenaiResponses).SetSupportedModels([]string{slug, other}).
 		SetDefaultTestModel(slug).SetBaseURL("https://example.invalid").SetStatus(channel.StatusEnabled).
 		SetEndpoints([]objects.ChannelEndpoint{{APIFormat: "openai/responses", CatalogJSON: []byte(strings.ReplaceAll(catalogFixture, "test-model", slug))}}).
@@ -502,10 +496,24 @@ func TestRepositoryCatalogServesKeyScopedModelAndSpeed(t *testing.T) {
 		values, _ := got[field].([]any)
 		require.Equal(t, expected, append([]any{}, values...), field)
 	}
+	t.Run("older client gets Astra even when the channel only describes Sol", func(t *testing.T) {
+		astraKey := &ent.APIKey{Profiles: &objects.APIKeyProfiles{
+			ActiveProfile: "astra",
+			Profiles:      []objects.APIKeyProfile{{Name: "astra", ModelIDs: []string{other}, ChannelIDs: []int{ch.ID}}},
+		}}
+		raw, omitted, err := NewCodexCatalogService(models, channels).Models(contexts.WithAPIKey(ctx, astraKey), "0.166.0")
+		require.NoError(t, err)
+		require.Zero(t, omitted)
+		entries, err := parseCodexCatalog(raw)
+		require.NoError(t, err)
+		require.Len(t, entries, 1)
+		require.Contains(t, entries, other)
+		require.Equal(t, importedCatalogKind, entries[other]["axonhub_catalog"].(map[string]any)["source"])
+	})
 	t.Run("model page inputs override the imported repository entry", func(t *testing.T) {
 		configured := db.Model.Query().Where(model.ModelIDEQ(slug)).OnlyX(ctx)
 		_, err := models.UpdateModel(ctx, configured.ID, &ent.UpdateModelInput{ModelCard: &objects.ModelCard{
-			Modalities: objects.ModelCardModalities{Input: []string{"text", "image", "pdf"}},
+			Modalities: objects.ModelCardModalities{Input: []string{"text", "pdf"}},
 		}})
 		require.NoError(t, err)
 		body, omitted, err := NewCodexCatalogService(models, channels).Models(contexts.WithAPIKey(ctx, key), source.ClientVersion)
@@ -513,7 +521,7 @@ func TestRepositoryCatalogServesKeyScopedModelAndSpeed(t *testing.T) {
 		require.Zero(t, omitted)
 		entries, err := parseCodexCatalog(body)
 		require.NoError(t, err)
-		require.Equal(t, []any{"text", "image"}, entries[slug]["input_modalities"])
+		require.Equal(t, []any{"text"}, entries[slug]["input_modalities"])
 	})
 	t.Run("only channel denies Responses clients", func(t *testing.T) {
 		ch.Settings.ProtocolPolicy = &objects.ChannelProtocolPolicy{AllowedProtocols: []string{"openai/chat_completions"}}

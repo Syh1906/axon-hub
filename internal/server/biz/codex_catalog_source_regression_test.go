@@ -52,7 +52,7 @@ func TestImportedCatalogServesOlderClientsFromLocalRelease(t *testing.T) {
 		t.Fatal("unexpected remote official fetch")
 		return nil, nil
 	})
-	body := strings.Replace(strings.ReplaceAll(catalogFixture, "test-model", slug), `{"models":`, `{"client_version":"0.171.0","models":`, 1)
+	body := strings.Replace(strings.ReplaceAll(catalogFixture, "test-model", slug), `"slug":`, `"minimal_client_version":"0.171.0","slug":`, 1)
 	applyTestCatalog(t, ctx, svc, CatalogImport{Source: "manual", Catalog: json.RawMessage(body)})
 	for _, tc := range []struct{ client, source, release string }{{"0.167.0", "official_snapshot", "0.167.0"}, {"0.170.0", "official_snapshot", "0.169.0"}, {"0.171.0", "imported_catalog", ""}} {
 		raw, omitted, err := NewCodexCatalogService(models, channels).Models(ctx, tc.client)
@@ -92,6 +92,7 @@ func TestCatalogSubscriptionReportsEffectiveVersionChange(t *testing.T) {
 	input := CatalogImport{Source: "url", Subscribe: true, URL: "https://catalog.example.invalid/models.json"}
 	applyTestCatalog(t, ctx, svc, input)
 	fixture.Version = "0.172.0"
+	other["minimal_client_version"] = "0.168.0"
 	require.NoError(t, svc.CheckPublicCatalog(ctx))
 	status, err := svc.PublicStatus(ctx)
 	require.NoError(t, err)
@@ -99,9 +100,9 @@ func TestCatalogSubscriptionReportsEffectiveVersionChange(t *testing.T) {
 	p, err := svc.ImportCatalog(ctx, input, false)
 	require.NoError(t, err)
 	require.Len(t, p.Changes, 1)
-	require.Equal(t, "test-model", p.Changes[0].Slug)
+	require.Equal(t, "explicit", p.Changes[0].Slug)
 	require.Equal(t, []string{"minimal_client_version"}, p.Changes[0].Fields)
-	require.Equal(t, &catalogVersionChange{From: "0.171.0", To: "0.172.0"}, p.Changes[0].MinimumVersion)
+	require.Equal(t, &catalogVersionChange{From: "0.167.0", To: "0.168.0"}, p.Changes[0].MinimumVersion)
 	require.Equal(t, "0.171.0", svc.cachedPublicState().archive.ClientVersion)
 }
 
