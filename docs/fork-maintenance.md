@@ -4,6 +4,17 @@
 
 本次从 fork.24 升级。项目用量和排行榜的可见行随附模型明细，大榜单按期间排名分页。启动时自动新增分组和密钥渠道倍率表、计费快照与相应索引。部署时核对结构、旧账保留和默认继承行为。
 
+[fork.25 正式版](https://github.com/Syh1906/axon-hub/releases/tag/v1.0.0-rc1-fork.25)对应源码 `7685a56b2fad0d2ff7b8313e9ab2825b639f1b2c`。[Test](https://github.com/Syh1906/axon-hub/actions/runs/45343074484)、[Build](https://github.com/Syh1906/axon-hub/actions/runs/45343074475)、[Lint](https://github.com/Syh1906/axon-hub/actions/runs/45343074371) 和 [Govulncheck](https://github.com/Syh1906/axon-hub/actions/runs/45343074434) 均通过。[发布工作流](https://github.com/Syh1906/axon-hub/actions/runs/45343867036)在 PostgreSQL 上验证启动后发布了 Linux amd64、arm64 镜像及 `release.json`。两站均使用清单中的固定镜像摘要 `sha256:5c866f3f410e9459a8886c9539670eaad16a7e6250cdf08c5501f4ea2cac4849`。
+
+| 站点 | 恢复健康（11 月 24 日，新加坡时间） | 重建应用至健康 | 切换前采到的在途请求及最终状态 | 恢复后新建的 API 请求 |
+| --- | --- | --- | --- | --- |
+| 云悠 | 15:03:13 | 6.855 秒 | 0 笔 | 截至 15:07:07，16 笔完成 |
+| 泉哥 | 15:06:32 | 42.433 秒 | 6 笔，其中 4 笔取消、2 笔失败 | 截至 15:07:13，10 笔完成、3 笔处理中 |
+
+两站的 PostgreSQL 容器持续运行。每站核实了两张倍率表、11 个新增字段、7 个有效索引，倍率规则均为空。每站抽查一笔升级前用量，Token 数和费用一致。本机与公网版本、初始化状态、首页引用的 34 个静态资源、匿名接口鉴权及预检请求均通过。应用意外重启和启动致命错误均为 0。生产验收未使用管理员身份测量统计页首屏或点击展开的耗时。
+
+本轮临时配置副本已清理，未创建数据库备份。两站保留 fork.24 镜像。回退前须核对已保存的倍率和在途请求，并禁用旧版自动迁移，以保留新增字段和索引。
+
 ### 渠道级 Responses 上游传输策略
 
 维护渠道请求设置时，核对自动、优先 WS 和仅 WS 的保存回读、普通 HTTP 客户端的首次 WS 转发、握手失败的 HTTP 回退边界，以及后台请求与压缩接口。已有渠道默认使用自动模式。参见[渠道管理](zh/guides/channel-management.md)。

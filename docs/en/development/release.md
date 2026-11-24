@@ -1,5 +1,7 @@
 # Independent releases and upstream maintenance
 
+On 2026-11-24, both production sites upgraded from fork.24 to [fork.25](https://github.com/Syh1906/axon-hub/releases/tag/v1.0.0-rc1-fork.25). Each site verified the new channel rate tables, billing columns and indexes, and checked a pre-upgrade usage record. The applications took 6.855 and 42.433 seconds to rebuild and report healthy. The [maintenance ledger](../../fork-maintenance.md) records the outcomes of in-flight requests and the conditions for rolling back.
+
 Both production sites upgraded to [fork.24](https://github.com/Syh1906/axon-hub/releases/tag/v1.0.0-rc1-fork.24) on 2026-11-24. The release aligns refresh behavior on the API key and group usage pages and requires no database migration. The [maintenance ledger](../../fork-maintenance.md) records the pinned image digest, health checks and request counts after each switch.
 
 Both production sites upgraded to [fork.23](https://github.com/Syh1906/axon-hub/releases/tag/v1.0.0-rc1-fork.23) on 2026-11-23. The archive index on `request_id` was verified on each database. The [maintenance ledger](../../fork-maintenance.md) records how long each application took to rebuild and reach healthy status, and what happened to requests in flight during each switch.
