@@ -20,6 +20,13 @@ func ValidateChannelResponseTimeouts(settings *objects.ChannelSettings) error {
 	return nil
 }
 
+func (c *Channel) ResponsesTransportMode() objects.ResponsesTransportMode {
+	if c.Settings == nil || c.Settings.ResponsesTransportMode == "" {
+		return objects.ResponsesTransportAuto
+	}
+	return c.Settings.ResponsesTransportMode
+}
+
 func (c *Channel) SessionReuseEnabled() bool {
 	return c.Settings == nil || !c.Settings.DisableSessionReuse
 }

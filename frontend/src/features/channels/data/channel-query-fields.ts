@@ -36,6 +36,7 @@ export const CHANNEL_QUERY_FULL_NODE_SELECTION = `
             healthGateFailureThreshold
             streamFirstEventTimeoutSeconds
             nonStreamResponseTimeoutSeconds
+            responsesTransportMode
             disableSessionReuse
             adaptedCapabilities
             disabledEndpoints
@@ -196,6 +197,7 @@ export const CHANNEL_QUERY_LIST_NODE_BASE_SELECTION = `
             healthGateFailureThreshold
             streamFirstEventTimeoutSeconds
             nonStreamResponseTimeoutSeconds
+            responsesTransportMode
             disableSessionReuse
             adaptedCapabilities
             disabledEndpoints
@@ -241,6 +243,7 @@ export const CHANNEL_QUERY_PROXY_SELECTION = `
             healthGateFailureThreshold
             streamFirstEventTimeoutSeconds
             nonStreamResponseTimeoutSeconds
+            responsesTransportMode
             disableSessionReuse
             adaptedCapabilities
             disabledEndpoints

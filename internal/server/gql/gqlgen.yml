@@ -313,6 +313,8 @@ models:
     fields:
       modelPriceMultiplier:
         fieldName: ModelPriceMultiplier
+  ResponsesTransportMode:
+    model: github.com/looplj/axonhub/internal/objects.ResponsesTransportMode
   ResponsesServiceTierOverride:
     model: github.com/looplj/axonhub/internal/objects.ResponsesServiceTierOverride
   ResponsesTierSupport:

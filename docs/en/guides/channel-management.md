@@ -495,6 +495,8 @@ Anthropic prompt caches expire after 5 minutes by default. In human-agent collab
 
 Open **Request settings** from a channel row's action menu.
 
+Enable the channel’s Responses WebSocket endpoint to choose its upstream transport in Request settings. Automatic uses recent model verification. Prefer WebSocket lets ordinary HTTP requests try WS after verification expires and allows HTTP fallback after eligible handshake failures before dispatch. WebSocket only requires WS for ordinary Responses requests. Background jobs and the compact endpoint continue to use HTTP.
+
 - **Stream first response timeout** waits for the first upstream stream event. It does not limit later event gaps or specifically measure the first visible token.
 - **Non-stream response timeout** waits for the complete non-streaming response.
 - **Request tier (Responses)** defaults to **Use supported tiers** with Fast and Ultrafast unchecked and downgrades allowed. Alternatively, force standard, Fast or Ultrafast.

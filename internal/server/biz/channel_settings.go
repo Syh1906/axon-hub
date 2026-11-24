@@ -53,6 +53,7 @@ type UpdateChannelSettingsInput struct {
 	ResponsesTierSupport            *objects.ResponsesTierSupport         `json:"responsesTierSupport"`
 	StreamFirstEventTimeoutSeconds  *int                                  `json:"streamFirstEventTimeoutSeconds"`
 	NonStreamResponseTimeoutSeconds *int                                  `json:"nonStreamResponseTimeoutSeconds"`
+	ResponsesTransportMode          *objects.ResponsesTransportMode       `json:"responsesTransportMode"`
 	DisableSessionReuse             *bool                                 `json:"disableSessionReuse"`
 	AdaptedCapabilities             []string                              `json:"adaptedCapabilities,omitempty"`
 	DisabledEndpoints               []string                              `json:"disabledEndpoints,omitempty"`
@@ -112,6 +113,9 @@ func (i *UpdateChannelSettingsInput) Apply(base *objects.ChannelSettings) object
 	}
 	if i.NonStreamResponseTimeoutSeconds != nil {
 		merged.NonStreamResponseTimeoutSeconds = i.NonStreamResponseTimeoutSeconds
+	}
+	if i.ResponsesTransportMode != nil {
+		merged.ResponsesTransportMode = *i.ResponsesTransportMode
 	}
 	if i.DisableSessionReuse != nil {
 		merged.DisableSessionReuse = *i.DisableSessionReuse
@@ -289,6 +293,9 @@ func validateUpdatedChannelSettings(settings *objects.ChannelSettings, effective
 	if err := settings.ServiceTierBilling.Validate(); err != nil {
 		return err
 	}
+	if err := settings.ResponsesTransportMode.Validate(); err != nil {
+		return err
+	}
 	if err := settings.ResponsesServiceTierOverride.Validate(); err != nil {
 		return err
 	}
@@ -314,6 +321,9 @@ func mergeUpdatedChannelSettings(input, stored *objects.ChannelSettings) objects
 	settings.KeySettings = nil
 	settings.DisableKeySessionReuse = false
 	if stored != nil {
+		if settings.ResponsesTransportMode == "" {
+			settings.ResponsesTransportMode = stored.ResponsesTransportMode
+		}
 		settings.ResponsesTierRoutingEnabled = settings.ResponsesTierRoutingEnabled || stored.ResponsesTierRoutingEnabled
 		settings.ModelPriceMultiplier = stored.ModelPriceMultiplier
 		if settings.ServiceTierBilling == nil {

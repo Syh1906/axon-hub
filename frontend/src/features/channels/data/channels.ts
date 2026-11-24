@@ -52,6 +52,7 @@ const CHANNEL_FIELDS_FRAGMENT = `
         healthGateFailureThreshold
         streamFirstEventTimeoutSeconds
         nonStreamResponseTimeoutSeconds
+        responsesTransportMode
         disableSessionReuse
         adaptedCapabilities
         disabledEndpoints
@@ -337,6 +338,7 @@ const BULK_IMPORT_CHANNELS_MUTATION = `
           healthGateFailureThreshold
           streamFirstEventTimeoutSeconds
           nonStreamResponseTimeoutSeconds
+          responsesTransportMode
           disableSessionReuse
           adaptedCapabilities
           disabledEndpoints
@@ -597,6 +599,7 @@ const BULK_UPDATE_CHANNEL_ORDERING_MUTATION = `
           healthGateFailureThreshold
           streamFirstEventTimeoutSeconds
           nonStreamResponseTimeoutSeconds
+          responsesTransportMode
           disableSessionReuse
           adaptedCapabilities
           disabledEndpoints

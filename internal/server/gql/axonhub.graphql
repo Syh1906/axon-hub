@@ -209,6 +209,12 @@ input ChannelProviderQuotaSettingsInput {
   ollama: OllamaQuotaSettingsInput
 }
 
+enum ResponsesTransportMode {
+  AUTO
+  PREFER_WS
+  WS_ONLY
+}
+
 enum ResponsesServiceTierOverride {
   INHERIT
   STANDARD
@@ -243,6 +249,7 @@ type ChannelSettings {
   globalPriority: Int
   streamFirstEventTimeoutSeconds: Int
   nonStreamResponseTimeoutSeconds: Int
+  responsesTransportMode: ResponsesTransportMode!
   disableSessionReuse: Boolean!
   adaptedCapabilities: [String!]
   disabledEndpoints: [String!]
@@ -350,6 +357,7 @@ input ChannelSettingsInput {
   addressFailover: Boolean
   streamFirstEventTimeoutSeconds: Int
   nonStreamResponseTimeoutSeconds: Int
+  responsesTransportMode: ResponsesTransportMode
   disableSessionReuse: Boolean
   adaptedCapabilities: [String!]
   disabledEndpoints: [String!]
@@ -404,6 +412,7 @@ input UpdateChannelSettingsInput {
   responsesTierSupport: ResponsesTierSupportInput
   streamFirstEventTimeoutSeconds: Int
   nonStreamResponseTimeoutSeconds: Int
+  responsesTransportMode: ResponsesTransportMode
   disableSessionReuse: Boolean
   adaptedCapabilities: [String!]
   disabledEndpoints: [String!]

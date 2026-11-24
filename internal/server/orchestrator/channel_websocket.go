@@ -3,6 +3,7 @@ package orchestrator
 import (
 	"context"
 	"errors"
+	"net/http"
 	"net/url"
 	"slices"
 	"strings"
@@ -126,25 +127,36 @@ func canUseHTTPResponsesSocket(body []byte, ch *biz.Channel) bool {
 	if gjson.GetBytes(body, "background").Bool() {
 		return false
 	}
-	for _, op := range ch.GetBodyOverrideOperations() {
-		if op.Path == "background" || op.To == "background" {
-			return false
-		}
-	}
-	return true
+	return !channelRewritesBackground(ch)
 }
 
-func (p *PersistentOutboundTransformer) preferVerifiedHTTPWebSocket(ctx context.Context, c *ChannelModelsCandidate, entry biz.ChannelModelEntry, req *llm.Request) {
+func channelRewritesBackground(ch *biz.Channel) bool {
+	return slices.ContainsFunc(ch.GetBodyOverrideOperations(), func(op objects.OverrideOperation) bool {
+		return op.Path == "background" || op.To == "background"
+	})
+}
+
+func (p *PersistentOutboundTransformer) selectHTTPResponsesTransport(ctx context.Context, c *ChannelModelsCandidate, entry biz.ChannelModelEntry, req *llm.Request) {
 	if !shared.IsResponsesAPI(ctx) || shared.IsResponsesWebSocket(ctx) || c.APIFormat != string(llm.APIFormatOpenAIResponse) ||
-		p.state.ChannelService == nil || !c.Channel.SessionReuseEnabled() || req.APIFormat != llm.APIFormatOpenAIResponse ||
-		req.PreviousResponseID != nil && p.state.ResponsesContinuation != nil && p.state.ResponsesContinuation.owner == nil {
+		p.state.ChannelService == nil || req.APIFormat != llm.APIFormatOpenAIResponse {
 		return
 	}
-	if scope, ok := shared.GetSessionScope(ctx); !ok || scope == "" {
-		return
+	mode := c.Channel.ResponsesTransportMode()
+	if mode == objects.ResponsesTransportAuto {
+		scope, ok := shared.GetSessionScope(ctx)
+		if !ok || scope == "" || !c.Channel.SessionReuseEnabled() {
+			return
+		}
 	}
-	if turn := p.state.ResponsesContinuation; turn != nil && !canUseHTTPResponsesSocket(turn.original, c.Channel) {
-		return
+	if turn := p.state.ResponsesContinuation; turn != nil {
+		if req.PreviousResponseID != nil {
+			if owner := turn.owner; owner == nil || owner.Snapshot == nil && owner.Origin.Format == string(llm.APIFormatOpenAIResponse) {
+				return
+			}
+		}
+		if gjson.GetBytes(turn.original, "background").Bool() || mode == objects.ResponsesTransportAuto && channelRewritesBackground(c.Channel) {
+			return
+		}
 	}
 	ws := llm.APIFormatOpenAIResponseWebSocket
 	if c.Channel.Outbounds[string(ws)] == nil || channelProtocolRejection(c.Channel, req, ws) != "" {
@@ -165,7 +177,7 @@ func (p *PersistentOutboundTransformer) preferVerifiedHTTPWebSocket(ctx context.
 		c.APIFormat = string(ws)
 		return
 	}
-	if p.state.ChannelService.LatestWebSocketEvidence(c.Channel, entry.ActualModel).State == "verified" {
+	if mode != objects.ResponsesTransportAuto || p.state.ChannelService.LatestWebSocketEvidence(c.Channel, entry.ActualModel).State == "verified" {
 		c.APIFormat = string(ws)
 	}
 }
@@ -176,16 +188,28 @@ func (p *PersistentOutboundTransformer) configureWebSocket(ctx context.Context, 
 		return nil
 	}
 	probe := currentWSProbe(ctx)
-	if (!shared.IsResponsesAPI(ctx) && !shared.IsResponsesWebSocket(ctx)) || !responses.IsResponsesFormat(llm.APIFormat(raw.APIFormat)) {
+	if !shared.IsResponsesAPI(ctx) && !shared.IsResponsesWebSocket(ctx) {
 		return nil
 	}
 	ch := p.GetCurrentChannel()
 	if ch == nil || p.state.ChannelService == nil {
 		return nil
 	}
-	if probe == nil && raw.APIFormat != string(llm.APIFormatOpenAIResponseWebSocket) {
-		return nil
+	mode := ch.ResponsesTransportMode()
+	httpClient := !shared.IsResponsesWebSocket(ctx)
+	if raw.APIFormat != string(llm.APIFormatOpenAIResponseWebSocket) && (probe == nil || !responses.IsResponsesFormat(llm.APIFormat(raw.APIFormat))) {
+		if probe != nil || mode != objects.ResponsesTransportWSOnly {
+			return nil
+		}
+		turn := p.state.ResponsesContinuation
+		if httpClient && (gjson.GetBytes(raw.Body, "background").Bool() || turn != nil && gjson.GetBytes(turn.original, "background").Bool()) {
+			return nil
+		}
+		return &llm.ResponseError{StatusCode: http.StatusUnprocessableEntity, Cause: httpclient.ErrRequestNotSent, Detail: llm.ErrorDetail{
+			Type: "invalid_request_error", Code: "no_compatible_endpoint", Message: "This channel requires a compatible Responses WebSocket endpoint",
+		}}
 	}
+	background := httpClient && gjson.GetBytes(raw.Body, "background").Bool()
 	actual := gjson.GetBytes(raw.Body, "model").String()
 	if actual == "" {
 		actual = p.GetCurrentModelID()
@@ -195,7 +219,7 @@ func (p *PersistentOutboundTransformer) configureWebSocket(ctx context.Context, 
 	service := p.state.ChannelService
 	policy := &httpclient.ResponsesWebSocketPolicy{Probe: probe != nil}
 	if ch.Settings != nil {
-		policy.HTTPDisabled = slices.Contains(ch.Settings.DisabledEndpoints, string(llm.APIFormatOpenAIResponse))
+		policy.HTTPDisabled = (mode == objects.ResponsesTransportWSOnly && !background) || slices.Contains(ch.Settings.DisabledEndpoints, string(llm.APIFormatOpenAIResponse))
 	}
 	raw.ResponsesWebSocket = policy
 	sel.WebSocketProfile, sel.WebSocketEndpoint, sel.WebSocketIdentity = key.Profile, key.EndpointRef, key.CredentialRef
@@ -226,15 +250,20 @@ func (p *PersistentOutboundTransformer) configureWebSocket(ctx context.Context, 
 		_, policy.HandshakeTimeout = service.WebSocketDecision(key)
 		return nil
 	}
-	httpClient := !shared.IsResponsesWebSocket(ctx)
 	if httpClient {
-		scope, ok := shared.GetSessionScope(ctx)
-		if !ok || strings.TrimSpace(scope) == "" {
-			policy.HTTPReason = "websocket_unverified"
-		} else {
-			policy.HTTPReason, policy.HandshakeTimeout = service.WebSocketDecision(key)
+		switch mode {
+		case objects.ResponsesTransportPreferWS:
+			policy.HTTPReason, policy.HandshakeTimeout = service.WebSocketTrafficDecision(ctx, key)
+		case objects.ResponsesTransportWSOnly:
+			_, policy.HandshakeTimeout = service.WebSocketDecision(key)
+		default:
+			if scope, ok := shared.GetSessionScope(ctx); !ok || strings.TrimSpace(scope) == "" {
+				policy.HTTPReason = "websocket_unverified"
+			} else {
+				policy.HTTPReason, policy.HandshakeTimeout = service.WebSocketDecision(key)
+			}
 		}
-		if gjson.GetBytes(raw.Body, "background").Bool() {
+		if background {
 			policy.HTTPReason = "background_requires_http"
 		}
 		policy.VerifiedHTTP = policy.HTTPReason == ""
@@ -282,7 +311,7 @@ func (p *PersistentOutboundTransformer) configureWebSocket(ctx context.Context, 
 	}
 	entry := p.state.CurrentCandidate.Models[p.state.CurrentModelIndex]
 	if !ch.WebSocketHTTPAllowed([]biz.ChannelModelEntry{entry}, p.GetRequestedModel()) {
-		policy.NativeOnly = true
+		policy.HTTPDisabled = true
 		return nil
 	}
 	policy.HTTPURL = p.responsesHTTPURL()
@@ -296,6 +325,7 @@ func (p *PersistentOutboundTransformer) configureWebSocket(ctx context.Context, 
 			if ref != "" && containsOpaqueResponsesInput(raw.Body) {
 				switch ref {
 				case key.EndpointRef:
+					policy.HTTPDisabled = true
 					policy.NativeOnly = true
 					policy.HTTPURL = ""
 					return nil
@@ -313,7 +343,7 @@ func (p *PersistentOutboundTransformer) configureWebSocket(ctx context.Context, 
 			return nil
 		}
 	}
-	if !httpClient {
+	if !httpClient && mode != objects.ResponsesTransportWSOnly {
 		policy.HTTPReason, policy.HandshakeTimeout = service.WebSocketTrafficDecision(ctx, key)
 	}
 	return nil

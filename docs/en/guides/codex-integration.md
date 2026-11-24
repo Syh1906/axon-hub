@@ -329,7 +329,7 @@ The read-only admin GraphQL query `previewModelCodexCatalog(id, clientVersion)` 
 
 ### WebSocket Capability and HTTP Fallback
 
-The channel's **Supports WebSocket** checkbox declares capability without forcing client transport or changing the base URL. The client provider's `supports_websockets` setting and client version control whether it uses WS. HTTP clients always use upstream HTTP. For dual-transport channels with the checkbox enabled, new client WS turns can discover upstream WS automatically. Matching turns use HTTP while discovery is pending or the route is cooling down.
+The channel's **Supports WebSocket** checkbox declares capability without forcing client transport or changing the base URL. The client provider's `supports_websockets` setting and client version control whether it uses WS. For ordinary Responses requests, an HTTP client can use an upstream WebSocket. The channel’s [upstream transport setting](channel-management.md) controls selection. Automatic can reuse a verified route. Prefer WebSocket can try an unverified route and allows eligible HTTP fallback. WebSocket only requires WS even when the client uses HTTP.
 
 Before `response.create` is sent, connection failures and handshake statuses `404/405/426/501/502/503/504` (or a JSON `200`) can fall back to the same channel's HTTP endpoint. A handshake 400 with an empty body or plain `Bad Request` can also fall back when a dual-transport channel has a configured HTTP endpoint. Authentication, rate-limit, and ordinary parameter errors do not trigger protocol fallback. Subsequent independent turns use fresh evidence for the selected endpoint, credential and model.
 

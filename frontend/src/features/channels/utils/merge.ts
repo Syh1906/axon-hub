@@ -123,6 +123,7 @@ export function mergeChannelSettingsForUpdate(
     responsesTierSupport: pick('responsesTierSupport', existing?.responsesTierSupport ?? null),
     modelContexts: pick('modelContexts', existing?.modelContexts ?? []),
     nonStreamResponseTimeoutSeconds: pick('nonStreamResponseTimeoutSeconds', existing?.nonStreamResponseTimeoutSeconds ?? null),
+    responsesTransportMode: pick('responsesTransportMode', existing?.responsesTransportMode ?? 'AUTO'),
     disableSessionReuse: pick('disableSessionReuse', existing?.disableSessionReuse ?? false),
     adaptedCapabilities: pick('adaptedCapabilities', existing?.adaptedCapabilities),
     disabledEndpoints: pick('disabledEndpoints', existing?.disabledEndpoints),

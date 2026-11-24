@@ -769,7 +769,7 @@ func (p *PersistentOutboundTransformer) TransformRequest(ctx context.Context, ll
 	p.state.CleanEOFCompletionEvidence = false
 	p.refreshCandidateAPIFormat(ctx, candidate, p.state.CurrentModelIndex, llmRequest)
 
-	p.preferVerifiedHTTPWebSocket(ctx, candidate, entry, llmRequest)
+	p.selectHTTPResponsesTransport(ctx, candidate, entry, llmRequest)
 	p.wrapped = selectOutboundForCandidate(candidate)
 
 	log.Debug(ctx, "using candidate",

@@ -188,9 +188,10 @@ type ChannelSettings struct {
 	TagPriorities  []ChannelTagPriority `json:"tagPriorities,omitempty"`
 
 	// Nil timeouts inherit the system policy; zero removes only the channel limit.
-	StreamFirstEventTimeoutSeconds  *int `json:"streamFirstEventTimeoutSeconds,omitempty"`
-	NonStreamResponseTimeoutSeconds *int `json:"nonStreamResponseTimeoutSeconds,omitempty"`
-	DisableSessionReuse             bool `json:"disableSessionReuse,omitempty"`
+	StreamFirstEventTimeoutSeconds  *int                   `json:"streamFirstEventTimeoutSeconds,omitempty"`
+	NonStreamResponseTimeoutSeconds *int                   `json:"nonStreamResponseTimeoutSeconds,omitempty"`
+	ResponsesTransportMode          ResponsesTransportMode `json:"responsesTransportMode,omitempty"`
+	DisableSessionReuse             bool                   `json:"disableSessionReuse,omitempty"`
 	// Nil preserves the default permission for existing channels.
 	AdaptedCapabilities      []string                 `json:"adaptedCapabilities,omitempty"`
 	DisabledEndpoints        []string                 `json:"disabledEndpoints,omitempty"`

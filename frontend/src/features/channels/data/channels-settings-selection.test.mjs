@@ -67,8 +67,10 @@ test('渠道请求设置的读写返回都包含模式覆写', () => {
 
 test('清空超时和保存其他设置保留模式，恢复默认保留通用覆盖规则', () => {
   const rules = [{ op: 'set', path: 'service_tier', value: 'ultrafast' }];
-  const existing = { responsesServiceTierOverride: 'FAST', bodyOverrideOperations: rules, streamFirstEventTimeoutSeconds: 120 };
+  const existing = { responsesTransportMode: 'WS_ONLY', responsesServiceTierOverride: 'FAST', bodyOverrideOperations: rules, streamFirstEventTimeoutSeconds: 120 };
   const clearTimeout = mergeChannelSettingsForUpdate(existing, { streamFirstEventTimeoutSeconds: null });
+  assert.equal(clearTimeout.responsesTransportMode, 'WS_ONLY');
+  assert.equal(mergeChannelSettingsForUpdate(existing, { responsesTransportMode: 'AUTO' }).responsesTransportMode, 'AUTO');
   assert.equal(clearTimeout.responsesServiceTierOverride, 'FAST');
   assert.equal(clearTimeout.streamFirstEventTimeoutSeconds, null);
   const reset = mergeChannelSettingsForUpdate(existing, { responsesServiceTierOverride: 'INHERIT' });

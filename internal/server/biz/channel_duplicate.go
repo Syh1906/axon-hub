@@ -33,6 +33,7 @@ func (svc *ChannelService) DuplicateChannel(ctx context.Context, sourceID int, i
 		if input.Settings != nil {
 			settings = *input.Settings
 		} else if source.Settings != nil {
+			settings.ResponsesTransportMode = source.Settings.ResponsesTransportMode
 			settings.ResponsesServiceTierOverride = source.Settings.ResponsesServiceTierOverride
 			settings.ResponsesTierSupport = source.Settings.ResponsesTierSupport
 		}

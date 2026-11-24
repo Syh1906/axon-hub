@@ -458,6 +458,7 @@ export const channelAddressSchema = z.object({
 });
 export type ChannelAddress = z.infer<typeof channelAddressSchema>;
 // Channel Settings
+export const responsesTransportModeSchema = z.enum(['AUTO', 'PREFER_WS', 'WS_ONLY']);
 export const responsesServiceTierOverrideSchema = z.enum(['INHERIT', 'STANDARD', 'FAST', 'ULTRAFAST', 'SUPPORTED']);
 export const responsesTierSupportSchema = z.object({
   fast: z.boolean(),
@@ -477,6 +478,7 @@ export const channelSettingsSchema = z.object({
   globalPriority: z.number().int().nullish(),
   streamFirstEventTimeoutSeconds: z.number().int().nonnegative().optional().nullable(),
   nonStreamResponseTimeoutSeconds: z.number().int().nonnegative().optional().nullable(),
+  responsesTransportMode: responsesTransportModeSchema.optional(),
   disableSessionReuse: z.boolean().optional(),
   adaptedCapabilities: z.array(z.string()).nullish(),
   disabledEndpoints: z.array(z.string()).nullish(),

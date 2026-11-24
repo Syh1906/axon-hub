@@ -14,7 +14,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Switch } from '@/components/ui/switch';
 import { useUpdateChannelSettings } from '../data/channels';
-import { responsesServiceTierOverrideSchema, responsesTierSupportSchema, serviceTierBasisSchema, type Channel } from '../data/schema';
+import { getResponsesWebSocketEnabled } from '../data/protocol-options';
+import { responsesTransportModeSchema, responsesServiceTierOverrideSchema, responsesTierSupportSchema, serviceTierBasisSchema, type Channel } from '../data/schema';
 
 const timeoutField = z.union([z.number().int().nonnegative(), z.literal('')]);
 const requestSettingsSchema = z.object({
@@ -23,6 +24,7 @@ const requestSettingsSchema = z.object({
   billingBasis: serviceTierBasisSchema,
   streamFirstEventTimeoutSeconds: timeoutField,
   nonStreamResponseTimeoutSeconds: timeoutField,
+  responsesTransportMode: responsesTransportModeSchema,
   disableSessionReuse: z.boolean(),
   allowImageGenerationTool: z.boolean(),
 });
@@ -38,6 +40,7 @@ function valuesFromChannel(channel: Channel): RequestSettings {
     billingBasis: billing?.enabled ? billing.basis : 'fixed_standard',
     streamFirstEventTimeoutSeconds: channel.settings?.streamFirstEventTimeoutSeconds ?? '',
     nonStreamResponseTimeoutSeconds: channel.settings?.nonStreamResponseTimeoutSeconds ?? '',
+    responsesTransportMode: channel.settings?.responsesTransportMode ?? 'AUTO',
     disableSessionReuse: channel.settings?.disableSessionReuse ?? false,
     allowImageGenerationTool: channel.settings?.allowImageGenerationTool ?? true,
   };
@@ -80,6 +83,8 @@ export function ChannelsRequestSettingsDialog({
   }, [open, currentRow, form]);
   const [mode, support, basis] = form.watch(['responsesServiceTierOverride', 'responsesTierSupport', 'billingBasis']);
   const legacy = !currentRow.settings?.responsesServiceTierOverride || currentRow.settings.responsesServiceTierOverride === 'INHERIT';
+  const webSocketEnabled = getResponsesWebSocketEnabled(currentRow) && !currentRow.settings?.disabledEndpoints?.includes('openai/responses-ws');
+  const showTransport = webSocketEnabled || (currentRow.settings?.responsesTransportMode ?? 'AUTO') !== 'AUTO';
   const fixedBilling = basis.startsWith('fixed_');
   const tiers = ['standard', 'fast', 'ultrafast'] as const;
   const tierOptions = tiers.map((tier) => ({ value: tier, label: t(`serviceTier.mode.${tier}`) }));
@@ -93,6 +98,7 @@ export function ChannelsRequestSettingsDialog({
           ...(values.responsesServiceTierOverride === 'SUPPORTED' && { responsesTierSupport: values.responsesTierSupport }),
           streamFirstEventTimeoutSeconds: values.streamFirstEventTimeoutSeconds === '' ? null : values.streamFirstEventTimeoutSeconds,
           nonStreamResponseTimeoutSeconds: values.nonStreamResponseTimeoutSeconds === '' ? null : values.nonStreamResponseTimeoutSeconds,
+          ...(showTransport && { responsesTransportMode: values.responsesTransportMode }),
           disableSessionReuse: values.disableSessionReuse,
           allowImageGenerationTool: values.allowImageGenerationTool,
         },
@@ -198,6 +204,24 @@ export function ChannelsRequestSettingsDialog({
                   {t(fixedBilling ? 'channels.requestSettings.fixedBillingHelp' : `channels.requestSettings.${basis}BillingHelp`)}
                 </p>
               </section>
+              {showTransport && (
+                <FormField control={form.control} name='responsesTransportMode' render={({ field }) => (
+                  <FormItem className='rounded-md border p-4'>
+                    <FormLabel>{t('channels.requestSettings.responsesTransport')}</FormLabel>
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <FormControl><SelectTrigger className='w-full'><SelectValue /></SelectTrigger></FormControl>
+                      <SelectContent>
+                        {responsesTransportModeSchema.options.map((mode) => (
+                          <SelectItem key={mode} value={mode} disabled={!webSocketEnabled && mode !== 'AUTO'}>
+                            {t(`channels.requestSettings.transport.${mode}`)}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormDescription>{t(`channels.requestSettings.transportHelp.${field.value}`)}</FormDescription>
+                  </FormItem>
+                )} />
+              )}
               <FormField
                 control={form.control}
                 name='disableSessionReuse'

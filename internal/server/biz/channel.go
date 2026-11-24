@@ -655,6 +655,9 @@ func (svc *ChannelService) createChannel(ctx context.Context, input ent.CreateCh
 		if err := input.Settings.ServiceTierBilling.Validate(); err != nil {
 			return nil, err
 		}
+		if err := input.Settings.ResponsesTransportMode.Validate(); err != nil {
+			return nil, err
+		}
 		if err := input.Settings.ResponsesServiceTierOverride.Validate(); err != nil {
 			return nil, err
 		}

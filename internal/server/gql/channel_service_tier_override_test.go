@@ -17,6 +17,32 @@ import (
 	"github.com/looplj/axonhub/internal/server/biz"
 )
 
+func TestResponsesTransportModeGraphQLRoundTrip(t *testing.T) {
+	client := enttest.NewEntClient(t, "sqlite3", "file:ent?mode=memory&_fk=0")
+	defer client.Close()
+	ctx := authz.WithTestBypass(ent.NewContext(t.Context(), client))
+	resolver := &mutationResolver{&Resolver{channelService: biz.NewChannelServiceForTest(client)}}
+	created, err := resolver.CreateChannel(ctx, ent.CreateChannelInput{Type: channel.TypeOpenaiResponses, Name: "transport", SupportedModels: []string{"test-model"}, DefaultTestModel: "test-model", Credentials: objects.ChannelCredentials{APIKey: "fixture"}})
+	require.NoError(t, err)
+	var initial bytes.Buffer
+	created.Settings.ResponsesTransportMode.MarshalGQL(&initial)
+	require.Equal(t, `"AUTO"`, initial.String())
+	ec := &executionContext{}
+	for _, mode := range []string{"PREFER_WS", "WS_ONLY", "AUTO"} {
+		patch, err := ec.unmarshalInputUpdateChannelSettingsInput(ctx, map[string]any{"responsesTransportMode": mode})
+		require.NoError(t, err)
+		_, err = resolver.UpdateChannelSettings(ctx, objects.GUID{Type: "Channel", ID: created.ID}, patch)
+		require.NoError(t, err)
+		_, err = resolver.UpdateChannel(ctx, objects.GUID{Type: "Channel", ID: created.ID}, ent.UpdateChannelInput{Settings: &objects.ChannelSettings{ExtraModelPrefix: "test"}})
+		require.NoError(t, err)
+		var output bytes.Buffer
+		client.Channel.GetX(ctx, created.ID).Settings.ResponsesTransportMode.MarshalGQL(&output)
+		require.Equal(t, `"`+mode+`"`, output.String())
+	}
+	_, err = ec.unmarshalInputUpdateChannelSettingsInput(ctx, map[string]any{"responsesTransportMode": "invalid"})
+	require.Error(t, err)
+}
+
 func TestResponsesServiceTierOverrideGraphQLRoundTrip(t *testing.T) {
 	client := enttest.NewEntClient(t, "sqlite3", "file:ent?mode=memory&_fk=0")
 	defer client.Close()

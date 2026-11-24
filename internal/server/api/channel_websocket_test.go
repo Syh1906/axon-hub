@@ -30,6 +30,152 @@ func fixtureChannelTester(ctx context.Context, client *ent.Client, api *OpenAIHa
 	return ctx, objects.GUID{Type: "Channel", ID: client.Channel.Query().OnlyIDX(ctx)}, orchestrator.NewTestChannelOrchestrator(p.ChannelService, p.RequestService, p.SystemService, p.UsageLogService, p.PromptProtecter.(*biz.PromptProtectionRuleService), httpclient.NewHttpClient(), orchestrator.ChannelTestTimeout(5*time.Second))
 }
 
+func TestResponsesTransportModeForHTTPClient(t *testing.T) {
+	for _, tc := range []struct {
+		name               string
+		mode               objects.ResponsesTransportMode
+		refuse, background bool
+		upgrades, posts    int32
+	}{
+		{"automatic", objects.ResponsesTransportAuto, false, false, 0, 1},
+		{"preferred", objects.ResponsesTransportPreferWS, false, false, 1, 0},
+		{"after_write_disconnect", objects.ResponsesTransportPreferWS, false, false, 1, 0},
+		{"preferred_handshake_failure", objects.ResponsesTransportPreferWS, true, false, 1, 1},
+		{"required_foreground_override", objects.ResponsesTransportWSOnly, false, false, 1, 0},
+		{"required_background_override", objects.ResponsesTransportWSOnly, false, false, 0, 1},
+		{"required", objects.ResponsesTransportWSOnly, false, false, 1, 0},
+		{"required_handshake_failure", objects.ResponsesTransportWSOnly, true, false, 1, 0},
+		{"background", objects.ResponsesTransportWSOnly, false, true, 0, 1},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var upgrades, posts atomic.Int32
+			const answer = `{"id":"test-transport","object":"response","model":"synthetic-model","status":"completed","output":[{"type":"message","role":"assistant","content":[{"type":"output_text","text":"ok"}]}]}`
+			upstream := responsesIntegrationServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if !websocket.IsWebSocketUpgrade(r) {
+					posts.Add(1)
+					w.Header().Set("Content-Type", "application/json")
+					fmt.Fprint(w, answer)
+					return
+				}
+				upgrades.Add(1)
+				if tc.refuse {
+					w.WriteHeader(http.StatusMethodNotAllowed)
+					return
+				}
+				conn, err := (&websocket.Upgrader{}).Upgrade(w, r, nil)
+				if err != nil {
+					return
+				}
+				defer conn.Close()
+				if _, _, err = conn.ReadMessage(); err == nil && tc.name != "after_write_disconnect" {
+					_ = conn.WriteMessage(websocket.TextMessage, []byte(`{"type":"response.completed","response":`+answer+`}`))
+				}
+			}))
+			db, handlers, project := newResponsesIntegrationFixture(t, upstream.URL, func(c *ent.ChannelCreate) {
+				c.SetEndpoints([]objects.ChannelEndpoint{{APIFormat: "openai/responses"}, {APIFormat: "openai/responses-ws"}})
+				settings := &objects.ChannelSettings{ResponsesTransportMode: tc.mode}
+				switch tc.name {
+				case "required_foreground_override", "required_background_override":
+					settings.BodyOverrideOperations = []objects.OverrideOperation{{Op: "set", Path: "background", Value: fmt.Sprint(tc.name == "required_background_override")}}
+				}
+				c.SetSettings(settings)
+			})
+			gateway := responsesIntegrationGateway(t, db, handlers, project)
+			status, result := responsesIntegrationPost(t, gateway, "/v1/responses", fmt.Sprintf(`{"model":"synthetic-model","input":"hello","background":%t}`, tc.background))
+			if tc.name == "after_write_disconnect" || tc.refuse && tc.mode == objects.ResponsesTransportWSOnly {
+				require.GreaterOrEqual(t, status, 400)
+			} else {
+				require.Equal(t, 200, status, string(result))
+				require.Contains(t, string(result), "test-transport")
+			}
+			require.Equal(t, tc.upgrades, upgrades.Load())
+			require.Equal(t, tc.posts, posts.Load())
+		})
+	}
+}
+
+func TestWSOnlyChannelSendsCompactOverHTTP(t *testing.T) {
+	var posts atomic.Int32
+	upstream := responsesIntegrationServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost || r.URL.Path != "/v1/responses/compact" {
+			t.Errorf("unexpected upstream request: %s %s", r.Method, r.URL.Path)
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		posts.Add(1)
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprint(w, `{"id":"cmp_test","object":"response.compaction","model":"synthetic-model","output":[{"type":"compaction","encrypted_content":"fixture"}]}`)
+	}))
+	db, handlers, project := newResponsesIntegrationFixture(t, upstream.URL, func(c *ent.ChannelCreate) {
+		c.SetEndpoints([]objects.ChannelEndpoint{{APIFormat: "openai/responses-ws"}, {APIFormat: "openai/responses_compact"}})
+		c.SetSettings(&objects.ChannelSettings{ResponsesTransportMode: objects.ResponsesTransportWSOnly})
+	})
+	router := responsesFixtureRouter(db, project)
+	router.POST("/v1/responses/compact", handlers.CompactResponse)
+	status, data := responsesIntegrationPost(t, responsesIntegrationServer(t, router), "/v1/responses/compact", `{"model":"synthetic-model","input":[{"role":"user","content":"hello"}]}`)
+	require.Equal(t, http.StatusOK, status, string(data))
+	require.Equal(t, "cmp_test", gjson.GetBytes(data, "id").String())
+	require.EqualValues(t, 1, posts.Load())
+}
+
+func TestPreferWebSocketContinuesHTTPHistoryByID(t *testing.T) {
+	var posts atomic.Int32
+	upstream := responsesIntegrationServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			t.Errorf("unexpected method %s", r.Method)
+			w.WriteHeader(405)
+			return
+		}
+		body, err := readRequestBody(r)
+		if err != nil {
+			t.Error(err)
+			return
+		}
+		n := posts.Add(1)
+		previous := gjson.GetBytes(body, "previous_response_id").String()
+		if n == 1 && previous != "external" || n == 2 && previous != "r1" {
+			t.Errorf("turn %d previous_response_id %q", n, previous)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprintf(w, `{"id":"r%d","object":"response","model":"synthetic-model","status":"completed","output":[]}`, n)
+	}))
+	db, handlers, project := newResponsesIntegrationFixture(t, upstream.URL, func(c *ent.ChannelCreate) {
+		c.SetEndpoints([]objects.ChannelEndpoint{{APIFormat: "openai/responses"}, {APIFormat: "openai/responses-ws"}})
+		c.SetSettings(&objects.ChannelSettings{ResponsesTransportMode: objects.ResponsesTransportPreferWS})
+	})
+	gateway := responsesIntegrationGateway(t, db, handlers, project)
+	for _, previous := range []string{"external", "r1"} {
+		status, data := responsesIntegrationPost(t, gateway, "/v1/responses", fmt.Sprintf(`{"model":"synthetic-model","previous_response_id":%q,"input":"next"}`, previous))
+		require.Equal(t, 200, status, string(data))
+	}
+	require.EqualValues(t, 2, posts.Load())
+}
+
+func TestPreferWebSocketWithWSOnlyEndpointDoesNotPostDuringCooldown(t *testing.T) {
+	var handshakes, posts atomic.Int32
+	upstream := responsesIntegrationServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if websocket.IsWebSocketUpgrade(r) {
+			handshakes.Add(1)
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+		posts.Add(1)
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprint(w, `{"id":"unexpected","object":"response","status":"completed","output":[]}`)
+	}))
+	db, handlers, project := newResponsesIntegrationFixture(t, upstream.URL, func(c *ent.ChannelCreate) {
+		c.SetEndpoints([]objects.ChannelEndpoint{{APIFormat: "openai/responses-ws"}})
+		c.SetSettings(&objects.ChannelSettings{ResponsesTransportMode: objects.ResponsesTransportPreferWS})
+	})
+	gateway := responsesIntegrationGateway(t, db, handlers, project)
+	for range 2 {
+		status, _ := responsesIntegrationPost(t, gateway, "/v1/responses", `{"model":"synthetic-model","input":"test"}`)
+		require.GreaterOrEqual(t, status, 400)
+	}
+	require.EqualValues(t, 1, handshakes.Load())
+	require.Zero(t, posts.Load())
+}
+
 func TestWSOnlyBusinessHandshakeKeepsNativeBudget(t *testing.T) {
 	upstream := responsesIntegrationServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {

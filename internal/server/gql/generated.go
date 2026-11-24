@@ -792,6 +792,7 @@ type ComplexityRoot struct {
 		RateLimit                       func(childComplexity int) int
 		ResponsesServiceTierOverride    func(childComplexity int) int
 		ResponsesTierSupport            func(childComplexity int) int
+		ResponsesTransportMode          func(childComplexity int) int
 		RetryableErrorPatterns          func(childComplexity int) int
 		RetryableStatusCodes            func(childComplexity int) int
 		ServiceTierBilling              func(childComplexity int) int
@@ -7001,6 +7002,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.ChannelSettings.ResponsesTierSupport(childComplexity), true
+	case "ChannelSettings.responsesTransportMode":
+		if e.complexity.ChannelSettings.ResponsesTransportMode == nil {
+			break
+		}
+
+		return e.complexity.ChannelSettings.ResponsesTransportMode(childComplexity), true
 	case "ChannelSettings.retryableErrorPatterns":
 		if e.complexity.ChannelSettings.RetryableErrorPatterns == nil {
 			break
@@ -33529,6 +33536,8 @@ func (ec *executionContext) fieldContext_Channel_settings(_ context.Context, fie
 				return ec.fieldContext_ChannelSettings_streamFirstEventTimeoutSeconds(ctx, field)
 			case "nonStreamResponseTimeoutSeconds":
 				return ec.fieldContext_ChannelSettings_nonStreamResponseTimeoutSeconds(ctx, field)
+			case "responsesTransportMode":
+				return ec.fieldContext_ChannelSettings_responsesTransportMode(ctx, field)
 			case "disableSessionReuse":
 				return ec.fieldContext_ChannelSettings_disableSessionReuse(ctx, field)
 			case "adaptedCapabilities":
@@ -39672,6 +39681,35 @@ func (ec *executionContext) fieldContext_ChannelSettings_nonStreamResponseTimeou
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ChannelSettings_responsesTransportMode(ctx context.Context, field graphql.CollectedField, obj *objects.ChannelSettings) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ChannelSettings_responsesTransportMode,
+		func(ctx context.Context) (any, error) {
+			return obj.ResponsesTransportMode, nil
+		},
+		nil,
+		ec.marshalNResponsesTransportMode2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐResponsesTransportMode,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ChannelSettings_responsesTransportMode(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ChannelSettings",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ResponsesTransportMode does not have child fields")
 		},
 	}
 	return fc, nil
@@ -116409,7 +116447,7 @@ func (ec *executionContext) unmarshalInputChannelSettingsInput(ctx context.Conte
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"protocolPolicy", "responsesServiceTierOverride", "serviceTierBilling", "responsesTierSupport", "cacheWriteBilling", "modelContexts", "upstreamAddresses", "addressFailover", "streamFirstEventTimeoutSeconds", "nonStreamResponseTimeoutSeconds", "disableSessionReuse", "adaptedCapabilities", "disabledEndpoints", "allowWebSearchTool", "allowImageGenerationTool", "extraModelPrefix", "modelMappings", "autoTrimedModelPrefixes", "hideOriginalModels", "hideMappedModels", "lowercaseModelId", "proxy", "transformOptions", "headerOverrideOperations", "bodyOverrideOperations", "passThroughUserAgent", "passThroughBody", "rateLimit", "retryableStatusCodes", "retryableErrorPatterns", "maxSingleChannelRetries", "modelProtocols", "apiKeyStrategy", "apiKeyRoundRobinSwitchAfter", "providerQuota", "primaryApiFormat", "healthGateFailureThreshold", "forceOneHourPromptCache", "quotaRoutingMode"}
+	fieldsInOrder := [...]string{"protocolPolicy", "responsesServiceTierOverride", "serviceTierBilling", "responsesTierSupport", "cacheWriteBilling", "modelContexts", "upstreamAddresses", "addressFailover", "streamFirstEventTimeoutSeconds", "nonStreamResponseTimeoutSeconds", "responsesTransportMode", "disableSessionReuse", "adaptedCapabilities", "disabledEndpoints", "allowWebSearchTool", "allowImageGenerationTool", "extraModelPrefix", "modelMappings", "autoTrimedModelPrefixes", "hideOriginalModels", "hideMappedModels", "lowercaseModelId", "proxy", "transformOptions", "headerOverrideOperations", "bodyOverrideOperations", "passThroughUserAgent", "passThroughBody", "rateLimit", "retryableStatusCodes", "retryableErrorPatterns", "maxSingleChannelRetries", "modelProtocols", "apiKeyStrategy", "apiKeyRoundRobinSwitchAfter", "providerQuota", "primaryApiFormat", "healthGateFailureThreshold", "forceOneHourPromptCache", "quotaRoutingMode"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -116486,6 +116524,13 @@ func (ec *executionContext) unmarshalInputChannelSettingsInput(ctx context.Conte
 				return it, err
 			}
 			it.NonStreamResponseTimeoutSeconds = data
+		case "responsesTransportMode":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("responsesTransportMode"))
+			data, err := ec.unmarshalOResponsesTransportMode2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐResponsesTransportMode(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ResponsesTransportMode = data
 		case "disableSessionReuse":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("disableSessionReuse"))
 			data, err := ec.unmarshalOBoolean2bool(ctx, v)
@@ -135747,7 +135792,7 @@ func (ec *executionContext) unmarshalInputUpdateChannelSettingsInput(ctx context
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"protocolPolicy", "responsesServiceTierOverride", "serviceTierBilling", "responsesTierSupport", "streamFirstEventTimeoutSeconds", "nonStreamResponseTimeoutSeconds", "disableSessionReuse", "adaptedCapabilities", "disabledEndpoints", "allowWebSearchTool", "allowImageGenerationTool", "extraModelPrefix", "modelMappings", "autoTrimedModelPrefixes", "hideOriginalModels", "hideMappedModels", "lowercaseModelId", "proxy", "transformOptions", "headerOverrideOperations", "bodyOverrideOperations", "passThroughUserAgent", "passThroughBody", "rateLimit", "retryableStatusCodes", "retryableErrorPatterns", "modelProtocols", "apiKeyStrategy", "apiKeyRoundRobinSwitchAfter", "providerQuota", "quotaRoutingMode"}
+	fieldsInOrder := [...]string{"protocolPolicy", "responsesServiceTierOverride", "serviceTierBilling", "responsesTierSupport", "streamFirstEventTimeoutSeconds", "nonStreamResponseTimeoutSeconds", "responsesTransportMode", "disableSessionReuse", "adaptedCapabilities", "disabledEndpoints", "allowWebSearchTool", "allowImageGenerationTool", "extraModelPrefix", "modelMappings", "autoTrimedModelPrefixes", "hideOriginalModels", "hideMappedModels", "lowercaseModelId", "proxy", "transformOptions", "headerOverrideOperations", "bodyOverrideOperations", "passThroughUserAgent", "passThroughBody", "rateLimit", "retryableStatusCodes", "retryableErrorPatterns", "modelProtocols", "apiKeyStrategy", "apiKeyRoundRobinSwitchAfter", "providerQuota", "quotaRoutingMode"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -135796,6 +135841,13 @@ func (ec *executionContext) unmarshalInputUpdateChannelSettingsInput(ctx context
 				return it, err
 			}
 			it.NonStreamResponseTimeoutSeconds = data
+		case "responsesTransportMode":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("responsesTransportMode"))
+			data, err := ec.unmarshalOResponsesTransportMode2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐResponsesTransportMode(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ResponsesTransportMode = data
 		case "disableSessionReuse":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("disableSessionReuse"))
 			data, err := ec.unmarshalOBoolean2ᚖbool(ctx, v)
@@ -147854,6 +147906,11 @@ func (ec *executionContext) _ChannelSettings(ctx context.Context, sel ast.Select
 			out.Values[i] = ec._ChannelSettings_streamFirstEventTimeoutSeconds(ctx, field, obj)
 		case "nonStreamResponseTimeoutSeconds":
 			out.Values[i] = ec._ChannelSettings_nonStreamResponseTimeoutSeconds(ctx, field, obj)
+		case "responsesTransportMode":
+			out.Values[i] = ec._ChannelSettings_responsesTransportMode(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
 		case "disableSessionReuse":
 			out.Values[i] = ec._ChannelSettings_disableSessionReuse(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -182038,6 +182095,16 @@ func (ec *executionContext) marshalNResponsesServiceTierOverride2githubᚗcomᚋ
 	return v
 }
 
+func (ec *executionContext) unmarshalNResponsesTransportMode2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐResponsesTransportMode(ctx context.Context, v any) (objects.ResponsesTransportMode, error) {
+	var res objects.ResponsesTransportMode
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNResponsesTransportMode2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐResponsesTransportMode(ctx context.Context, sel ast.SelectionSet, v objects.ResponsesTransportMode) graphql.Marshaler {
+	return v
+}
+
 func (ec *executionContext) unmarshalNRestoreOptionsInput2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbackupᚐRestoreOptions(ctx context.Context, v any) (backup.RestoreOptions, error) {
 	res, err := ec.unmarshalInputRestoreOptionsInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
@@ -190698,6 +190765,32 @@ func (ec *executionContext) unmarshalOResponsesTierSupportInput2ᚖgithubᚗcom�
 	}
 	res, err := ec.unmarshalInputResponsesTierSupportInput(ctx, v)
 	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) unmarshalOResponsesTransportMode2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐResponsesTransportMode(ctx context.Context, v any) (objects.ResponsesTransportMode, error) {
+	var res objects.ResponsesTransportMode
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalOResponsesTransportMode2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐResponsesTransportMode(ctx context.Context, sel ast.SelectionSet, v objects.ResponsesTransportMode) graphql.Marshaler {
+	return v
+}
+
+func (ec *executionContext) unmarshalOResponsesTransportMode2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐResponsesTransportMode(ctx context.Context, v any) (*objects.ResponsesTransportMode, error) {
+	if v == nil {
+		return nil, nil
+	}
+	var res = new(objects.ResponsesTransportMode)
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalOResponsesTransportMode2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐResponsesTransportMode(ctx context.Context, sel ast.SelectionSet, v *objects.ResponsesTransportMode) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return v
 }
 
 func (ec *executionContext) marshalORetryableErrorPattern2ᚕgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐRetryableErrorPatternᚄ(ctx context.Context, sel ast.SelectionSet, v []objects.RetryableErrorPattern) graphql.Marshaler {

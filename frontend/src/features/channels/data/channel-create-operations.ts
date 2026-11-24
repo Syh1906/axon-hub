@@ -35,6 +35,7 @@ export const CREATE_CHANNEL_MUTATION = `
         healthGateFailureThreshold
         streamFirstEventTimeoutSeconds
         nonStreamResponseTimeoutSeconds
+        responsesTransportMode
         disableSessionReuse
         adaptedCapabilities
         disabledEndpoints
@@ -158,6 +159,7 @@ export const DUPLICATE_CHANNEL_MUTATION = `
         healthGateFailureThreshold
         streamFirstEventTimeoutSeconds
         nonStreamResponseTimeoutSeconds
+        responsesTransportMode
         disableSessionReuse
         adaptedCapabilities
         disabledEndpoints
@@ -281,6 +283,7 @@ export const BULK_CREATE_CHANNELS_MUTATION = `
         healthGateFailureThreshold
         streamFirstEventTimeoutSeconds
         nonStreamResponseTimeoutSeconds
+        responsesTransportMode
         disableSessionReuse
         adaptedCapabilities
         disabledEndpoints

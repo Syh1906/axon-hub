@@ -210,7 +210,7 @@ func selectResponsesContinuationCandidate(ctx context.Context, p *PersistentOutb
 		}
 		for modelIndex := range candidate.Models {
 			p.refreshCandidateAPIFormat(ctx, candidate, modelIndex, request)
-			p.preferVerifiedHTTPWebSocket(ctx, candidate, candidate.Models[modelIndex], request)
+			p.selectHTTPResponsesTransport(ctx, candidate, candidate.Models[modelIndex], request)
 			origin := shared.ResponsesOrigin{
 				ChannelID: candidate.Channel.ID,
 				Format:    candidate.APIFormat,
