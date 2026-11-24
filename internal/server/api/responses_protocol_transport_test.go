@@ -71,7 +71,11 @@ func TestResponsesProtocolIntegrationUpstreamWebSocket(t *testing.T) {
 				}
 			}))
 			client, handlers, project := newResponsesIntegrationFixture(t, upstream.URL, func(create *ent.ChannelCreate) {
-				create.SetEndpoints([]objects.ChannelEndpoint{{APIFormat: "openai/responses-ws"}})
+				endpoints := []objects.ChannelEndpoint{{APIFormat: "openai/responses-ws"}}
+				if downstream == "http" {
+					endpoints = append(endpoints, objects.ChannelEndpoint{APIFormat: "openai/responses"})
+				}
+				create.SetEndpoints(endpoints)
 			})
 			gateway := responsesIntegrationGateway(t, client, handlers, project)
 			// When

@@ -645,6 +645,7 @@ var pluginMutationFieldSnapshot = []string{
 	"saveChannelEndpoints",
 	"saveChannelModelPrices",
 	"saveChannelUpstreamAccount",
+	"saveKeyChannelRates",
 	"saveProxyPreset",
 	"setChannelKeySessionReuse",
 	"setCleanupTaskPaused",
