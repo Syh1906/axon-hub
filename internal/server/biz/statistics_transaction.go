@@ -4,6 +4,9 @@ import (
 	"context"
 	stdsql "database/sql"
 	"errors"
+	"modernc.org/sqlite"
+	sqlite3 "modernc.org/sqlite/lib"
+	"time"
 
 	"entgo.io/ent/dialect"
 	"entgo.io/ent/dialect/sql"
@@ -79,8 +82,20 @@ func readStatisticsSnapshot[T any](ctx context.Context, client *ent.Client, read
 		if err == nil {
 			return value, nil
 		}
-		if attempt >= 2 || !statisticsSnapshotConflict(err) {
+		if attempt >= 2 {
 			return zero, err
 		}
+		var sqliteErr *sqlite.Error
+		if errors.As(err, &sqliteErr) && (sqliteErr.Code()&0xff == sqlite3.SQLITE_BUSY || sqliteErr.Code()&0xff == sqlite3.SQLITE_LOCKED) {
+			// 并发读事务升级写锁时必须先回滚并让出锁，再从新的快照读取源修订。
+			select {
+			case <-ctx.Done():
+				return zero, ctx.Err()
+			case <-time.After(time.Duration(2<<attempt) * time.Millisecond):
+			}
+		} else if !statisticsSnapshotConflict(err) {
+			return zero, err
+		}
+
 	}
 }

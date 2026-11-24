@@ -4,6 +4,7 @@ import type { ConsumptionFilter, ConsumptionResult, ConsumptionMetrics, Consumpt
 export type SlicePage = {
   days: { start: string; revision: string }[];
   pending: boolean;
+  useRankedPage?: boolean;
   resolvedAt: string;
   slices: ConsumptionResult[];
   next: string | null;
@@ -14,7 +15,6 @@ export type SlicePage = {
 };
 
 type DayCache = {
-  detailSelection?: string;
   timezone: string;
   currencyCode: string;
   days: Record<string, ConsumptionResult>;
@@ -79,7 +79,6 @@ export function combineConsumptionSlices(
   filter: ConsumptionFilter
 ): ConsumptionResult {
   const entries = new Map<string, ConsumptionEntry>();
-  const names = new Map<string, Set<string>>();
   const models = new Map<string, Map<string, ConsumptionEntry['models'][number]>>();
   const cacheSamples = new Map<string, ConsumptionResult['cacheSamples'][number]>();
   const performanceSamples = new Map<string, ConsumptionResult['performanceSamples'][number]>();
@@ -103,9 +102,6 @@ export function combineConsumptionSlices(
       else performanceSamples.set(key, { ...sample, metrics: { ...sample.metrics } });
     }
     for (const entry of day.entries) {
-      if (!names.has(entry.id)) names.set(entry.id, new Set());
-      const modelNames = names.get(entry.id)!;
-      for (const name of entry.modelNames ?? entry.models.map((m) => m.model)) modelNames.add(name);
       const existing = entries.get(entry.id);
       if (existing) addMetrics(existing.metrics, entry.metrics);
       else entries.set(entry.id, { ...entry, metrics: { ...entry.metrics }, models: [] });
@@ -126,7 +122,6 @@ export function combineConsumptionSlices(
         compareNullable(a.cacheHitRate, b.cacheHitRate) ||
         b.requestCount - a.requestCount;
   for (const entry of entries.values()) {
-    entry.modelNames = [...names.get(entry.id)!];
     entry.models = [...models.get(entry.id)!.values()];
   }
   if (filter.dimension === 'CHANNEL') {
@@ -140,7 +135,7 @@ export function combineConsumptionSlices(
     }
     for (const sample of performanceSamples.values()) {
       const entry = entries.get(sample.channelID);
-      if (!entry || !names.get(entry.id)!.has(sample.model)) continue;
+      if (!entry || !models.get(entry.id)!.has(sample.model)) continue;
       const model = models.get(entry.id)!.get(sample.model);
       for (const key of performanceKeys) {
         entry.metrics[key] += sample.metrics[key];
@@ -269,10 +264,15 @@ function cachedRange(input: ConsumptionFilter, cache: DayCache, now: number) {
   };
 }
 
+export function hasCachedConsumptionRange(client: QueryClient, key: readonly unknown[], input: ConsumptionFilter) {
+  const cache = client.getQueryData<DayCache>(key);
+  return cache !== undefined && cachedRange(input, cache, Date.now()) !== null;
+}
+
 export type KnownSlice = { start: string; revision: string };
 type FetchSlices = (after?: string, known?: KnownSlice[], asOf?: string, verify?: boolean, pendingDates?: string[]) => Promise<SlicePage>;
 
-function waitForSummary(signal: AbortSignal, delay: number) {
+export function waitForSummary(signal: AbortSignal, delay: number) {
   return new Promise<void>((resolve, reject) => {
     signal.throwIfAborted();
     const cancel = () => {
@@ -297,7 +297,7 @@ function trimDays(cache: DayCache) {
     )
     .entries()) {
     rows +=
-      cache.days[date].entries.reduce((n, entry) => n + 1 + (entry.modelNames?.length ?? entry.models.length), 0) +
+      cache.days[date].entries.reduce((n, entry) => n + 1 + entry.models.length, 0) +
       cache.days[date].cacheSamples.length +
       cache.days[date].performanceSamples.length;
     if (index >= 90 || rows > 10000) {
@@ -313,14 +313,12 @@ export async function loadConsumptionSlices(
   input: ConsumptionFilter,
   fetchPage: FetchSlices,
   signal: AbortSignal,
-  reuse = true,
-  detailSelection?: string
+  reuse = true
 ) {
   signal.throwIfAborted();
   // 固定前缀只占一个默认项，任意搜索词和权限范围不会积累全局 defaults。
   client.setQueryDefaults(['consumptionDays'], { gcTime: 30 * 60000 });
   let cache = client.getQueryData<DayCache>(key);
-  if (cache?.detailSelection !== detailSelection) cache = undefined;
   const covered = reuse && cache && cachedRange(input, cache, Date.now());
   if (covered) return { ...combineConsumptionSlices(covered.days, covered.metadata, input), resolvedAt: new Date().toISOString() };
   const started = Date.now();
@@ -329,6 +327,7 @@ export async function loadConsumptionSlices(
     let after: string | undefined;
     let first: SlicePage | undefined;
     const used: KnownSlice[] = [];
+    let reads = 0;
     do {
       const pageDays = new Map<string, ConsumptionResult>();
       if (cache) for (const value of Object.values(cache.days)) pageDays.set(value.rangeStart!, value);
@@ -350,8 +349,12 @@ export async function loadConsumptionSlices(
           .sort((a, b) => a.rangeStart!.localeCompare(b.rangeStart!))
           .slice(0, 31)
           .map((day) => ({ start: day.rangeStart!, revision: day.revision }));
+        reads++;
         page = await fetchPage(after, known, first?.resolvedAt, false, pendingDates);
         signal.throwIfAborted();
+        if (page.useRankedPage) {
+          return { ...page, revision: '', generatedAt: page.resolvedAt, entries: [], cacheSamples: [], performanceSamples: [], useRankedPage: true as const };
+        }
         first ??= page;
         if (
           page.timezone !== first.timezone ||
@@ -381,7 +384,7 @@ export async function loadConsumptionSlices(
       }
       combined = combineConsumptionSlices(combined ? [combined, ...current] : current, first, input);
       if (!cache || cache.timezone !== page.timezone || cache.currencyCode !== page.currencyCode)
-        cache = { timezone: page.timezone, currencyCode: page.currencyCode, days: {}, detailSelection };
+        cache = { timezone: page.timezone, currencyCode: page.currencyCode, days: {} };
       cache = { ...cache, days: { ...cache.days }, checkedAt: { ...cache.checkedAt } };
       for (const day of current) {
         const date = reportingDate(day.rangeStart!, page.timezone);
@@ -394,9 +397,9 @@ export async function loadConsumptionSlices(
       after = page.next ?? undefined;
     } while (after);
     // 在同一数据库读取快照内复核所有已使用日期，避免分页时移组/补价混合前后归属。
-    const checked = await fetchPage(undefined, used, first!.resolvedAt, true);
+    const verified = reads === 1 || !(await fetchPage(undefined, used, first!.resolvedAt, true)).pending;
     signal.throwIfAborted();
-    if (!checked.pending) {
+    if (verified) {
       client.setQueryData(key, cache);
       return { ...combined!, resolvedAt: first!.resolvedAt };
     }

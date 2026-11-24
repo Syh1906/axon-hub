@@ -25,6 +25,8 @@ import {
   type ConsumptionMetric,
 } from './data/consumption';
 
+import { useRankedPages, type RankSort } from './data/ranked-pages';
+
 export default function ConsumptionPage({ view = 'leaderboard' }: { view?: 'leaderboard' | 'usage' }) {
   const { t, i18n } = useTranslation();
   const isLeaderboard = view === 'leaderboard';
@@ -50,17 +52,14 @@ export default function ConsumptionPage({ view = 'leaderboard' }: { view?: 'lead
     search: (dimension === 'API_KEY' || dimension === 'USER' ? debouncedSearch : search) || undefined,
     projectID: isLeaderboard && projectID !== 'all' ? projectID : undefined,
   };
-  const projectionScope = JSON.stringify([view, scope, consumptionQueryInput(filter)]);
-  const [details, setDetails] = useState<{ scope: string; ids: string[]; reuse: boolean } | null>(null);
-  if (details && details.scope !== projectionScope) setDetails(null);
-  const detailIDs = details?.scope === projectionScope ? details.ids : [];
-  const { data, isLoading, isFetching, error, refetch, changeDetailSelection } =
-    useConsumption(filter, view, selectedProjectID, true, detailIDs, details?.scope === projectionScope && details.reuse);
-  const toggleDetails = (id: string) => {
-    const closing = detailIDs.includes(id);
-    const ids = closing ? detailIDs.filter((openID) => openID !== id) : [...detailIDs, id].sort();
-    setDetails({ scope: projectionScope, ids, reuse: changeDetailSelection(ids, closing) });
-  };
+  const tableScope = JSON.stringify([view, scope, consumptionQueryInput(filter)]);
+  const [sortSelection, setSortSelection] = useState<{ scope: string; sort: RankSort } | null>(null);
+  const sortScope = JSON.stringify([view, scope, dimension, metric]);
+  const rankSort = sortScope === sortSelection?.scope ? sortSelection.sort : null;
+  const daily = useConsumption(filter, view, selectedProjectID);
+  const paged = daily.preferRanked || daily.data?.useRankedPage === true;
+  const ranked = useRankedPages({ ...filter, search: debouncedSearch || undefined }, view, selectedProjectID, rankSort, paged);
+  const { data, isLoading, isFetching, error, refetch } = paged ? ranked : daily;
   const projects = useConsumptionProjects(isLeaderboard);
   const groupOptions = useConsumptionGroupOptions(
     { ...filter, dimension: 'API_KEY_GROUP', groupRef: undefined, search: undefined },
@@ -205,9 +204,10 @@ export default function ConsumptionPage({ view = 'leaderboard' }: { view?: 'lead
                 </div>
               ) : data?.entries.length ? (
                 <ConsumptionTable
-                  key={`${scope}:${dimension}:${metric}`}
-                  expandedIDs={detailIDs}
-                  onToggle={toggleDetails}
+                  key={tableScope}
+                  remoteSort={paged ? rankSort : undefined}
+                  onSort={paged ? (sort) => setSortSelection({ scope: sortScope, sort }) : undefined}
+                  loadMore={paged && ranked.hasNextPage && !ranked.isFetching && !ranked.isError ? ranked.fetchNextPage : undefined}
                   scrollElement={tableScrollElement}
                   view={view}
                   entries={data.entries}

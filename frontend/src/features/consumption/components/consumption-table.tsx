@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { ArrowDown, ArrowUp, ArrowUpDown, ChevronDown, ChevronRight, CornerDownRight } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -11,6 +11,8 @@ import { ChannelIdentity } from './channel-identity';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ExpandableTableRow } from '@/components/expandable-table-row';
 import type { ConsumptionDimension, ConsumptionEntry, ConsumptionMetric, ConsumptionMetrics } from '../data/consumption';
+
+import type { RankSort } from '../data/ranked-pages';
 
 type MetricKey = keyof ConsumptionMetrics;
 type Column = {
@@ -82,11 +84,11 @@ export function ConsumptionTable({
   expandable = true,
   scrollElement,
   view = 'leaderboard',
-  expandedIDs,
-  onToggle,
+  remoteSort, onSort, loadMore,
 }: {
-  expandedIDs: string[];
-  onToggle: (id: string) => void;
+  remoteSort?: RankSort;
+  onSort?: (sort: RankSort) => void;
+  loadMore?: () => void;
   entries: ConsumptionEntry[];
   dimension: ConsumptionDimension;
   metric: ConsumptionMetric;
@@ -97,12 +99,19 @@ export function ConsumptionTable({
 }) {
   const { t, i18n } = useTranslation();
   const currencyDisplayDecimals = useCurrencyDisplayDecimals();
-  const expanded = useMemo(() => new Set(expandedIDs), [expandedIDs]);
-  const [sort, setSort] = useState<{ key: MetricKey; direction: 'asc' | 'desc' } | null>(null);
+  const [expanded, setExpanded] = useState(() => new Set<string>());
+  const onToggle = (id: string) => setExpanded((current) => {
+    const next = new Set(current);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    return next;
+  });
+  const [localSort, setLocalSort] = useState<RankSort>(null);
+  const sort = remoteSort === undefined ? localSort : remoteSort;
   const columns = useMemo(() => columnsFor(dimension, metric, view), [dimension, metric, view]);
   const visibleSort = sort && columns.some((column) => column.key === sort.key) ? sort : null;
   const sorted = useMemo(() => {
-    if (!visibleSort) return entries;
+    if (remoteSort !== undefined || !visibleSort) return entries;
     const { key, direction } = visibleSort;
     return [...entries].sort((a, b) => {
       const left = a.metrics[key],
@@ -112,7 +121,7 @@ export function ConsumptionTable({
       if (right === null) return -1;
       return (left - right) * (direction === 'asc' ? 1 : -1);
     });
-  }, [entries, visibleSort]);
+  }, [entries, visibleSort, remoteSort]);
   // Flatten expanded models so a single large entity cannot mount an unbounded subtree.
   const rows = useMemo(
     () =>
@@ -135,6 +144,10 @@ export function ConsumptionTable({
     useFlushSync: false,
   });
   const items = virtualizer.getVirtualItems();
+  const lastVisible = items.at(-1)?.index ?? -1;
+  useEffect(() => {
+    if (lastVisible >= 0 && lastVisible >= rows.length - 8) loadMore?.();
+  }, [lastVisible, rows.length, loadMore]);
   const top = Math.max(0, (items[0]?.start ?? 58) - 58);
   const bottom = Math.max(0, virtualizer.getTotalSize() - ((items.at(-1)?.end ?? 58) - 58));
   const locale = i18n.language.startsWith('zh') ? 'zh-CN' : 'en-US';
@@ -207,10 +220,10 @@ export function ConsumptionTable({
                 className='h-auto w-full justify-center px-4 py-2 text-xs whitespace-normal'
                 title={column.tooltip ? t(`consumption.${column.tooltip}`) : undefined}
                 onClick={() =>
-                  setSort((current) => ({
+                  (onSort ?? setLocalSort)({
                     key: column.key,
-                    direction: current?.key === column.key && current.direction === 'desc' ? 'asc' : 'desc',
-                  }))
+                    direction: sort?.key === column.key && sort.direction === 'desc' ? 'asc' : 'desc',
+                  })
                 }
               >
                 <span className='relative'>
@@ -255,7 +268,7 @@ export function ConsumptionTable({
                 {metricCells(model.metrics, true)}
               </TableRow>
             );
-          const modelCount = entry.modelNames?.length ?? entry.models.length;
+          const modelCount = entry.models.length;
           const hasModels = expandable && modelCount > 0;
           const isExpanded = hasModels && expanded.has(entry.id);
           return (

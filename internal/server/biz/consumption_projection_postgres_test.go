@@ -61,7 +61,7 @@ fixture_usage(id,request_id,project_id,channel_id,prompt_tokens,completion_token
  (4001,4,1,11,1000,100,1100,0,0,0.04::double precision,NULL::jsonb,0),
  (5001,5,1,11,10,10,20,0,0,0.05::double precision,'{"images":[{}]}'::jsonb,0)
 ),
-usage_logs AS (SELECT fixture_usage.*, 1 AS api_key_id, 'fixture'::text AS model_id,
+usage_logs AS (SELECT fixture_usage.*, NULL::integer AS billing_group_id, NULL::double precision AS billed_cost, 1 AS api_key_id, 'fixture'::text AS model_id,
  TIMESTAMPTZ '2026-11-09T08:00:00Z' AS created_at, 0 AS completion_reasoning_tokens,
  total_cost AS statistics_standard_cost, TRUE AS statistics_standard_ready, NULL::jsonb AS cost_items, ''::text AS cost_price_reference_id,
  0 AS prompt_write_cached_tokens_5m, 0 AS prompt_write_cached_tokens_1h,
@@ -77,7 +77,7 @@ usage_archives AS (
  SELECT id, 'usage'::text AS kind, id AS source_id, request_id, project_id, api_key_id, channel_id, model_id,
  ''::text AS client_session_id, model_id AS request_model_id, created_at AS occurred_at, 'completed'::text AS request_status, 'api'::text AS request_source,
  prompt_tokens, completion_tokens, total_tokens, prompt_cached_tokens, prompt_write_cached_tokens,
- completion_reasoning_tokens, total_cost, 1 AS billing_version, TRUE AS pricing_complete,
+ completion_reasoning_tokens, total_cost, billing_group_id, billed_cost, 1 AS billing_version, TRUE AS pricing_complete,
  3 AS speed_version, 0 AS speed_count, 0::double precision AS speed_sum,
  0 AS first_token_count, 0::double precision AS first_token_sum, 0 AS success_count, 0 AS outcome_count,
  0 AS cache_requests, 0 AS cache_input, 0::double precision AS cache_creation_cost FROM usage_logs WHERE FALSE

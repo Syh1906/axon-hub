@@ -1094,6 +1094,13 @@ type ComplexityRoot struct {
 		Name func(childComplexity int) int
 	}
 
+	ConsumptionRankedPage struct {
+		NextOffset func(childComplexity int) int
+		Pending    func(childComplexity int) int
+		ResolvedAt func(childComplexity int) int
+		Result     func(childComplexity int) int
+	}
+
 	ConsumptionResult struct {
 		CacheSamples       func(childComplexity int) int
 		CurrencyCode       func(childComplexity int) int
@@ -1109,15 +1116,16 @@ type ComplexityRoot struct {
 	}
 
 	ConsumptionSlicePage struct {
-		CurrencyCode func(childComplexity int) int
-		Days         func(childComplexity int) int
-		Next         func(childComplexity int) int
-		Pending      func(childComplexity int) int
-		RangeEnd     func(childComplexity int) int
-		RangeStart   func(childComplexity int) int
-		ResolvedAt   func(childComplexity int) int
-		Slices       func(childComplexity int) int
-		Timezone     func(childComplexity int) int
+		CurrencyCode  func(childComplexity int) int
+		Days          func(childComplexity int) int
+		Next          func(childComplexity int) int
+		Pending       func(childComplexity int) int
+		RangeEnd      func(childComplexity int) int
+		RangeStart    func(childComplexity int) int
+		ResolvedAt    func(childComplexity int) int
+		Slices        func(childComplexity int) int
+		Timezone      func(childComplexity int) int
+		UseRankedPage func(childComplexity int) int
 	}
 
 	ConsumptionSliceRevision struct {
@@ -2403,6 +2411,7 @@ type ComplexityRoot struct {
 		ConsumptionGroupOptions         func(childComplexity int, input biz.ConsumptionFilter) int
 		ConsumptionLeaderboard          func(childComplexity int, input biz.ConsumptionFilter) int
 		ConsumptionProjects             func(childComplexity int) int
+		ConsumptionRankedPage           func(childComplexity int, input biz.ConsumptionFilter, projectUsage bool, offset int, revision *string, sort *string, descending bool, providerMatches []string, asOf *time.Time) int
 		ConsumptionSlices               func(childComplexity int, input biz.ConsumptionFilter, after *time.Time, known []*biz.ConsumptionSliceRevision, pendingDates []*time.Time, asOf *time.Time, verify bool) int
 		CostStatsByAPIKey               func(childComplexity int, timeWindow *string) int
 		CostStatsByChannel              func(childComplexity int, timeWindow *string) int
@@ -4067,6 +4076,7 @@ type QueryResolver interface {
 	AnalyticsAPIKeyStats(ctx context.Context, filter *AnalyticsFilter) ([]*AnalyticsAPIKeyStat, error)
 	AnalyticsChannelTags(ctx context.Context) ([]string, error)
 	AnalyticsModelStats(ctx context.Context, filter *AnalyticsModelFilter) ([]*AnalyticsModelStat, error)
+	ConsumptionRankedPage(ctx context.Context, input biz.ConsumptionFilter, projectUsage bool, offset int, revision *string, sort *string, descending bool, providerMatches []string, asOf *time.Time) (*biz.ConsumptionRankedPage, error)
 	ConsumptionSlices(ctx context.Context, input biz.ConsumptionFilter, after *time.Time, known []*biz.ConsumptionSliceRevision, pendingDates []*time.Time, asOf *time.Time, verify bool) (*biz.ConsumptionSlicePage, error)
 	UsageSlices(ctx context.Context, input biz.ConsumptionFilter, after *time.Time, known []*biz.ConsumptionSliceRevision, pendingDates []*time.Time, asOf *time.Time, verify bool) (*biz.ConsumptionSlicePage, error)
 	ConsumptionProjects(ctx context.Context) ([]*biz.ConsumptionProject, error)
@@ -8264,6 +8274,31 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.ConsumptionProject.Name(childComplexity), true
 
+	case "ConsumptionRankedPage.nextOffset":
+		if e.complexity.ConsumptionRankedPage.NextOffset == nil {
+			break
+		}
+
+		return e.complexity.ConsumptionRankedPage.NextOffset(childComplexity), true
+	case "ConsumptionRankedPage.pending":
+		if e.complexity.ConsumptionRankedPage.Pending == nil {
+			break
+		}
+
+		return e.complexity.ConsumptionRankedPage.Pending(childComplexity), true
+	case "ConsumptionRankedPage.resolvedAt":
+		if e.complexity.ConsumptionRankedPage.ResolvedAt == nil {
+			break
+		}
+
+		return e.complexity.ConsumptionRankedPage.ResolvedAt(childComplexity), true
+	case "ConsumptionRankedPage.result":
+		if e.complexity.ConsumptionRankedPage.Result == nil {
+			break
+		}
+
+		return e.complexity.ConsumptionRankedPage.Result(childComplexity), true
+
 	case "ConsumptionResult.cacheSamples":
 		if e.complexity.ConsumptionResult.CacheSamples == nil {
 			break
@@ -8385,6 +8420,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.ConsumptionSlicePage.Timezone(childComplexity), true
+	case "ConsumptionSlicePage.useRankedPage":
+		if e.complexity.ConsumptionSlicePage.UseRankedPage == nil {
+			break
+		}
+
+		return e.complexity.ConsumptionSlicePage.UseRankedPage(childComplexity), true
 
 	case "ConsumptionSliceRevision.revision":
 		if e.complexity.ConsumptionSliceRevision.Revision == nil {
@@ -14647,6 +14688,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Query.ConsumptionProjects(childComplexity), true
+	case "Query.consumptionRankedPage":
+		if e.complexity.Query.ConsumptionRankedPage == nil {
+			break
+		}
+
+		args, err := ec.field_Query_consumptionRankedPage_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.ConsumptionRankedPage(childComplexity, args["input"].(biz.ConsumptionFilter), args["projectUsage"].(bool), args["offset"].(int), args["revision"].(*string), args["sort"].(*string), args["descending"].(bool), args["providerMatches"].([]string), args["asOf"].(*time.Time)), true
 	case "Query.consumptionSlices":
 		if e.complexity.Query.ConsumptionSlices == nil {
 			break
@@ -23997,6 +24049,52 @@ func (ec *executionContext) field_Query_consumptionLeaderboard_args(ctx context.
 		return nil, err
 	}
 	args["input"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_consumptionRankedPage_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNConsumptionFilter2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐConsumptionFilter)
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "projectUsage", ec.unmarshalNBoolean2bool)
+	if err != nil {
+		return nil, err
+	}
+	args["projectUsage"] = arg1
+	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "offset", ec.unmarshalNInt2int)
+	if err != nil {
+		return nil, err
+	}
+	args["offset"] = arg2
+	arg3, err := graphql.ProcessArgField(ctx, rawArgs, "revision", ec.unmarshalOString2ᚖstring)
+	if err != nil {
+		return nil, err
+	}
+	args["revision"] = arg3
+	arg4, err := graphql.ProcessArgField(ctx, rawArgs, "sort", ec.unmarshalOString2ᚖstring)
+	if err != nil {
+		return nil, err
+	}
+	args["sort"] = arg4
+	arg5, err := graphql.ProcessArgField(ctx, rawArgs, "descending", ec.unmarshalNBoolean2bool)
+	if err != nil {
+		return nil, err
+	}
+	args["descending"] = arg5
+	arg6, err := graphql.ProcessArgField(ctx, rawArgs, "providerMatches", ec.unmarshalOString2ᚕstringᚄ)
+	if err != nil {
+		return nil, err
+	}
+	args["providerMatches"] = arg6
+	arg7, err := graphql.ProcessArgField(ctx, rawArgs, "asOf", ec.unmarshalOTime2ᚖtimeᚐTime)
+	if err != nil {
+		return nil, err
+	}
+	args["asOf"] = arg7
 	return args, nil
 }
 
@@ -46872,6 +46970,146 @@ func (ec *executionContext) fieldContext_ConsumptionProject_name(_ context.Conte
 	return fc, nil
 }
 
+func (ec *executionContext) _ConsumptionRankedPage_pending(ctx context.Context, field graphql.CollectedField, obj *biz.ConsumptionRankedPage) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ConsumptionRankedPage_pending,
+		func(ctx context.Context) (any, error) {
+			return obj.Pending, nil
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ConsumptionRankedPage_pending(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ConsumptionRankedPage",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ConsumptionRankedPage_resolvedAt(ctx context.Context, field graphql.CollectedField, obj *biz.ConsumptionRankedPage) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ConsumptionRankedPage_resolvedAt,
+		func(ctx context.Context) (any, error) {
+			return obj.ResolvedAt, nil
+		},
+		nil,
+		ec.marshalNTime2timeᚐTime,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ConsumptionRankedPage_resolvedAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ConsumptionRankedPage",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Time does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ConsumptionRankedPage_nextOffset(ctx context.Context, field graphql.CollectedField, obj *biz.ConsumptionRankedPage) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ConsumptionRankedPage_nextOffset,
+		func(ctx context.Context) (any, error) {
+			return obj.NextOffset, nil
+		},
+		nil,
+		ec.marshalOInt2ᚖint,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_ConsumptionRankedPage_nextOffset(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ConsumptionRankedPage",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ConsumptionRankedPage_result(ctx context.Context, field graphql.CollectedField, obj *biz.ConsumptionRankedPage) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ConsumptionRankedPage_result,
+		func(ctx context.Context) (any, error) {
+			return obj.Result, nil
+		},
+		nil,
+		ec.marshalOConsumptionResult2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐConsumptionResult,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_ConsumptionRankedPage_result(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ConsumptionRankedPage",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "revision":
+				return ec.fieldContext_ConsumptionResult_revision(ctx, field)
+			case "cacheSamples":
+				return ec.fieldContext_ConsumptionResult_cacheSamples(ctx, field)
+			case "performanceSamples":
+				return ec.fieldContext_ConsumptionResult_performanceSamples(ctx, field)
+			case "resolvedAt":
+				return ec.fieldContext_ConsumptionResult_resolvedAt(ctx, field)
+			case "entries":
+				return ec.fieldContext_ConsumptionResult_entries(ctx, field)
+			case "modelEntries":
+				return ec.fieldContext_ConsumptionResult_modelEntries(ctx, field)
+			case "generatedAt":
+				return ec.fieldContext_ConsumptionResult_generatedAt(ctx, field)
+			case "rangeStart":
+				return ec.fieldContext_ConsumptionResult_rangeStart(ctx, field)
+			case "rangeEnd":
+				return ec.fieldContext_ConsumptionResult_rangeEnd(ctx, field)
+			case "timezone":
+				return ec.fieldContext_ConsumptionResult_timezone(ctx, field)
+			case "currencyCode":
+				return ec.fieldContext_ConsumptionResult_currencyCode(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type ConsumptionResult", field.Name)
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _ConsumptionResult_revision(ctx context.Context, field graphql.CollectedField, obj *biz.ConsumptionResult) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -47236,6 +47474,35 @@ func (ec *executionContext) fieldContext_ConsumptionResult_currencyCode(_ contex
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ConsumptionSlicePage_useRankedPage(ctx context.Context, field graphql.CollectedField, obj *biz.ConsumptionSlicePage) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ConsumptionSlicePage_useRankedPage,
+		func(ctx context.Context) (any, error) {
+			return obj.UseRankedPage, nil
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ConsumptionSlicePage_useRankedPage(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ConsumptionSlicePage",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
 		},
 	}
 	return fc, nil
@@ -82527,6 +82794,57 @@ func (ec *executionContext) fieldContext_Query_analyticsModelStats(ctx context.C
 	return fc, nil
 }
 
+func (ec *executionContext) _Query_consumptionRankedPage(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Query_consumptionRankedPage,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Query().ConsumptionRankedPage(ctx, fc.Args["input"].(biz.ConsumptionFilter), fc.Args["projectUsage"].(bool), fc.Args["offset"].(int), fc.Args["revision"].(*string), fc.Args["sort"].(*string), fc.Args["descending"].(bool), fc.Args["providerMatches"].([]string), fc.Args["asOf"].(*time.Time))
+		},
+		nil,
+		ec.marshalNConsumptionRankedPage2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐConsumptionRankedPage,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Query_consumptionRankedPage(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "pending":
+				return ec.fieldContext_ConsumptionRankedPage_pending(ctx, field)
+			case "resolvedAt":
+				return ec.fieldContext_ConsumptionRankedPage_resolvedAt(ctx, field)
+			case "nextOffset":
+				return ec.fieldContext_ConsumptionRankedPage_nextOffset(ctx, field)
+			case "result":
+				return ec.fieldContext_ConsumptionRankedPage_result(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type ConsumptionRankedPage", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_consumptionRankedPage_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Query_consumptionSlices(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -82552,6 +82870,8 @@ func (ec *executionContext) fieldContext_Query_consumptionSlices(ctx context.Con
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "useRankedPage":
+				return ec.fieldContext_ConsumptionSlicePage_useRankedPage(ctx, field)
 			case "days":
 				return ec.fieldContext_ConsumptionSlicePage_days(ctx, field)
 			case "pending":
@@ -82613,6 +82933,8 @@ func (ec *executionContext) fieldContext_Query_usageSlices(ctx context.Context, 
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "useRankedPage":
+				return ec.fieldContext_ConsumptionSlicePage_useRankedPage(ctx, field)
 			case "days":
 				return ec.fieldContext_ConsumptionSlicePage_days(ctx, field)
 			case "pending":
@@ -118446,6 +118768,9 @@ func (ec *executionContext) unmarshalInputConsumptionFilter(ctx context.Context,
 		asMap[k] = v
 	}
 
+	if _, present := asMap["allowRankedPage"]; !present {
+		asMap["allowRankedPage"] = false
+	}
 	if _, present := asMap["metric"]; !present {
 		asMap["metric"] = "COST"
 	}
@@ -118453,13 +118778,20 @@ func (ec *executionContext) unmarshalInputConsumptionFilter(ctx context.Context,
 		asMap["period"] = "TODAY"
 	}
 
-	fieldsInOrder := [...]string{"groupRef", "projectID", "dimension", "metric", "period", "startDate", "endDate", "search"}
+	fieldsInOrder := [...]string{"allowRankedPage", "groupRef", "projectID", "dimension", "metric", "period", "startDate", "endDate", "search"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
 			continue
 		}
 		switch k {
+		case "allowRankedPage":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("allowRankedPage"))
+			data, err := ec.unmarshalNBoolean2bool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.AllowRankedPage = data
 		case "groupRef":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("groupRef"))
 			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
@@ -150078,6 +150410,54 @@ func (ec *executionContext) _ConsumptionProject(ctx context.Context, sel ast.Sel
 	return out
 }
 
+var consumptionRankedPageImplementors = []string{"ConsumptionRankedPage"}
+
+func (ec *executionContext) _ConsumptionRankedPage(ctx context.Context, sel ast.SelectionSet, obj *biz.ConsumptionRankedPage) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, consumptionRankedPageImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("ConsumptionRankedPage")
+		case "pending":
+			out.Values[i] = ec._ConsumptionRankedPage_pending(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "resolvedAt":
+			out.Values[i] = ec._ConsumptionRankedPage_resolvedAt(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "nextOffset":
+			out.Values[i] = ec._ConsumptionRankedPage_nextOffset(ctx, field, obj)
+		case "result":
+			out.Values[i] = ec._ConsumptionRankedPage_result(ctx, field, obj)
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
 var consumptionResultImplementors = []string{"ConsumptionResult"}
 
 func (ec *executionContext) _ConsumptionResult(ctx context.Context, sel ast.SelectionSet, obj *biz.ConsumptionResult) graphql.Marshaler {
@@ -150175,6 +150555,11 @@ func (ec *executionContext) _ConsumptionSlicePage(ctx context.Context, sel ast.S
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("ConsumptionSlicePage")
+		case "useRankedPage":
+			out.Values[i] = ec._ConsumptionSlicePage_useRankedPage(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "days":
 			out.Values[i] = ec._ConsumptionSlicePage_days(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -162368,6 +162753,28 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 					}
 				}()
 				res = ec._Query_analyticsModelStats(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "consumptionRankedPage":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_consumptionRankedPage(ctx, field)
 				if res == graphql.Null {
 					atomic.AddUint32(&fs.Invalids, 1)
 				}
@@ -177192,6 +177599,20 @@ func (ec *executionContext) marshalNConsumptionProject2ᚖgithubᚗcomᚋlooplj�
 	return ec._ConsumptionProject(ctx, sel, v)
 }
 
+func (ec *executionContext) marshalNConsumptionRankedPage2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐConsumptionRankedPage(ctx context.Context, sel ast.SelectionSet, v biz.ConsumptionRankedPage) graphql.Marshaler {
+	return ec._ConsumptionRankedPage(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNConsumptionRankedPage2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐConsumptionRankedPage(ctx context.Context, sel ast.SelectionSet, v *biz.ConsumptionRankedPage) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._ConsumptionRankedPage(ctx, sel, v)
+}
+
 func (ec *executionContext) marshalNConsumptionResult2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐConsumptionResult(ctx context.Context, sel ast.SelectionSet, v biz.ConsumptionResult) graphql.Marshaler {
 	return ec._ConsumptionResult(ctx, sel, &v)
 }
@@ -186675,6 +187096,13 @@ func (ec *executionContext) unmarshalOCommandCodeQuotaSettingsInput2ᚖgithubᚗ
 	}
 	res, err := ec.unmarshalInputCommandCodeQuotaSettingsInput(ctx, v)
 	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalOConsumptionResult2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐConsumptionResult(ctx context.Context, sel ast.SelectionSet, v *biz.ConsumptionResult) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._ConsumptionResult(ctx, sel, v)
 }
 
 func (ec *executionContext) unmarshalOConsumptionSliceRevisionInput2ᚕᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐConsumptionSliceRevisionᚄ(ctx context.Context, v any) ([]*biz.ConsumptionSliceRevision, error) {

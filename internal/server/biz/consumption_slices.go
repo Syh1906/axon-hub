@@ -97,7 +97,7 @@ func (s *ConsumptionService) verifyConsumptionDays(ctx context.Context, projectI
 
 		for _, job := range jobs {
 
-			active := job.RangeEnd.After(now) && !job.GeneratedAt.Before(refreshAt) && sameStatisticsMetadata(current[job.CacheKey], job.SnapshotVersion)
+			active := job.RangeEnd.After(now) && job.GeneratedAt.After(refreshAt) && sameStatisticsMetadata(current[job.CacheKey], job.SnapshotVersion)
 
 			if !active && (job.Pending || current[job.CacheKey] != job.SnapshotVersion) {
 				return false, nil
@@ -143,6 +143,10 @@ func (s *ConsumptionService) Slices(ctx context.Context, input ConsumptionFilter
 // ReadSlices 只登记/读取日期任务；历史计算由有界 worker 执行，不占据 HTTP 查询期限。
 
 func (s *ConsumptionService) ReadSlices(ctx context.Context, input ConsumptionFilter, after *time.Time, known []*ConsumptionSliceRevision, asOf *time.Time, verify bool, view string, pendingDates ...*time.Time) (*ConsumptionSlicePage, error) {
+	return s.readSlices(ctx, input, after, known, asOf, verify, view, input.AllowRankedPage, pendingDates...)
+}
+
+func (s *ConsumptionService) readSlices(ctx context.Context, input ConsumptionFilter, after *time.Time, known []*ConsumptionSliceRevision, asOf *time.Time, verify bool, view string, wait bool, pendingDates ...*time.Time) (*ConsumptionSlicePage, error) {
 	var projectID int
 
 	var err error
@@ -164,6 +168,7 @@ func (s *ConsumptionService) ReadSlices(ctx context.Context, input ConsumptionFi
 		return nil, fmt.Errorf("too many known consumption days")
 	}
 
+	viewerCtx := ctx
 	return authz.RunAsHost(ctx, s.client, "consumption-slices", func(ctx context.Context) (*ConsumptionSlicePage, error) {
 		ctx = contexts.WithPrimaryRead(ctx)
 
@@ -271,60 +276,94 @@ func (s *ConsumptionService) ReadSlices(ctx context.Context, input ConsumptionFi
 		if len(waiting) > 0 && len(waiting) != len(dates) {
 			return nil, fmt.Errorf("invalid pending consumption date")
 		}
-		identity, err := loadConsumptionChannelIdentity(ctx, s.client, input.Dimension)
-		if err != nil {
-			return nil, err
-		}
-		jobs, err := s.requestConsumptionDays(ctx, projectID, input, dates, settings.CurrencyCode, revisions, resolved, identity)
-		if err != nil {
-			return nil, err
-		}
+		var completed <-chan struct{}
+		var release func()
+		defer func() {
+			if release != nil {
+				release()
+			}
+		}()
+		// 同一页的修订、账目、渠道名称和搜索结果必须来自同一个数据库快照。
+		_, err = readStatisticsSnapshot(ctx, s.client, false, func(client *ent.Client) (bool, error) {
+			reader := *s
+			reader.client = client
+			page.Days, page.Slices, page.Pending, page.UseRankedPage = page.Days[:0], page.Slices[:0], false, false
+			rows := 0
+			identity, err := loadConsumptionChannelIdentity(ctx, client, input.Dimension)
+			if err != nil {
+				return false, err
+			}
+			jobs, err := requestConsumptionDays(ctx, client, projectID, input, dates, settings.CurrencyCode, revisions, resolved, identity)
+			if err != nil {
+				return false, err
+			}
 
-		for i, date := range dates {
-			job := jobs[i]
-			state := &ConsumptionSliceRevision{Start: date.UTC()}
+			for i, date := range dates {
+				job := jobs[i]
+				state := &ConsumptionSliceRevision{Start: date.UTC()}
 
-			ready := consumptionDayReady(job, resolved)
+				ready := consumptionDayReady(job, resolved)
 
-			if ready {
+				if ready {
 
-				state.Revision = identity.revision(consumptionDayRevision(job))
+					state.Revision = identity.revision(consumptionDayRevision(job))
 
-				if revisions[state.Start.Unix()] != state.Revision {
+					if !page.UseRankedPage && !input.revisionsOnly && revisions[state.Start.Unix()] != state.Revision {
 
-					var result ConsumptionResult
+						var result ConsumptionResult
 
-					if err := json.Unmarshal(job.Payload, &result); err != nil {
-						return nil, fmt.Errorf("decode consumption snapshot: %w", err)
+						if err := json.Unmarshal(job.Payload, &result); err != nil {
+							return false, fmt.Errorf("decode consumption snapshot: %w", err)
+						}
+
+						result.ResolvedAt = resolved
+
+						result.Revision = state.Revision
+
+						result.RangeStart = &state.Start
+
+						hydrated, err := reader.filterConsumptionSlice(ctx, input, identity.apply(&result))
+						if err != nil {
+							return false, err
+						}
+
+						if input.AllowRankedPage {
+							rows += len(hydrated.ModelEntries) + len(hydrated.Entries)
+							for _, entry := range hydrated.Entries {
+								rows += len(entry.Models)
+							}
+						}
+						// 单页超过浏览器的日期缓存容量时，改送期间排名的首批完整行。
+						if rows > 10000 {
+							page.UseRankedPage = true
+							page.Slices = nil
+						} else {
+							page.Slices = append(page.Slices, hydrated)
+						}
+
 					}
 
-					result.ResolvedAt = resolved
+				} else {
 
-					result.Revision = state.Revision
-
-					result.RangeStart = &state.Start
-
-					hydrated, err := s.filterConsumptionSlice(ctx, input, identity.apply(&result))
-					if err != nil {
-						return nil, err
+					if job.Failed && job.LeaseUntil.After(now) {
+						return false, fmt.Errorf("consumption summary calculation failed; retry after %s", job.LeaseUntil.Format(time.RFC3339))
 					}
 
-					page.Slices = append(page.Slices, hydrated)
+					page.Pending = true
+					if wait && completed == nil && len(dates) == 1 {
+						completed, release = s.ready.subscribe(job.CacheKey)
+					}
 
 				}
 
-			} else {
-
-				if job.Failed && job.LeaseUntil.After(now) {
-					return nil, fmt.Errorf("consumption summary calculation failed; retry after %s", job.LeaseUntil.Format(time.RFC3339))
-				}
-
-				page.Pending = true
+				page.Days = append(page.Days, state)
 
 			}
 
-			page.Days = append(page.Days, state)
-
+			return true, nil
+		})
+		if err != nil {
+			return nil, err
 		}
 
 		if cursor.Before(end) && !cursor.After(resolved) {
@@ -336,6 +375,18 @@ func (s *ConsumptionService) ReadSlices(ctx context.Context, input ConsumptionFi
 		}
 		if page.Pending && s.demand != nil {
 			s.demand.Store(time.Now().Add(5 * time.Second).UnixNano())
+		}
+
+		if page.Pending && completed != nil {
+			timer := time.NewTimer(500 * time.Millisecond)
+			defer timer.Stop()
+			select {
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			case <-completed:
+			case <-timer.C:
+			}
+			return s.readSlices(viewerCtx, input, after, known, &resolved, false, view, false, pendingDates...)
 		}
 
 		return page, nil
@@ -407,7 +458,7 @@ func (s *ConsumptionService) firstConsumptionDate(ctx context.Context, projectID
 }
 
 func consumptionDayReady(job *ent.ConsumptionSnapshot, refreshAt time.Time) bool {
-	return job.GeneratedAt.After(time.Unix(0, 0)) && ((!job.Pending && job.SourceVersion == job.SnapshotVersion) || (job.RangeEnd.After(refreshAt) && !job.GeneratedAt.Before(refreshAt) && sameStatisticsMetadata(job.SourceVersion, job.SnapshotVersion)))
+	return job.GeneratedAt.After(time.Unix(0, 0)) && ((!job.Pending && job.SourceVersion == job.SnapshotVersion) || (job.RangeEnd.After(refreshAt) && job.GeneratedAt.After(refreshAt) && sameStatisticsMetadata(job.SourceVersion, job.SnapshotVersion)))
 }
 
 func consumptionDayRevision(job *ent.ConsumptionSnapshot) string {
@@ -416,31 +467,13 @@ func consumptionDayRevision(job *ent.ConsumptionSnapshot) string {
 
 // 一页只读一次轻量状态；心跳最多每两秒批量更新，只读取缺失版本的载荷。
 
-func (s *ConsumptionService) requestConsumptionDays(ctx context.Context, projectID int, input ConsumptionFilter, dates []time.Time, currency string, revisions map[int64]string, refreshAt time.Time, identity *consumptionChannelIdentity) ([]*ent.ConsumptionSnapshot, error) {
+func requestConsumptionDays(ctx context.Context, client *ent.Client, projectID int, input ConsumptionFilter, dates []time.Time, currency string, revisions map[int64]string, refreshAt time.Time, identity *consumptionChannelIdentity) ([]*ent.ConsumptionSnapshot, error) {
 	if len(dates) == 0 {
 		return nil, nil
 	}
 
 	now := time.Now().UTC()
 
-	// 登记任务使用普通写事务，允许并发首次建立同一日期；最终版本复核
-
-	// 另用只读一致快照。载荷与对应版本在同一条 SELECT 中读取。
-
-	opts := &stdsql.TxOptions{Isolation: stdsql.LevelReadCommitted}
-
-	if s.client.Driver().Dialect() == dialect.SQLite {
-		opts = &stdsql.TxOptions{}
-	}
-
-	tx, err := s.client.BeginTx(ctx, opts)
-	if err != nil {
-		return nil, err
-	}
-
-	defer func() { _ = tx.Rollback() }()
-
-	client := tx.Client()
 	revisionsRows, err := readStatisticsRevisions(ctx, client, projectID, dates[0], dates[len(dates)-1].AddDate(0, 0, 1))
 	if err != nil {
 		return nil, err
@@ -515,6 +548,9 @@ func (s *ConsumptionService) requestConsumptionDays(ctx context.Context, project
 	for i, key := range keys {
 
 		job := byKey[key]
+		if job == nil {
+			return nil, errStatisticsSourceChanged
+		}
 
 		ordered[i] = job
 
@@ -525,13 +561,13 @@ func (s *ConsumptionService) requestConsumptionDays(ctx context.Context, project
 			job.SourceVersion, job.Pending = versions[key], true
 		}
 
-		if now.Sub(job.RequestedAt) >= 2*time.Second {
+		if (job.Pending && now.Sub(job.RequestedAt) >= 2*time.Second) || now.Sub(job.RequestedAt) >= 24*time.Hour {
 			touch = append(touch, job.ID)
 		}
 
 		version := identity.revision(consumptionDayRevision(job))
 
-		if consumptionDayReady(job, refreshAt) && revisions[job.RangeStart.Unix()] != version {
+		if !input.revisionsOnly && consumptionDayReady(job, refreshAt) && revisions[job.RangeStart.Unix()] != version {
 			payload = append(payload, job.ID)
 		}
 
@@ -554,10 +590,6 @@ func (s *ConsumptionService) requestConsumptionDays(ctx context.Context, project
 			*byKey[job.CacheKey] = *job
 		}
 
-	}
-
-	if err = tx.Commit(); err != nil {
-		return nil, err
 	}
 
 	return ordered, nil

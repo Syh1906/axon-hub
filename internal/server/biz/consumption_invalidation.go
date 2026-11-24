@@ -63,6 +63,9 @@ func (s *ConsumptionService) snapshotInvalidation(next ent.Mutator) ent.Mutator 
 		if !consumptionAffectsStatistics(mutation) {
 			return next.Mutate(ctx, mutation)
 		}
+		if s.foreground != nil && mutation.Type() == "UsageLog" && mutation.Op().Is(ent.OpCreate) && s.foreground.samples.Add(1)%16 == 1 {
+			defer s.foreground.observe(time.Now())
+		}
 		m, ok := mutation.(consumptionMutation)
 		if !ok {
 			return nil, fmt.Errorf("unsupported consumption mutation %T", mutation)

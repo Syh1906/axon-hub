@@ -21,6 +21,7 @@ enum ConsumptionPeriod {
 }
 
 input ConsumptionFilter {
+  allowRankedPage: Boolean! = false
   groupRef: Int
   projectID: ID
   dimension: ConsumptionDimension!
@@ -75,6 +76,7 @@ type ConsumptionMetrics {
 }
 
 type ConsumptionSlicePage {
+  useRankedPage: Boolean!
   days: [ConsumptionSliceRevision!]!
   pending: Boolean!
   resolvedAt: Time!
@@ -134,7 +136,15 @@ type ConsumptionResult {
   currencyCode: String!
 }
 
+type ConsumptionRankedPage {
+  pending: Boolean!
+  resolvedAt: Time!
+  nextOffset: Int
+  result: ConsumptionResult
+}
+
 extend type Query {
+  consumptionRankedPage(input: ConsumptionFilter!, projectUsage: Boolean!, offset: Int!, revision: String, sort: String, descending: Boolean!, providerMatches: [String!], asOf: Time): ConsumptionRankedPage!
   consumptionSlices(input: ConsumptionFilter!, after: Time, known: [ConsumptionSliceRevisionInput!], pendingDates: [Time!], asOf: Time, verify: Boolean! = false): ConsumptionSlicePage!
   usageSlices(input: ConsumptionFilter!, after: Time, known: [ConsumptionSliceRevisionInput!], pendingDates: [Time!], asOf: Time, verify: Boolean! = false): ConsumptionSlicePage!
   consumptionProjects: [ConsumptionProject!]!

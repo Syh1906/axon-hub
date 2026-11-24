@@ -36,10 +36,12 @@ const (
 )
 
 type ConsumptionFilter struct {
+	AllowRankedPage bool `json:"-"`
 	// 只由 GraphQL 字段选择确定，不改变旧客户端的完整统计契约。
 	OmitPerformance bool
 	Uncached        bool `json:"-"`
 	DailySnapshot   bool `json:"-"`
+	revisionsOnly   bool `json:"-"`
 	GroupRef        *int
 	ProjectID       *objects.GUID
 	Dimension       ConsumptionDimension
@@ -130,15 +132,23 @@ type ConsumptionResult struct {
 
 // ConsumptionSlicePage 限制每页日期数，浏览器只合并完整收到的日期，不把部分金额当成全量。
 type ConsumptionSlicePage struct {
-	Days         []*ConsumptionSliceRevision
-	Pending      bool
-	ResolvedAt   time.Time
-	Slices       []*ConsumptionResult
-	Next         *time.Time
-	RangeStart   *time.Time
-	RangeEnd     time.Time
-	Timezone     string
-	CurrencyCode string
+	UseRankedPage bool
+	Days          []*ConsumptionSliceRevision
+	Pending       bool
+	ResolvedAt    time.Time
+	Slices        []*ConsumptionResult
+	Next          *time.Time
+	RangeStart    *time.Time
+	RangeEnd      time.Time
+	Timezone      string
+	CurrencyCode  string
+}
+
+type ConsumptionRankedPage struct {
+	Pending    bool
+	ResolvedAt time.Time
+	NextOffset *int
+	Result     *ConsumptionResult
 }
 
 type ConsumptionSliceRevision struct {

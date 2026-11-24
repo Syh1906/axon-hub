@@ -12,6 +12,11 @@ import (
 	"github.com/looplj/axonhub/internal/server/biz"
 )
 
+// ConsumptionRankedPage is the resolver for the consumptionRankedPage field.
+func (r *queryResolver) ConsumptionRankedPage(ctx context.Context, input biz.ConsumptionFilter, projectUsage bool, offset int, revision *string, sort *string, descending bool, providerMatches []string, asOf *time.Time) (*biz.ConsumptionRankedPage, error) {
+	return r.consumptionService.RankedPage(ctx, consumptionFields(ctx, input), projectUsage, offset, revision, sort, descending, providerMatches, asOf)
+}
+
 // ConsumptionSlices is the resolver for the consumptionSlices field.
 func (r *queryResolver) ConsumptionSlices(ctx context.Context, input biz.ConsumptionFilter, after *time.Time, known []*biz.ConsumptionSliceRevision, pendingDates []*time.Time, asOf *time.Time, verify bool) (*biz.ConsumptionSlicePage, error) {
 	return r.consumptionService.ReadSlices(ctx, consumptionFields(ctx, input), after, known, asOf, verify, "leaderboard", pendingDates...)

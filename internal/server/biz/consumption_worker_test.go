@@ -104,6 +104,8 @@ func TestConsumptionWorkerPreservesRealFailures(t *testing.T) {
 		t.Run(scenario, func(t *testing.T) {
 			synctest.Test(t, func(t *testing.T) {
 				f := newConsumptionFixture(t)
+				// 非空日期才会写小时汇总，故障注入也发生在这一步。
+				f.addRequest(t, time.Now().AddDate(0, 0, -2), "model-a", request.StatusCompleted, 100, 20, 0, 0, 1, nil)
 				day := time.Now().In(f.service.system.TimeLocation(f.ctx)).AddDate(0, 0, -2).Format("2006-01-02")
 				input := ConsumptionFilter{Dimension: ConsumptionDimensionAPIKey, Metric: ConsumptionMetricCost,
 					Period: ConsumptionPeriodCustom, StartDate: &day, EndDate: &day, OmitPerformance: true}

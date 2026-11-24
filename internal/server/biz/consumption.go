@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/eko/gocache/lib/v4/store"
+	lru "github.com/hashicorp/golang-lru/v2"
 
 	"github.com/looplj/axonhub/internal/authz"
 	"github.com/looplj/axonhub/internal/contexts"
@@ -26,18 +27,24 @@ import (
 
 type ConsumptionService struct {
 	*AbstractService
-	client *ent.Client
-	system *SystemService
-	cache  xcache.Cache[*ConsumptionResult]
-	flight *consumptionFlight
-	worker *sync.Mutex
-	demand *atomic.Int64
+	client     *ent.Client
+	system     *SystemService
+	cache      xcache.Cache[*ConsumptionResult]
+	flight     *consumptionFlight
+	worker     *sync.Mutex
+	demand     *atomic.Int64
+	foreground *consumptionWritePressure
+	ready      *consumptionNotifications
+	rankings   *lru.Cache[string, consumptionRanking]
 }
 
 func NewConsumptionService(client *ent.Client, system *SystemService, config xcache.Config) *ConsumptionService {
 	client.EnableStatisticsTransactions()
 	s := &ConsumptionService{AbstractService: &AbstractService{db: client}, client: client, system: system, cache: xcache.NewFromConfig[*ConsumptionResult](config), flight: &consumptionFlight{}, worker: &sync.Mutex{}}
+	s.rankings, _ = lru.New[string, consumptionRanking](8)
 	s.demand = &atomic.Int64{}
+	s.foreground = &consumptionWritePressure{}
+	s.ready = &consumptionNotifications{waiting: map[string]*consumptionWait{}}
 	client.Use(s.snapshotInvalidation)
 	return s
 }

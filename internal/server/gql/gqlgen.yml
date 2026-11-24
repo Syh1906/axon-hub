@@ -193,6 +193,8 @@ models:
     model: github.com/looplj/axonhub/internal/server/biz.ConsumptionEntry
   ConsumptionResult:
     model: github.com/looplj/axonhub/internal/server/biz.ConsumptionResult
+  ConsumptionRankedPage:
+    model: github.com/looplj/axonhub/internal/server/biz.ConsumptionRankedPage
   ConsumptionSlicePage:
     model: github.com/looplj/axonhub/internal/server/biz.ConsumptionSlicePage
   ConsumptionSliceRevision:

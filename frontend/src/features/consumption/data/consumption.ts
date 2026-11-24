@@ -1,11 +1,11 @@
-import { useCallback, useState } from 'react';
+import { useCallback } from 'react';
 import { z } from 'zod';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { graphqlRequest } from '@/gql/graphql';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '@/stores/authStore';
 import { extractNumberID } from '@/lib/utils';
-import { loadConsumptionSlices } from './consumption-slices';
+import { hasCachedConsumptionRange, loadConsumptionSlices } from './consumption-slices';
 
 export type ConsumptionDimension = 'USER' | 'API_KEY' | 'API_KEY_GROUP' | 'CHANNEL' | 'MODEL';
 export type ConsumptionMetric = 'COST' | 'CACHE';
@@ -37,19 +37,19 @@ const metricsSchema = z.object({
   totalCost: z.number(),
   unpricedRequestCount: z.number(),
   pricedRequestCount: z.number(),
-  tokenPricedRequestCount: z.number(),
+  tokenPricedRequestCount: z.number().default(0),
   speedSampleCount: z.number().default(0),
   cacheRequests: z.number(),
   cacheReadTokens: z.number(),
   cacheInputTokens: z.number(),
-  cacheCreationCost: z.number(),
-  cacheHitRate: z.number().nullable(),
+  cacheCreationCost: z.number().default(0),
+  cacheHitRate: z.number().nullable().default(null),
   successRate: z.number().nullable().default(null),
   avgFirstTokenMs: z.number().nullable().default(null),
   avgTokensPerSecond: z.number().nullable().default(null),
-  avgCostPerRequest: z.number().nullable(),
-  avgCostPerMillionTokens: z.number().nullable(),
-  cacheCoefficient: z.number().nullable(),
+  avgCostPerRequest: z.number().nullable().default(null),
+  avgCostPerMillionTokens: z.number().nullable().default(null),
+  cacheCoefficient: z.number().nullable().default(null),
 });
 
 const entrySchema = z.object({
@@ -60,7 +60,6 @@ const entrySchema = z.object({
   id: z.string(),
   name: z.string(),
   metrics: metricsSchema,
-  modelNames: z.array(z.string()).optional(),
   models: z.array(z.object({ model: z.string(), metrics: metricsSchema })),
 });
 
@@ -68,7 +67,7 @@ const performanceMetrics = metricsSchema.pick({
   successCount: true, outcomeCount: true, firstTokenSum: true, firstTokenCount: true, speedSum: true, speedSampleCount: true,
 });
 
-const resultSchema = z.object({
+export const resultSchema = z.object({
   revision: z.string().default(''),
   cacheSamples: z
     .array(
@@ -92,32 +91,27 @@ const resultSchema = z.object({
   currencyCode: z.string(),
 });
 
-const modelResultSchema = resultSchema.extend({
+export const modelResultSchema = resultSchema.extend({
   entries: z.array(entrySchema.omit({ models: true })).transform((entries) => entries.map((entry) => ({ ...entry, models: [] }))),
-});
-
-const summaryResultSchema = resultSchema.extend({
-  entries: z.array(entrySchema.extend({
-    models: entrySchema.shape.models.default([]),
-    modelNames: z.array(z.object({ model: z.string() })).transform((rows) => rows.map((row) => row.model)),
-  })),
 });
 
 export type ConsumptionMetrics = z.infer<typeof metricsSchema>;
 export type ConsumptionEntry = z.infer<typeof entrySchema>;
-export type ConsumptionResult = z.infer<typeof resultSchema>;
+export type ConsumptionResult = z.infer<typeof resultSchema> & { useRankedPage?: boolean };
 
-export function consumptionFields(input: ConsumptionFilter, withDetails = false) {
+export function consumptionFields(input: ConsumptionFilter) {
   const performance = input.dimension === 'MODEL' || (input.dimension === 'CHANNEL' && input.metric === 'COST');
-  const metrics = `requestCount totalTokens totalCost unpricedRequestCount pricedRequestCount tokenPricedRequestCount
-    cacheRequests cacheReadTokens cacheInputTokens cacheCreationCost cacheHitRate avgCostPerRequest avgCostPerMillionTokens cacheCoefficient
-    pricedCost tokenPricedCost pricedTokens
-    ${performance ? 'successRate avgFirstTokenMs avgTokensPerSecond speedSampleCount successCount outcomeCount firstTokenSum firstTokenCount speedSum' : ''}
-    ${input.dimension === 'CHANNEL' ? 'coefficientSamples coefficientEligible coefficientTheoretical coefficientObserved' : ''}`;
+  const channel = input.dimension === 'CHANNEL';
+  // 跨天比率由浏览器用累计量计算，避免重复传输每日平均值。
+  const metrics = `requestCount totalTokens totalCost unpricedRequestCount pricedRequestCount
+    cacheRequests cacheReadTokens cacheInputTokens
+    ${input.metric === 'COST' && input.dimension !== 'MODEL' ? 'tokenPricedCost pricedTokens' : ''}
+    ${channel && input.metric === 'COST' ? 'pricedCost' : ''}
+    ${performance && !channel ? 'speedSampleCount successCount outcomeCount firstTokenSum firstTokenCount speedSum' : ''}`;
   return `${
     input.dimension === 'MODEL'
       ? `entries: modelEntries { id: model name: model metrics { ${metrics} } }`
-      : `entries { id name channelRemark channelProvider channelTags duplicateName metrics { ${metrics} } modelNames: models { model } ${withDetails ? `models: modelDetails(entryIDs: $entryIDs) { model metrics { ${metrics} } }` : ''} }`
+      : `entries { id name ${channel ? 'channelRemark channelProvider channelTags duplicateName' : ''} metrics { ${metrics} } models { model metrics { ${metrics} } } }`
   }
     ${
       input.dimension === 'CHANNEL'
@@ -133,7 +127,7 @@ export function consumptionQueryInput(input: ConsumptionFilter) {
   return { ...input, search: localSearch ? undefined : input.search, groupRef: input.dimension === 'API_KEY_GROUP' ? undefined : input.groupRef };
 }
 
-export function useConsumption(input: ConsumptionFilter, view: 'leaderboard' | 'usage', currentProjectID?: string | null, enabled = true, entryIDs: string[] = [], reuseSelection = false) {
+export function useConsumption(input: ConsumptionFilter, view: 'leaderboard' | 'usage', currentProjectID?: string | null, enabled = true) {
   const client = useQueryClient();
   const { t } = useTranslation();
   const userID = useAuthStore((state) => state.auth.user?.id);
@@ -172,38 +166,34 @@ export function useConsumption(input: ConsumptionFilter, view: 'leaderboard' | '
     [search, groupRef, input.dimension, t]
   );
   const scopeKey = ['consumption', view, projectID, userID, accessScope];
-  const selectionKey = (ids: string[]) => [...scopeKey, ids, queryInput];
-  const scopeSignature = JSON.stringify([scopeKey, queryInput]);
-  // Retain one verified projection while the next selection is loading.
-  const [previous, setPrevious] = useState<{ scope: string; ids: string[]; data: ConsumptionResult }>();
-  const lastVerified = previous?.scope === scopeSignature ? previous : undefined;
-  const withDetails = entryIDs.length > 0 && input.dimension !== 'MODEL';
-  const result = useQuery({
-    queryKey: selectionKey(entryIDs),
-    placeholderData: (previous, query) =>
-      query && JSON.stringify(query.queryKey.slice(0, -2)) === JSON.stringify(scopeKey) &&
-      JSON.stringify(query.queryKey.at(-1)) === JSON.stringify(queryInput) ? previous : undefined,
+  const { period: _period, startDate: _start, endDate: _end, ...scope } = queryInput;
+  const dayKey = ['consumptionDays', view, projectID, userID, scope, accessScope];
+  const wide = input.period === 'ALL' || (input.period === 'CUSTOM' && !!input.startDate && !!input.endDate &&
+    Date.parse(input.endDate) - Date.parse(input.startDate) >= 31 * 86400000);
+  const preferRanked = wide && !(input.period === 'CUSTOM' && hasCachedConsumptionRange(client, dayKey, input));
+  const query = useQuery({
+    queryKey: [...scopeKey, queryInput],
     queryFn: async ({ signal }) => {
       const field = view === 'usage' ? 'usageSlices' : 'consumptionSlices';
-      const query = `query Consumption($input: ConsumptionFilter!, $after: Time, $known:[ConsumptionSliceRevisionInput!], $asOf:Time, $verify:Boolean!, $pendingDates:[Time!]${withDetails ? ', $entryIDs:[ID!]!' : ''}) { ${field}(input: $input, after: $after, known:$known, asOf:$asOf, verify:$verify, pendingDates:$pendingDates) {
-        slices { ${consumptionFields(input, withDetails)} } days { start revision } pending resolvedAt next rangeStart rangeEnd timezone currencyCode
+      const query = `query Consumption($input: ConsumptionFilter!, $after: Time, $known:[ConsumptionSliceRevisionInput!], $asOf:Time, $verify:Boolean!, $pendingDates:[Time!]) { ${field}(input: $input, after: $after, known:$known, asOf:$asOf, verify:$verify, pendingDates:$pendingDates) {
+        slices { ${consumptionFields(input)} } days { start revision } pending useRankedPage resolvedAt next rangeStart rangeEnd timezone currencyCode
       } }`;
       const headers = projectID ? { 'X-Project-ID': projectID } : undefined;
-      const { period: _period, startDate: _start, endDate: _end, ...scope } = queryInput;
       return loadConsumptionSlices(
         client,
-        ['consumptionDays', view, projectID, userID, scope, accessScope, withDetails ? 'details' : 'summary'],
+        dayKey,
         input,
         async (after, known, asOf, verify = false, pendingDates) => {
-          const data = await graphqlRequest<Record<string, unknown>>(query, { input: queryInput, after, known, asOf, verify, pendingDates, entryIDs }, headers, {
+          const data = await graphqlRequest<Record<string, unknown>>(query, { input: { ...queryInput, allowRankedPage: true }, after, known, asOf, verify, pendingDates }, headers, {
             signal,
           });
           return z
             .object({
-              slices: z.array(input.dimension === 'MODEL' ? modelResultSchema : summaryResultSchema),
+              slices: z.array(input.dimension === 'MODEL' ? modelResultSchema : resultSchema),
               next: z.string().nullable(),
               days: z.array(z.object({ start: z.string(), revision: z.string() })),
               pending: z.boolean(),
+              useRankedPage: z.boolean(),
               resolvedAt: z.string(),
               rangeStart: z.string().nullable(),
               rangeEnd: z.string(),
@@ -213,38 +203,19 @@ export function useConsumption(input: ConsumptionFilter, view: 'leaderboard' | '
             .parse(data[field]);
         },
         signal,
-        false,
-        withDetails ? JSON.stringify(entryIDs) : undefined
+        false
       );
     },
-    enabled: enabled && !!userID && (view === 'leaderboard' || !!projectID),
+    enabled: enabled && !preferRanked && !!userID && (view === 'leaderboard' || !!projectID),
     select,
     refetchInterval: false,
-    refetchOnMount: reuseSelection ? false : 'always',
+    refetchOnMount: 'always',
     refetchOnReconnect: false,
-    staleTime: reuseSelection ? Infinity : 0,
-    gcTime: withDetails ? 0 : queryInput.search || queryInput.groupRef != null ? 5 * 60_000 : 30 * 60_000,
+    staleTime: 0,
+    gcTime: queryInput.search || queryInput.groupRef != null ? 5 * 60_000 : 30 * 60_000,
     refetchOnWindowFocus: false,
   });
-  const changeDetailSelection = (ids: string[], closing: boolean) => {
-    const data = client.getQueryData<ConsumptionResult>(selectionKey(entryIDs));
-    const source = data ? { scope: scopeSignature, ids: entryIDs, data } : lastVerified;
-    if (data && data !== lastVerified?.data) setPrevious(source);
-    if (!closing) return false;
-    const key = selectionKey(ids);
-    if (!source || !ids.every((id) => source.ids.includes(id))) return client.getQueryData(key) !== undefined;
-    const open = new Set(ids);
-    client.setQueryData(key, {
-      ...source.data,
-      entries: source.data.entries.map((entry) => open.has(entry.id) || !entry.models.length ? entry : { ...entry, models: [] }),
-    });
-    return true;
-  };
-  if (withDetails && result.isError && !result.data) {
-    const verified = lastVerified?.data ?? client.getQueryData<ConsumptionResult>(selectionKey([]));
-    if (verified) return { ...result, data: select(verified), changeDetailSelection };
-  }
-  return { ...result, changeDetailSelection };
+  return { ...query, preferRanked };
 }
 
 export function useConsumptionProjects(enabled: boolean) {
