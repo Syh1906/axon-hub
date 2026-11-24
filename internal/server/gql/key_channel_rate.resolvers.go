@@ -17,6 +17,11 @@ func (r *mutationResolver) SaveKeyChannelRates(ctx context.Context, keyID *int, 
 	return err == nil, err
 }
 
+// KeyRateChannelScope is the resolver for the keyRateChannelScope field.
+func (r *queryResolver) KeyRateChannelScope(ctx context.Context, keyID int) (*objects.KeyRateChannelScope, error) {
+	return r.apiKeyService.KeyRateChannelScope(ctx, r.modelService, keyID)
+}
+
 // KeyChannelRates is the resolver for the keyChannelRates field.
 func (r *queryResolver) KeyChannelRates(ctx context.Context, keyID *int, groupID *int) (*objects.KeyChannelRates, error) {
 	return r.apiKeyService.KeyChannelRates(ctx, keyID, groupID)

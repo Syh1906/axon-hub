@@ -46,7 +46,7 @@ export function MemberRow({
 }) {
   const { t, i18n } = useTranslation();
   const [showRates,setShowRates]=useState(false);
-  const {channelPermissions}=usePermissions();
+  const { apiKeyPermissions } = usePermissions();
   const currencyDisplayDecimals = useCurrencyDisplayDecimals();
   const { data: settings } = useGeneralSettings();
   const target = { ...keyQuickTarget(member), budget: budget.data };
@@ -131,7 +131,7 @@ export function MemberRow({
             </DropdownMenuTrigger>
             <DropdownMenuContent align='end'>
               <DropdownMenuGroup>
-                {writable && channelPermissions.canWrite && <DropdownMenuItem onSelect={()=>setShowRates(true)}>{t('kg.rate.menu')}</DropdownMenuItem>}
+                {writable && apiKeyPermissions.canEditChannelRates && <DropdownMenuItem onSelect={()=>setShowRates(true)}>{t('kg.rate.menu')}</DropdownMenuItem>}
                 <DropdownMenuItem onSelect={onBudget}>{t('kg.quick.advanced')}</DropdownMenuItem>
               </DropdownMenuGroup>
             </DropdownMenuContent>

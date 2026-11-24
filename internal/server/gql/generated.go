@@ -1494,6 +1494,19 @@ type ComplexityRoot struct {
 		Success func(childComplexity int) int
 	}
 
+	KeyRateChannel struct {
+		ChannelID func(childComplexity int) int
+		Name      func(childComplexity int) int
+		Profiles  func(childComplexity int) int
+		Tags      func(childComplexity int) int
+	}
+
+	KeyRateChannelScope struct {
+		ActiveProfile func(childComplexity int) int
+		Channels      func(childComplexity int) int
+		Profiles      func(childComplexity int) int
+	}
+
 	MaintenanceSettings struct {
 		BatchIntervalMs        func(childComplexity int) int
 		BatchSize              func(childComplexity int) int
@@ -2430,6 +2443,7 @@ type ComplexityRoot struct {
 		GroupCostEntries                func(childComplexity int, groupID int, keyID int, channelID int, start string, end string, before *int) int
 		KeyChannelRates                 func(childComplexity int, keyID *int, groupID *int) int
 		KeyManagementResults            func(childComplexity int, operationID string) int
+		KeyRateChannelScope             func(childComplexity int, keyID int) int
 		ManagedGroupKeys                func(childComplexity int, groupRef int, offset int, limit int) int
 		ManagedGroupUsageMeta           func(childComplexity int, groupRef int) int
 		ManagedGroupUsageRequests       func(childComplexity int, groupRef int, start string, end string, sessionID *string, model *string, status *string, page int, pageSize int, after *biz.SelfUsageRequestCursor) int
@@ -4084,6 +4098,7 @@ type QueryResolver interface {
 	UsageGroupOptions(ctx context.Context, input biz.ConsumptionFilter) ([]*biz.ConsumptionGroupOption, error)
 	ConsumptionLeaderboard(ctx context.Context, input biz.ConsumptionFilter) (*biz.ConsumptionResult, error)
 	UsageStatistics(ctx context.Context, input biz.ConsumptionFilter) (*biz.ConsumptionResult, error)
+	KeyRateChannelScope(ctx context.Context, keyID int) (*objects.KeyRateChannelScope, error)
 	KeyChannelRates(ctx context.Context, keyID *int, groupID *int) (*objects.KeyChannelRates, error)
 	GroupCostEntries(ctx context.Context, groupID int, keyID int, channelID int, start string, end string, before *int) ([]*objects.GroupCostEntry, error)
 	GroupCostComparison(ctx context.Context, groupID int, start string, end string) (*objects.GroupCostComparison, error)
@@ -9800,6 +9815,50 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.KeyManagementResult.Success(childComplexity), true
 
+	case "KeyRateChannel.channelID":
+		if e.complexity.KeyRateChannel.ChannelID == nil {
+			break
+		}
+
+		return e.complexity.KeyRateChannel.ChannelID(childComplexity), true
+	case "KeyRateChannel.name":
+		if e.complexity.KeyRateChannel.Name == nil {
+			break
+		}
+
+		return e.complexity.KeyRateChannel.Name(childComplexity), true
+	case "KeyRateChannel.profiles":
+		if e.complexity.KeyRateChannel.Profiles == nil {
+			break
+		}
+
+		return e.complexity.KeyRateChannel.Profiles(childComplexity), true
+	case "KeyRateChannel.tags":
+		if e.complexity.KeyRateChannel.Tags == nil {
+			break
+		}
+
+		return e.complexity.KeyRateChannel.Tags(childComplexity), true
+
+	case "KeyRateChannelScope.activeProfile":
+		if e.complexity.KeyRateChannelScope.ActiveProfile == nil {
+			break
+		}
+
+		return e.complexity.KeyRateChannelScope.ActiveProfile(childComplexity), true
+	case "KeyRateChannelScope.channels":
+		if e.complexity.KeyRateChannelScope.Channels == nil {
+			break
+		}
+
+		return e.complexity.KeyRateChannelScope.Channels(childComplexity), true
+	case "KeyRateChannelScope.profiles":
+		if e.complexity.KeyRateChannelScope.Profiles == nil {
+			break
+		}
+
+		return e.complexity.KeyRateChannelScope.Profiles(childComplexity), true
+
 	case "MaintenanceSettings.batchIntervalMs":
 		if e.complexity.MaintenanceSettings.BatchIntervalMs == nil {
 			break
@@ -14877,6 +14936,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Query.KeyManagementResults(childComplexity, args["operationID"].(string)), true
+	case "Query.keyRateChannelScope":
+		if e.complexity.Query.KeyRateChannelScope == nil {
+			break
+		}
+
+		args, err := ec.field_Query_keyRateChannelScope_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.KeyRateChannelScope(childComplexity, args["keyID"].(int)), true
 	case "Query.managedGroupKeys":
 		if e.complexity.Query.ManagedGroupKeys == nil {
 			break
@@ -24339,6 +24409,17 @@ func (ec *executionContext) field_Query_keyManagementResults_args(ctx context.Co
 		return nil, err
 	}
 	args["operationID"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_keyRateChannelScope_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "keyID", ec.unmarshalNInt2int)
+	if err != nil {
+		return nil, err
+	}
+	args["keyID"] = arg0
 	return args, nil
 }
 
@@ -54664,6 +54745,219 @@ func (ec *executionContext) fieldContext_KeyManagementResult_keyIDs(_ context.Co
 	return fc, nil
 }
 
+func (ec *executionContext) _KeyRateChannel_channelID(ctx context.Context, field graphql.CollectedField, obj *objects.KeyRateChannel) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_KeyRateChannel_channelID,
+		func(ctx context.Context) (any, error) {
+			return obj.ChannelID, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_KeyRateChannel_channelID(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "KeyRateChannel",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _KeyRateChannel_name(ctx context.Context, field graphql.CollectedField, obj *objects.KeyRateChannel) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_KeyRateChannel_name,
+		func(ctx context.Context) (any, error) {
+			return obj.Name, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_KeyRateChannel_name(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "KeyRateChannel",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _KeyRateChannel_tags(ctx context.Context, field graphql.CollectedField, obj *objects.KeyRateChannel) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_KeyRateChannel_tags,
+		func(ctx context.Context) (any, error) {
+			return obj.Tags, nil
+		},
+		nil,
+		ec.marshalNString2ᚕstringᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_KeyRateChannel_tags(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "KeyRateChannel",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _KeyRateChannel_profiles(ctx context.Context, field graphql.CollectedField, obj *objects.KeyRateChannel) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_KeyRateChannel_profiles,
+		func(ctx context.Context) (any, error) {
+			return obj.Profiles, nil
+		},
+		nil,
+		ec.marshalNString2ᚕstringᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_KeyRateChannel_profiles(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "KeyRateChannel",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _KeyRateChannelScope_activeProfile(ctx context.Context, field graphql.CollectedField, obj *objects.KeyRateChannelScope) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_KeyRateChannelScope_activeProfile,
+		func(ctx context.Context) (any, error) {
+			return obj.ActiveProfile, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_KeyRateChannelScope_activeProfile(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "KeyRateChannelScope",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _KeyRateChannelScope_profiles(ctx context.Context, field graphql.CollectedField, obj *objects.KeyRateChannelScope) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_KeyRateChannelScope_profiles,
+		func(ctx context.Context) (any, error) {
+			return obj.Profiles, nil
+		},
+		nil,
+		ec.marshalNString2ᚕstringᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_KeyRateChannelScope_profiles(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "KeyRateChannelScope",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _KeyRateChannelScope_channels(ctx context.Context, field graphql.CollectedField, obj *objects.KeyRateChannelScope) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_KeyRateChannelScope_channels,
+		func(ctx context.Context) (any, error) {
+			return obj.Channels, nil
+		},
+		nil,
+		ec.marshalNKeyRateChannel2ᚕᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐKeyRateChannelᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_KeyRateChannelScope_channels(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "KeyRateChannelScope",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "channelID":
+				return ec.fieldContext_KeyRateChannel_channelID(ctx, field)
+			case "name":
+				return ec.fieldContext_KeyRateChannel_name(ctx, field)
+			case "tags":
+				return ec.fieldContext_KeyRateChannel_tags(ctx, field)
+			case "profiles":
+				return ec.fieldContext_KeyRateChannel_profiles(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type KeyRateChannel", field.Name)
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _MaintenanceSettings_batchSize(ctx context.Context, field graphql.CollectedField, obj *biz.MaintenanceSettings) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -83224,6 +83518,55 @@ func (ec *executionContext) fieldContext_Query_usageStatistics(ctx context.Conte
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Query_usageStatistics_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_keyRateChannelScope(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Query_keyRateChannelScope,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Query().KeyRateChannelScope(ctx, fc.Args["keyID"].(int))
+		},
+		nil,
+		ec.marshalNKeyRateChannelScope2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐKeyRateChannelScope,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Query_keyRateChannelScope(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "activeProfile":
+				return ec.fieldContext_KeyRateChannelScope_activeProfile(ctx, field)
+			case "profiles":
+				return ec.fieldContext_KeyRateChannelScope_profiles(ctx, field)
+			case "channels":
+				return ec.fieldContext_KeyRateChannelScope_channels(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type KeyRateChannelScope", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_keyRateChannelScope_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -153345,6 +153688,109 @@ func (ec *executionContext) _KeyManagementResult(ctx context.Context, sel ast.Se
 	return out
 }
 
+var keyRateChannelImplementors = []string{"KeyRateChannel"}
+
+func (ec *executionContext) _KeyRateChannel(ctx context.Context, sel ast.SelectionSet, obj *objects.KeyRateChannel) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, keyRateChannelImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("KeyRateChannel")
+		case "channelID":
+			out.Values[i] = ec._KeyRateChannel_channelID(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "name":
+			out.Values[i] = ec._KeyRateChannel_name(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "tags":
+			out.Values[i] = ec._KeyRateChannel_tags(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "profiles":
+			out.Values[i] = ec._KeyRateChannel_profiles(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var keyRateChannelScopeImplementors = []string{"KeyRateChannelScope"}
+
+func (ec *executionContext) _KeyRateChannelScope(ctx context.Context, sel ast.SelectionSet, obj *objects.KeyRateChannelScope) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, keyRateChannelScopeImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("KeyRateChannelScope")
+		case "activeProfile":
+			out.Values[i] = ec._KeyRateChannelScope_activeProfile(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "profiles":
+			out.Values[i] = ec._KeyRateChannelScope_profiles(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "channels":
+			out.Values[i] = ec._KeyRateChannelScope_channels(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
 var maintenanceSettingsImplementors = []string{"MaintenanceSettings"}
 
 func (ec *executionContext) _MaintenanceSettings(ctx context.Context, sel ast.SelectionSet, obj *biz.MaintenanceSettings) graphql.Marshaler {
@@ -162929,6 +163375,28 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 					}
 				}()
 				res = ec._Query_usageStatistics(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "keyRateChannelScope":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_keyRateChannelScope(ctx, field)
 				if res == graphql.Null {
 					atomic.AddUint32(&fs.Invalids, 1)
 				}
@@ -179401,6 +179869,74 @@ func (ec *executionContext) unmarshalNKeyManagementRow2ᚕᚖgithubᚗcomᚋloop
 func (ec *executionContext) unmarshalNKeyManagementRow2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐKeyManagementRow(ctx context.Context, v any) (*biz.KeyManagementRow, error) {
 	res, err := ec.unmarshalInputKeyManagementRow(ctx, v)
 	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNKeyRateChannel2ᚕᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐKeyRateChannelᚄ(ctx context.Context, sel ast.SelectionSet, v []*objects.KeyRateChannel) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNKeyRateChannel2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐKeyRateChannel(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNKeyRateChannel2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐKeyRateChannel(ctx context.Context, sel ast.SelectionSet, v *objects.KeyRateChannel) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._KeyRateChannel(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNKeyRateChannelScope2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐKeyRateChannelScope(ctx context.Context, sel ast.SelectionSet, v objects.KeyRateChannelScope) graphql.Marshaler {
+	return ec._KeyRateChannelScope(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNKeyRateChannelScope2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐKeyRateChannelScope(ctx context.Context, sel ast.SelectionSet, v *objects.KeyRateChannelScope) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._KeyRateChannelScope(ctx, sel, v)
 }
 
 func (ec *executionContext) unmarshalNLoadApiKeyProfileTemplateInput2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋgqlᚐLoadAPIKeyProfileTemplateInput(ctx context.Context, v any) (LoadAPIKeyProfileTemplateInput, error) {

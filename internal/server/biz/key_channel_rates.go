@@ -29,10 +29,10 @@ func requireRateAdmin(ctx context.Context, permission scopes.ScopeSlug) error {
 	if !ok || p.Type != authz.PrincipalTypeUser && p.Type != authz.PrincipalTypeTest {
 		return fmt.Errorf("administrative login required")
 	}
-	if _, ok := contexts.GetUser(ctx); !ok {
-		return fmt.Errorf("administrative login required")
+	if !scopes.UserHasScope(ctx, permission) {
+		return fmt.Errorf("permission denied: system scope %s is required", permission)
 	}
-	return authz.RequireScope(ctx, permission)
+	return nil
 }
 
 func (s *APIKeyService) rateTarget(ctx context.Context, keyID, groupID *int, write bool) (*int, error) {

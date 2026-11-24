@@ -10,6 +10,17 @@ type KeyChannelRates struct {
 	Rules, Inherited []*KeyChannelRate
 	Revision         string
 }
+type KeyRateChannel struct {
+	ChannelID      int
+	Name           string
+	Tags, Profiles []string
+}
+type KeyRateChannelScope struct {
+	ActiveProfile string
+	Profiles      []string
+	Channels      []*KeyRateChannel
+}
+
 type GroupCostRow struct {
 	KeyID                                    int
 	KeyName                                  string

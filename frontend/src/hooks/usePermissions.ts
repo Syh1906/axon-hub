@@ -159,8 +159,10 @@ export function usePermissions(projectID?:string) {
       canCreate: hasScope('write_api_keys'),
       canEdit: hasScope('write_api_keys'),
       canDelete: hasScope('write_api_keys'),
+      canEditChannelRates:
+        hasScope('read_api_keys') && hasScope('write_api_keys') && hasSystemScope('read_channels') && hasSystemScope('write_channels'),
     }),
-    [hasScope]
+    [hasScope, hasSystemScope]
   );
 
   // Common permission checks for model operations

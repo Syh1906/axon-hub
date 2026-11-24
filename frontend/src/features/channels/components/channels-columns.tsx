@@ -6,7 +6,7 @@ import { IconPlayerPlay, IconChevronDown, IconChevronRight, IconAlertTriangle, I
 import { HeartPulse } from 'lucide-react';
 import { Google } from '@lobehub/icons';
 import { useTranslation } from 'react-i18next';
-import { cn } from '@/lib/utils';
+import { cn, extractNumberID } from '@/lib/utils';
 import { usePermissions } from '@/hooks/usePermissions';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -426,6 +426,7 @@ const NameCell = memo(({ row, globalDefaultMode }: { row: Row<Channel>; globalDe
     <div className='flex min-w-0 justify-start'>
       <div className='flex min-w-0 max-w-56 items-center gap-2'>
         {nameElement}
+        <span className='text-muted-foreground shrink-0 text-xs tabular-nums'>#{extractNumberID(channel.id)}</span>
         {hasError && <IconAlertTriangle className='text-destructive h-4 w-4 shrink-0' />}
         {hasDisabledKeys && <IconKeyOff className='h-4 w-4 shrink-0 text-amber-500' />}
         {quotaRoutingIndicator === 'exhausted' && (

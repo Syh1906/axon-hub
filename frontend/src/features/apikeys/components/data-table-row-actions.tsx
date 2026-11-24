@@ -23,7 +23,7 @@ export function DataTableRowActions({ row }: DataTableRowActionsProps) {
   const { t } = useTranslation();
   const { openDialog } = useApiKeysContext();
   const [showRates,setShowRates]=React.useState(false);
-  const { apiKeyPermissions,channelPermissions, hasProjectScope } = usePermissions();
+  const { apiKeyPermissions, hasProjectScope } = usePermissions();
   const canResetBudget = apiKeyPermissions.canWrite && hasProjectScope('write_users') && hasProjectScope('write_roles');
   const currentUser = useAuthStore((state) => state.auth.user);
   const apiKey = row.original;
@@ -108,7 +108,7 @@ export function DataTableRowActions({ row }: DataTableRowActionsProps) {
               </DropdownMenuItem>
             ))}
           <DropdownMenuSeparator />
-          {canMutate && channelPermissions.canWrite && <DropdownMenuItem onSelect={()=>setShowRates(true)}>{t('kg.rate.menu')}</DropdownMenuItem>}
+          {!isOthersPersonalKey && apiKeyPermissions.canEditChannelRates && <DropdownMenuItem onSelect={()=>setShowRates(true)}>{t('kg.rate.menu')}</DropdownMenuItem>}
           <DropdownMenuItem onClick={handleViewChart}>
             <BarChart3 className='mr-2 h-4 w-4' />
             {t('apikeys.actions.viewTokenChart')}

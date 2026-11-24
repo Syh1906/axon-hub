@@ -31,8 +31,8 @@ const managedRequests = requestsQuery
 function UsageContent({ groupRef, meta, project, identity }: { groupRef: number; meta: SelfUsageMeta; project: string; identity: string }) {
   const { t } = useTranslation();
   const [view,setView]=useState<'overview'|'comparison'>('overview');
-  const {hasScope,isProjectOwner}=usePermissions(project);
-  const canCompare=(isProjectOwner || hasScope('write_channels')) && hasScope('read_channels') && hasScope('read_requests') && groupRef>0;
+  const { hasScope, hasSystemScope, isProjectOwner } = usePermissions(project);
+  const canCompare=(isProjectOwner || hasSystemScope('write_channels')) && hasSystemScope('read_channels') && hasScope('read_requests') && groupRef>0;
   const comparing=canCompare && view==='comparison';
   const currencyDisplayDecimals = meta.currencyDisplayDecimals;
   const [range, setRange] = useState<DateRange>(() => presetRange('last7', meta.timezone));

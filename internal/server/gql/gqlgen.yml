@@ -106,6 +106,10 @@ models:
     model: github.com/looplj/axonhub/internal/objects.GroupCostComparison
   GroupCostRow:
     model: github.com/looplj/axonhub/internal/objects.GroupCostRow
+  KeyRateChannel:
+    model: github.com/looplj/axonhub/internal/objects.KeyRateChannel
+  KeyRateChannelScope:
+    model: github.com/looplj/axonhub/internal/objects.KeyRateChannelScope
   KeyChannelRates:
     model: github.com/looplj/axonhub/internal/objects.KeyChannelRates
   KeyChannelRateInput:

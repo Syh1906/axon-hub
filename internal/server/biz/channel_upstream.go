@@ -136,33 +136,31 @@ func (svc *ChannelService) ChannelUpstreamStates(ctx context.Context, ids []int)
 	if err := authz.RequireScope(ctx, scopes.ScopeReadChannels); err != nil {
 		return nil, err
 	}
-	return authz.RunWithScopeDecision(ctx, scopes.ScopeReadChannels, func(ctx context.Context) ([]*objects.ChannelUpstreamState, error) {
-		ids = lo.Uniq(ids)
-		states := make([]*objects.ChannelUpstreamState, 0, len(ids))
-		if len(ids) == 0 {
-			return states, nil
-		}
-		client := svc.entFromContext(ctx)
-		channels, err := client.Channel.Query().Where(channel.IDIn(ids...)).All(ctx)
-		if err != nil {
-			return nil, err
-		}
-		byID := lo.SliceToMap(channels, func(ch *ent.Channel) (int, *ent.Channel) { return ch.ID, ch })
-		for _, id := range ids {
-			if byID[id] == nil {
-				return nil, fmt.Errorf("channel %d not found: %w", id, &ent.NotFoundError{})
-			}
-		}
-		snapshots, err := client.ChannelUpstreamStatus.Query().Where(channelupstreamstatus.ChannelIDIn(ids...)).All(ctx)
-		if err != nil {
-			return nil, fmt.Errorf("load upstream snapshots: %w", err)
-		}
-		byChannel := lo.GroupBy(snapshots, func(row *ent.ChannelUpstreamStatus) int { return row.ChannelID })
-		for _, id := range ids {
-			states = append(states, upstreamStateFromSnapshots(byID[id], byChannel[id]))
-		}
+	ids = lo.Uniq(ids)
+	states := make([]*objects.ChannelUpstreamState, 0, len(ids))
+	if len(ids) == 0 {
 		return states, nil
-	})
+	}
+	client := svc.entFromContext(ctx)
+	channels, err := client.Channel.Query().Where(channel.IDIn(ids...)).All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	byID := lo.SliceToMap(channels, func(ch *ent.Channel) (int, *ent.Channel) { return ch.ID, ch })
+	for _, id := range ids {
+		if byID[id] == nil {
+			return nil, fmt.Errorf("channel %d not found: %w", id, &ent.NotFoundError{})
+		}
+	}
+	snapshots, err := client.ChannelUpstreamStatus.Query().Where(channelupstreamstatus.ChannelIDIn(ids...)).All(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("load upstream snapshots: %w", err)
+	}
+	byChannel := lo.GroupBy(snapshots, func(row *ent.ChannelUpstreamStatus) int { return row.ChannelID })
+	for _, id := range ids {
+		states = append(states, upstreamStateFromSnapshots(byID[id], byChannel[id]))
+	}
+	return states, nil
 }
 
 func (svc *ChannelService) ChannelUpstreamRefreshTargets(ctx context.Context) ([]*objects.GUID, error) {

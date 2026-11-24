@@ -72,8 +72,10 @@ func (svc *ModelService) ModelChannelScope(ctx context.Context, key *ent.APIKey)
 	if key == nil {
 		return nil
 	}
-	project := key.Edges.Project.GetActiveProfile()
-	profile := key.GetActiveProfile()
+	return svc.modelChannelScope(ctx, key.Edges.Project.GetActiveProfile(), key.GetActiveProfile())
+}
+
+func (svc *ModelService) modelChannelScope(ctx context.Context, project *objects.ProjectProfile, profile *objects.APIKeyProfile) *ModelChannelScope {
 	if (project == nil || len(project.ChannelIDs)+len(project.ChannelTags) == 0) &&
 		(profile == nil || len(profile.ChannelIDs)+len(profile.ChannelTags) == 0) {
 		return nil

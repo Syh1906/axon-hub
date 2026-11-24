@@ -141,7 +141,7 @@ func (s *APIKeyService) costReportProject(ctx context.Context, groupID int) (int
 	if err != nil {
 		return 0, err
 	}
-	if !owner && !authz.HasScope(ctx, scopes.ScopeWriteChannels) {
+	if !owner && !scopes.UserHasScope(ctx, scopes.ScopeWriteChannels) {
 		return 0, fmt.Errorf("channel administration required")
 	}
 	if groupID <= 0 {

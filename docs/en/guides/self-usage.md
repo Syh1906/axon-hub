@@ -75,6 +75,8 @@ Open the group or member key's row menu and select **Channel rates**. A key over
 
 Authorized administrators can open **Usage → Cost comparison** on a group row. Compare channel cost with billed usage over the same dates and expand by key and channel to inspect individual charges. The comparison uses historical billing membership. The usage overview uses current group members. Legacy bills without evidence of their historical group are excluded from the comparison.
 
+The key's rate dialog lists the channels allowed by its profiles. Filter by profile or search by channel name, tag, or ID. The same ID appears beside the name in channel management. Edit the rows that need an override, then save them together.
+
 After selecting **Restore inherited rate**, the channel stays in the dialog so you can check the inherited group or channel rate before saving. Expand the current channel rate to see enabled credentials, upstream readings and their sources, and the rate used for fixed fees and images.
 
 In **Cost comparison**, expand a key, a channel and then **Item rates** to see the channel cost and billed amount for each item, with the rates used on each side. A key's cost quota uses its billed amount. Archived bills retain the pricing evidence originally recorded. Earlier archives may lack item details.

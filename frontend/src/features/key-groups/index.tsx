@@ -50,7 +50,7 @@ function GroupPage() {
   const { t, i18n } = useTranslation();
   const currencyDisplayDecimals = useCurrencyDisplayDecimals();
   const [rateGroup,setRateGroup]=useState<Group|null>(null);
-  const { apiKeyPermissions,channelPermissions } = usePermissions();
+  const { apiKeyPermissions } = usePermissions();
   const writable = apiKeyPermissions.canWrite;
   const { data: settings } = useGeneralSettings();
   const api = useManagementAPI();
@@ -456,7 +456,7 @@ function GroupPage() {
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align='end'>
                                 <DropdownMenuGroup>
-                                  {writable && channelPermissions.canWrite && <DropdownMenuItem onSelect={()=>setRateGroup(g)}>{t('kg.rate.menu')}</DropdownMenuItem>}
+                                  {apiKeyPermissions.canEditChannelRates && <DropdownMenuItem onSelect={()=>setRateGroup(g)}>{t('kg.rate.menu')}</DropdownMenuItem>}
                                   <DropdownMenuItem onSelect={() => setBudget(g)}>{t('kg.quick.advanced')}</DropdownMenuItem>
                                   <DropdownMenuItem disabled={!writable} onSelect={() => setEdit({ kind: 'group', items: [g] })}>
                                     {t('kg.editSettings')}
