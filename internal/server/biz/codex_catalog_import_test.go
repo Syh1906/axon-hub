@@ -453,6 +453,7 @@ func TestRepositoryCatalogServesKeyScopedModelAndSpeed(t *testing.T) {
 	file, err := os.ReadFile("../../../catalogs/codex/models.json")
 	require.NoError(t, err)
 	const slug, other = "gpt-6.2-sol", "gpt-6.2-astra"
+	const clientVersion = "0.166.0"
 	svc, err := NewCodexSnapshotService(CodexCatalogConfig{}, db)
 	require.NoError(t, err)
 	models.codexSnapshots = svc
@@ -461,6 +462,8 @@ func TestRepositoryCatalogServesKeyScopedModelAndSpeed(t *testing.T) {
 	})
 	applyTestCatalog(t, ctx, svc, CatalogImport{Source: "url", Subscribe: true, URL: "https://catalog.example.invalid/models.json"})
 	source := svc.cachedPublicState().archive
+	// Older AxonHub releases use the capture version as a minimum for every model.
+	require.Empty(t, source.ClientVersion)
 	base := source.models[slug]
 	require.Equal(t, []any{"text", "image"}, base["input_modalities"])
 	ch := db.Channel.Create().SetName("fast").SetType(channel.TypeOpenaiResponses).SetSupportedModels([]string{slug, other}).
@@ -473,7 +476,7 @@ func TestRepositoryCatalogServesKeyScopedModelAndSpeed(t *testing.T) {
 	}
 	reloadEnabledChannels(t, ctx, db, channels)
 	key := &ent.APIKey{Profiles: &objects.APIKeyProfiles{ActiveProfile: "selected", Profiles: []objects.APIKeyProfile{{Name: "selected", ModelIDs: []string{slug}, ChannelIDs: []int{ch.ID}}}}}
-	raw, omitted, err := NewCodexCatalogService(models, channels).Models(contexts.WithAPIKey(ctx, key), source.ClientVersion)
+	raw, omitted, err := NewCodexCatalogService(models, channels).Models(contexts.WithAPIKey(ctx, key), clientVersion)
 	require.NoError(t, err)
 	require.Zero(t, omitted)
 	var wire struct {
@@ -501,7 +504,7 @@ func TestRepositoryCatalogServesKeyScopedModelAndSpeed(t *testing.T) {
 			ActiveProfile: "astra",
 			Profiles:      []objects.APIKeyProfile{{Name: "astra", ModelIDs: []string{other}, ChannelIDs: []int{ch.ID}}},
 		}}
-		raw, omitted, err := NewCodexCatalogService(models, channels).Models(contexts.WithAPIKey(ctx, astraKey), "0.166.0")
+		raw, omitted, err := NewCodexCatalogService(models, channels).Models(contexts.WithAPIKey(ctx, astraKey), clientVersion)
 		require.NoError(t, err)
 		require.Zero(t, omitted)
 		entries, err := parseCodexCatalog(raw)
@@ -516,7 +519,7 @@ func TestRepositoryCatalogServesKeyScopedModelAndSpeed(t *testing.T) {
 			Modalities: objects.ModelCardModalities{Input: []string{"text", "pdf"}},
 		}})
 		require.NoError(t, err)
-		body, omitted, err := NewCodexCatalogService(models, channels).Models(contexts.WithAPIKey(ctx, key), source.ClientVersion)
+		body, omitted, err := NewCodexCatalogService(models, channels).Models(contexts.WithAPIKey(ctx, key), clientVersion)
 		require.NoError(t, err)
 		require.Zero(t, omitted)
 		entries, err := parseCodexCatalog(body)
@@ -527,7 +530,7 @@ func TestRepositoryCatalogServesKeyScopedModelAndSpeed(t *testing.T) {
 		ch.Settings.ProtocolPolicy = &objects.ChannelProtocolPolicy{AllowedProtocols: []string{"openai/chat_completions"}}
 		db.Channel.UpdateOneID(ch.ID).SetSettings(ch.Settings).SaveX(ctx)
 		reloadEnabledChannels(t, ctx, db, channels)
-		raw, omitted, err := NewCodexCatalogService(models, channels).Models(contexts.WithAPIKey(ctx, key), source.ClientVersion)
+		raw, omitted, err := NewCodexCatalogService(models, channels).Models(contexts.WithAPIKey(ctx, key), clientVersion)
 		require.NoError(t, err)
 		require.Zero(t, omitted)
 		require.JSONEq(t, `{"models":[]}`, string(raw))
