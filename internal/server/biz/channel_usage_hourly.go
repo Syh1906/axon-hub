@@ -82,7 +82,7 @@ func (svc *ChannelService) channelUsageWithModels(ctx context.Context, client *e
 			if until.After(end) {
 				until = end.UTC()
 			}
-			version := statisticsFingerprint(revisions, from, until)
+			version := statisticsFingerprint(revisions, from, until, consumptionSnapshotVersion)
 			var missing []int
 			for _, id := range ids {
 				key := channelHourKey{id, from.Unix(), until.Unix()}

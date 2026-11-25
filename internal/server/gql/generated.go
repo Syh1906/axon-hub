@@ -1049,6 +1049,7 @@ type ComplexityRoot struct {
 		AvgCostPerRequest       func(childComplexity int) int
 		AvgFirstTokenMs         func(childComplexity int) int
 		AvgTokensPerSecond      func(childComplexity int) int
+		BilledCost              func(childComplexity int) int
 		CacheCoefficient        func(childComplexity int) int
 		CacheCreationCost       func(childComplexity int) int
 		CacheHitRate            func(childComplexity int) int
@@ -1481,9 +1482,11 @@ type ComplexityRoot struct {
 	}
 
 	KeyChannelRates struct {
-		Inherited func(childComplexity int) int
-		Revision  func(childComplexity int) int
-		Rules     func(childComplexity int) int
+		GlobalRate          func(childComplexity int) int
+		Inherited           func(childComplexity int) int
+		InheritedGlobalRate func(childComplexity int) int
+		Revision            func(childComplexity int) int
+		Rules               func(childComplexity int) int
 	}
 
 	KeyManagementResult struct {
@@ -1496,6 +1499,7 @@ type ComplexityRoot struct {
 
 	KeyRateChannel struct {
 		ChannelID func(childComplexity int) int
+		Disabled  func(childComplexity int) int
 		Name      func(childComplexity int) int
 		Profiles  func(childComplexity int) int
 		Tags      func(childComplexity int) int
@@ -1831,7 +1835,7 @@ type ComplexityRoot struct {
 		SaveChannelEndpoints                  func(childComplexity int, input biz.SaveChannelEndpointsInput) int
 		SaveChannelModelPrices                func(childComplexity int, channelID objects.GUID, input []*biz.SaveChannelModelPriceInput, multiplier *decimal.Decimal, serviceTierBilling *objects.ServiceTierSettings, cacheWriteBilling *objects.CacheWriteBilling) int
 		SaveChannelUpstreamAccount            func(childComplexity int, channelID objects.GUID, input objects.SaveChannelUpstreamAccountInput) int
-		SaveKeyChannelRates                   func(childComplexity int, keyID *int, groupID *int, revision string, rules []*objects.KeyChannelRate) int
+		SaveKeyChannelRates                   func(childComplexity int, keyID *int, groupID *int, revision string, rules []*objects.KeyChannelRate, globalRate *objects.KeyGlobalRateInput) int
 		SaveProxyPreset                       func(childComplexity int, input biz.ProxyPreset) int
 		SetChannelKeySessionReuse             func(childComplexity int, channelID objects.GUID, enabled bool) int
 		SetCleanupTaskPaused                  func(childComplexity int, id string, paused bool) int
@@ -2441,6 +2445,7 @@ type ComplexityRoot struct {
 		GetCacheDiagnostics             func(childComplexity int, input *GetCacheDiagnosticsInput) int
 		GroupCostComparison             func(childComplexity int, groupID int, start string, end string) int
 		GroupCostEntries                func(childComplexity int, groupID int, keyID int, channelID int, start string, end string, before *int) int
+		GroupRateChannels               func(childComplexity int, groupID int) int
 		KeyChannelRates                 func(childComplexity int, keyID *int, groupID *int) int
 		KeyManagementResults            func(childComplexity int, operationID string) int
 		KeyRateChannelScope             func(childComplexity int, keyID int) int
@@ -3931,7 +3936,7 @@ type MutationResolver interface {
 	BulkDisablePromptProtectionRules(ctx context.Context, ids []*objects.GUID) (bool, error)
 	PreviewPromptProtectionRule(ctx context.Context, input PromptProtectionRulePreviewInput) (*PromptProtectionRulePreviewResult, error)
 	SaveChannelModelPrices(ctx context.Context, channelID objects.GUID, input []*biz.SaveChannelModelPriceInput, multiplier *decimal.Decimal, serviceTierBilling *objects.ServiceTierSettings, cacheWriteBilling *objects.CacheWriteBilling) ([]*ent.ChannelModelPrice, error)
-	SaveKeyChannelRates(ctx context.Context, keyID *int, groupID *int, revision string, rules []*objects.KeyChannelRate) (bool, error)
+	SaveKeyChannelRates(ctx context.Context, keyID *int, groupID *int, revision string, rules []*objects.KeyChannelRate, globalRate *objects.KeyGlobalRateInput) (bool, error)
 	DeleteAPIKeys(ctx context.Context, ids []*objects.GUID) (bool, error)
 	SaveAPIKeyGroup(ctx context.Context, id *int, name string) (*APIKeyGroupOption, error)
 	DeleteAPIKeyGroup(ctx context.Context, id int) (bool, error)
@@ -4099,6 +4104,7 @@ type QueryResolver interface {
 	ConsumptionLeaderboard(ctx context.Context, input biz.ConsumptionFilter) (*biz.ConsumptionResult, error)
 	UsageStatistics(ctx context.Context, input biz.ConsumptionFilter) (*biz.ConsumptionResult, error)
 	KeyRateChannelScope(ctx context.Context, keyID int) (*objects.KeyRateChannelScope, error)
+	GroupRateChannels(ctx context.Context, groupID int) ([]*objects.KeyRateChannel, error)
 	KeyChannelRates(ctx context.Context, keyID *int, groupID *int) (*objects.KeyChannelRates, error)
 	GroupCostEntries(ctx context.Context, groupID int, keyID int, channelID int, start string, end string, before *int) ([]*objects.GroupCostEntry, error)
 	GroupCostComparison(ctx context.Context, groupID int, start string, end string) (*objects.GroupCostComparison, error)
@@ -8081,6 +8087,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.ConsumptionMetrics.AvgTokensPerSecond(childComplexity), true
+	case "ConsumptionMetrics.billedCost":
+		if e.complexity.ConsumptionMetrics.BilledCost == nil {
+			break
+		}
+
+		return e.complexity.ConsumptionMetrics.BilledCost(childComplexity), true
 	case "ConsumptionMetrics.cacheCoefficient":
 		if e.complexity.ConsumptionMetrics.CacheCoefficient == nil {
 			break
@@ -9765,12 +9777,24 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.KeyChannelRate.Multiplier(childComplexity), true
 
+	case "KeyChannelRates.globalRate":
+		if e.complexity.KeyChannelRates.GlobalRate == nil {
+			break
+		}
+
+		return e.complexity.KeyChannelRates.GlobalRate(childComplexity), true
 	case "KeyChannelRates.inherited":
 		if e.complexity.KeyChannelRates.Inherited == nil {
 			break
 		}
 
 		return e.complexity.KeyChannelRates.Inherited(childComplexity), true
+	case "KeyChannelRates.inheritedGlobalRate":
+		if e.complexity.KeyChannelRates.InheritedGlobalRate == nil {
+			break
+		}
+
+		return e.complexity.KeyChannelRates.InheritedGlobalRate(childComplexity), true
 	case "KeyChannelRates.revision":
 		if e.complexity.KeyChannelRates.Revision == nil {
 			break
@@ -9821,6 +9845,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.KeyRateChannel.ChannelID(childComplexity), true
+	case "KeyRateChannel.disabled":
+		if e.complexity.KeyRateChannel.Disabled == nil {
+			break
+		}
+
+		return e.complexity.KeyRateChannel.Disabled(childComplexity), true
 	case "KeyRateChannel.name":
 		if e.complexity.KeyRateChannel.Name == nil {
 			break
@@ -11789,7 +11819,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.complexity.Mutation.SaveKeyChannelRates(childComplexity, args["keyID"].(*int), args["groupID"].(*int), args["revision"].(string), args["rules"].([]*objects.KeyChannelRate)), true
+		return e.complexity.Mutation.SaveKeyChannelRates(childComplexity, args["keyID"].(*int), args["groupID"].(*int), args["revision"].(string), args["rules"].([]*objects.KeyChannelRate), args["globalRate"].(*objects.KeyGlobalRateInput)), true
 	case "Mutation.saveProxyPreset":
 		if e.complexity.Mutation.SaveProxyPreset == nil {
 			break
@@ -14914,6 +14944,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Query.GroupCostEntries(childComplexity, args["groupID"].(int), args["keyID"].(int), args["channelID"].(int), args["start"].(string), args["end"].(string), args["before"].(*int)), true
+	case "Query.groupRateChannels":
+		if e.complexity.Query.GroupRateChannels == nil {
+			break
+		}
+
+		args, err := ec.field_Query_groupRateChannels_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.GroupRateChannels(childComplexity, args["groupID"].(int)), true
 	case "Query.keyChannelRates":
 		if e.complexity.Query.KeyChannelRates == nil {
 			break
@@ -20629,6 +20670,7 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputInitializeSystemInput,
 		ec.unmarshalInputKeyBudgetPatch,
 		ec.unmarshalInputKeyChannelRateInput,
+		ec.unmarshalInputKeyGlobalRateInput,
 		ec.unmarshalInputKeyManagementRow,
 		ec.unmarshalInputLoadApiKeyProfileTemplateInput,
 		ec.unmarshalInputMaintenanceSettingsInput,
@@ -22421,6 +22463,11 @@ func (ec *executionContext) field_Mutation_saveKeyChannelRates_args(ctx context.
 		return nil, err
 	}
 	args["rules"] = arg3
+	arg4, err := graphql.ProcessArgField(ctx, rawArgs, "globalRate", ec.unmarshalOKeyGlobalRateInput2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐKeyGlobalRateInput)
+	if err != nil {
+		return nil, err
+	}
+	args["globalRate"] = arg4
 	return args, nil
 }
 
@@ -24382,6 +24429,17 @@ func (ec *executionContext) field_Query_groupCostEntries_args(ctx context.Contex
 		return nil, err
 	}
 	args["before"] = arg5
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_groupRateChannels_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "groupID", ec.unmarshalNInt2int)
+	if err != nil {
+		return nil, err
+	}
+	args["groupID"] = arg0
 	return args, nil
 }
 
@@ -45648,6 +45706,8 @@ func (ec *executionContext) fieldContext_ConsumptionEntry_metrics(_ context.Cont
 				return ec.fieldContext_ConsumptionMetrics_totalTokens(ctx, field)
 			case "totalCost":
 				return ec.fieldContext_ConsumptionMetrics_totalCost(ctx, field)
+			case "billedCost":
+				return ec.fieldContext_ConsumptionMetrics_billedCost(ctx, field)
 			case "unpricedRequestCount":
 				return ec.fieldContext_ConsumptionMetrics_unpricedRequestCount(ctx, field)
 			case "pricedRequestCount":
@@ -46260,6 +46320,35 @@ func (ec *executionContext) fieldContext_ConsumptionMetrics_totalCost(_ context.
 	return fc, nil
 }
 
+func (ec *executionContext) _ConsumptionMetrics_billedCost(ctx context.Context, field graphql.CollectedField, obj *biz.ConsumptionMetrics) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ConsumptionMetrics_billedCost,
+		func(ctx context.Context) (any, error) {
+			return obj.BilledCost, nil
+		},
+		nil,
+		ec.marshalOFloat2ᚖfloat64,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_ConsumptionMetrics_billedCost(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ConsumptionMetrics",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _ConsumptionMetrics_unpricedRequestCount(ctx context.Context, field graphql.CollectedField, obj *biz.ConsumptionMetrics) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -46778,6 +46867,8 @@ func (ec *executionContext) fieldContext_ConsumptionModel_metrics(_ context.Cont
 				return ec.fieldContext_ConsumptionMetrics_totalTokens(ctx, field)
 			case "totalCost":
 				return ec.fieldContext_ConsumptionMetrics_totalCost(ctx, field)
+			case "billedCost":
+				return ec.fieldContext_ConsumptionMetrics_billedCost(ctx, field)
 			case "unpricedRequestCount":
 				return ec.fieldContext_ConsumptionMetrics_unpricedRequestCount(ctx, field)
 			case "pricedRequestCount":
@@ -46956,6 +47047,8 @@ func (ec *executionContext) fieldContext_ConsumptionPerformanceSample_metrics(_ 
 				return ec.fieldContext_ConsumptionMetrics_totalTokens(ctx, field)
 			case "totalCost":
 				return ec.fieldContext_ConsumptionMetrics_totalCost(ctx, field)
+			case "billedCost":
+				return ec.fieldContext_ConsumptionMetrics_billedCost(ctx, field)
 			case "unpricedRequestCount":
 				return ec.fieldContext_ConsumptionMetrics_unpricedRequestCount(ctx, field)
 			case "pricedRequestCount":
@@ -54571,6 +54664,64 @@ func (ec *executionContext) fieldContext_KeyChannelRates_inherited(_ context.Con
 	return fc, nil
 }
 
+func (ec *executionContext) _KeyChannelRates_globalRate(ctx context.Context, field graphql.CollectedField, obj *objects.KeyChannelRates) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_KeyChannelRates_globalRate,
+		func(ctx context.Context) (any, error) {
+			return obj.GlobalRate, nil
+		},
+		nil,
+		ec.marshalODecimal2ᚖgithubᚗcomᚋshopspringᚋdecimalᚐDecimal,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_KeyChannelRates_globalRate(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "KeyChannelRates",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Decimal does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _KeyChannelRates_inheritedGlobalRate(ctx context.Context, field graphql.CollectedField, obj *objects.KeyChannelRates) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_KeyChannelRates_inheritedGlobalRate,
+		func(ctx context.Context) (any, error) {
+			return obj.InheritedGlobalRate, nil
+		},
+		nil,
+		ec.marshalODecimal2ᚖgithubᚗcomᚋshopspringᚋdecimalᚐDecimal,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_KeyChannelRates_inheritedGlobalRate(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "KeyChannelRates",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Decimal does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _KeyChannelRates_revision(ctx context.Context, field graphql.CollectedField, obj *objects.KeyChannelRates) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -54861,6 +55012,35 @@ func (ec *executionContext) fieldContext_KeyRateChannel_profiles(_ context.Conte
 	return fc, nil
 }
 
+func (ec *executionContext) _KeyRateChannel_disabled(ctx context.Context, field graphql.CollectedField, obj *objects.KeyRateChannel) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_KeyRateChannel_disabled,
+		func(ctx context.Context) (any, error) {
+			return obj.Disabled, nil
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_KeyRateChannel_disabled(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "KeyRateChannel",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _KeyRateChannelScope_activeProfile(ctx context.Context, field graphql.CollectedField, obj *objects.KeyRateChannelScope) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -54951,6 +55131,8 @@ func (ec *executionContext) fieldContext_KeyRateChannelScope_channels(_ context.
 				return ec.fieldContext_KeyRateChannel_tags(ctx, field)
 			case "profiles":
 				return ec.fieldContext_KeyRateChannel_profiles(ctx, field)
+			case "disabled":
+				return ec.fieldContext_KeyRateChannel_disabled(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type KeyRateChannel", field.Name)
 		},
@@ -67652,7 +67834,7 @@ func (ec *executionContext) _Mutation_saveKeyChannelRates(ctx context.Context, f
 		ec.fieldContext_Mutation_saveKeyChannelRates,
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.resolvers.Mutation().SaveKeyChannelRates(ctx, fc.Args["keyID"].(*int), fc.Args["groupID"].(*int), fc.Args["revision"].(string), fc.Args["rules"].([]*objects.KeyChannelRate))
+			return ec.resolvers.Mutation().SaveKeyChannelRates(ctx, fc.Args["keyID"].(*int), fc.Args["groupID"].(*int), fc.Args["revision"].(string), fc.Args["rules"].([]*objects.KeyChannelRate), fc.Args["globalRate"].(*objects.KeyGlobalRateInput))
 		},
 		nil,
 		ec.marshalNBoolean2bool,
@@ -83573,6 +83755,59 @@ func (ec *executionContext) fieldContext_Query_keyRateChannelScope(ctx context.C
 	return fc, nil
 }
 
+func (ec *executionContext) _Query_groupRateChannels(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Query_groupRateChannels,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Query().GroupRateChannels(ctx, fc.Args["groupID"].(int))
+		},
+		nil,
+		ec.marshalNKeyRateChannel2ᚕᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐKeyRateChannelᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Query_groupRateChannels(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "channelID":
+				return ec.fieldContext_KeyRateChannel_channelID(ctx, field)
+			case "name":
+				return ec.fieldContext_KeyRateChannel_name(ctx, field)
+			case "tags":
+				return ec.fieldContext_KeyRateChannel_tags(ctx, field)
+			case "profiles":
+				return ec.fieldContext_KeyRateChannel_profiles(ctx, field)
+			case "disabled":
+				return ec.fieldContext_KeyRateChannel_disabled(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type KeyRateChannel", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_groupRateChannels_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Query_keyChannelRates(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -83602,6 +83837,10 @@ func (ec *executionContext) fieldContext_Query_keyChannelRates(ctx context.Conte
 				return ec.fieldContext_KeyChannelRates_rules(ctx, field)
 			case "inherited":
 				return ec.fieldContext_KeyChannelRates_inherited(ctx, field)
+			case "globalRate":
+				return ec.fieldContext_KeyChannelRates_globalRate(ctx, field)
+			case "inheritedGlobalRate":
+				return ec.fieldContext_KeyChannelRates_inheritedGlobalRate(ctx, field)
 			case "revision":
 				return ec.fieldContext_KeyChannelRates_revision(ctx, field)
 			}
@@ -122442,6 +122681,33 @@ func (ec *executionContext) unmarshalInputKeyChannelRateInput(ctx context.Contex
 	return it, nil
 }
 
+func (ec *executionContext) unmarshalInputKeyGlobalRateInput(ctx context.Context, obj any) (objects.KeyGlobalRateInput, error) {
+	var it objects.KeyGlobalRateInput
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"multiplier"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "multiplier":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("multiplier"))
+			data, err := ec.unmarshalODecimal2ᚖgithubᚗcomᚋshopspringᚋdecimalᚐDecimal(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Multiplier = data
+		}
+	}
+
+	return it, nil
+}
+
 func (ec *executionContext) unmarshalInputKeyManagementRow(ctx context.Context, obj any) (biz.KeyManagementRow, error) {
 	var it biz.KeyManagementRow
 	asMap := map[string]any{}
@@ -150534,6 +150800,8 @@ func (ec *executionContext) _ConsumptionMetrics(ctx context.Context, sel ast.Sel
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "billedCost":
+			out.Values[i] = ec._ConsumptionMetrics_billedCost(ctx, field, obj)
 		case "unpricedRequestCount":
 			out.Values[i] = ec._ConsumptionMetrics_unpricedRequestCount(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -153601,6 +153869,10 @@ func (ec *executionContext) _KeyChannelRates(ctx context.Context, sel ast.Select
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "globalRate":
+			out.Values[i] = ec._KeyChannelRates_globalRate(ctx, field, obj)
+		case "inheritedGlobalRate":
+			out.Values[i] = ec._KeyChannelRates_inheritedGlobalRate(ctx, field, obj)
 		case "revision":
 			out.Values[i] = ec._KeyChannelRates_revision(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -153716,6 +153988,11 @@ func (ec *executionContext) _KeyRateChannel(ctx context.Context, sel ast.Selecti
 			}
 		case "profiles":
 			out.Values[i] = ec._KeyRateChannel_profiles(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "disabled":
+			out.Values[i] = ec._KeyRateChannel_disabled(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -163397,6 +163674,28 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 					}
 				}()
 				res = ec._Query_keyRateChannelScope(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "groupRateChannels":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_groupRateChannels(ctx, field)
 				if res == graphql.Null {
 					atomic.AddUint32(&fs.Invalids, 1)
 				}
@@ -189035,6 +189334,14 @@ func (ec *executionContext) unmarshalOKeyBudgetPatch2ᚖgithubᚗcomᚋloopljᚋ
 		return nil, nil
 	}
 	res, err := ec.unmarshalInputKeyBudgetPatch(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) unmarshalOKeyGlobalRateInput2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐKeyGlobalRateInput(ctx context.Context, v any) (*objects.KeyGlobalRateInput, error) {
+	if v == nil {
+		return nil, nil
+	}
+	res, err := ec.unmarshalInputKeyGlobalRateInput(ctx, v)
 	return &res, graphql.ErrorOnPath(ctx, err)
 }
 

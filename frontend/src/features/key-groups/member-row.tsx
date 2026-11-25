@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { usePermissions } from '@/hooks/usePermissions';
 import { extractNumberIDAsNumber } from '@/lib/utils';
 import { ChannelRateDialog } from './channel-rate-dialog';
-import { MoreHorizontal, Trash2 } from 'lucide-react';
+import { MoreHorizontal, Percent, Trash2, Wallet } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { currencyFractionDigits } from '@/utils/currency-display';
 import { useCurrencyDisplayDecimals } from '@/hooks/use-currency-display';
@@ -131,8 +131,16 @@ export function MemberRow({
             </DropdownMenuTrigger>
             <DropdownMenuContent align='end'>
               <DropdownMenuGroup>
-                {writable && apiKeyPermissions.canEditChannelRates && <DropdownMenuItem onSelect={()=>setShowRates(true)}>{t('kg.rate.menu')}</DropdownMenuItem>}
-                <DropdownMenuItem onSelect={onBudget}>{t('kg.quick.advanced')}</DropdownMenuItem>
+                {writable && apiKeyPermissions.canEditChannelRates && (
+                  <DropdownMenuItem onSelect={() => setShowRates(true)}>
+                    <Percent aria-hidden='true' />
+                    {t('kg.rate.menu')}
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuItem onSelect={onBudget}>
+                  <Wallet aria-hidden='true' />
+                  {t('kg.quick.advanced')}
+                </DropdownMenuItem>
               </DropdownMenuGroup>
             </DropdownMenuContent>
           </DropdownMenu>

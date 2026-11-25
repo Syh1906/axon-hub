@@ -2,7 +2,7 @@ import React from 'react';
 import { DotsHorizontalIcon } from '@radix-ui/react-icons';
 import { Row } from '@tanstack/react-table';
 import { IconUserOff, IconUserCheck, IconEdit, IconSettings, IconArchive, IconCheck, IconRefresh } from '@tabler/icons-react';
-import { BarChart3, Wallet, ChartNoAxesCombined, RotateCcw, Trash2 } from 'lucide-react';
+import { BarChart3, Wallet, ChartNoAxesCombined, Percent, RotateCcw, Trash2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { extractNumberID } from '@/lib/utils';
 import { usePermissions } from '@/hooks/usePermissions';
@@ -108,7 +108,12 @@ export function DataTableRowActions({ row }: DataTableRowActionsProps) {
               </DropdownMenuItem>
             ))}
           <DropdownMenuSeparator />
-          {!isOthersPersonalKey && apiKeyPermissions.canEditChannelRates && <DropdownMenuItem onSelect={()=>setShowRates(true)}>{t('kg.rate.menu')}</DropdownMenuItem>}
+          {!isOthersPersonalKey && apiKeyPermissions.canEditChannelRates && (
+            <DropdownMenuItem onSelect={() => setShowRates(true)}>
+              <Percent aria-hidden='true' className='mr-2 size-4' />
+              {t('kg.rate.menu')}
+            </DropdownMenuItem>
+          )}
           <DropdownMenuItem onClick={handleViewChart}>
             <BarChart3 className='mr-2 h-4 w-4' />
             {t('apikeys.actions.viewTokenChart')}

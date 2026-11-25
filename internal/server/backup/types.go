@@ -71,6 +71,7 @@ type BackupAPIKey struct {
 }
 
 type BackupAPIKeyGroup struct {
+	GlobalRate             *decimal.Decimal    `json:"global_rate,omitempty"`
 	ChannelRates           []BackupChannelRate `json:"channel_rates"`
 	ProjectName            string              `json:"project_name"`
 	Name                   string              `json:"name"`

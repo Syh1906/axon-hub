@@ -72,10 +72,20 @@ func (svc *ModelService) ModelChannelScope(ctx context.Context, key *ent.APIKey)
 	if key == nil {
 		return nil
 	}
-	return svc.modelChannelScope(ctx, key.Edges.Project.GetActiveProfile(), key.GetActiveProfile())
+	return newModelChannelScope(key.Edges.Project.GetActiveProfile(), key.GetActiveProfile(), svc.modelChannelTargets(ctx))
 }
 
-func (svc *ModelService) modelChannelScope(ctx context.Context, project *objects.ProjectProfile, profile *objects.APIKeyProfile) *ModelChannelScope {
+func (svc *ModelService) modelChannelTargets(ctx context.Context) func() ([]*ent.Channel, error) {
+	return sync.OnceValues(func() ([]*ent.Channel, error) {
+		client := svc.entFromContext(ctx)
+		return authz.RunAsHost(ctx, client, "model-association-channel-scope", func(hostCtx context.Context) ([]*ent.Channel, error) {
+			return client.Channel.Query().Where(channel.StatusIn(channel.StatusEnabled, channel.StatusDisabled)).
+				Select(channel.FieldID, channel.FieldName, channel.FieldTags).All(hostCtx)
+		})
+	})
+}
+
+func newModelChannelScope(project *objects.ProjectProfile, profile *objects.APIKeyProfile, targets func() ([]*ent.Channel, error)) *ModelChannelScope {
 	if (project == nil || len(project.ChannelIDs)+len(project.ChannelTags) == 0) &&
 		(profile == nil || len(profile.ChannelIDs)+len(profile.ChannelTags) == 0) {
 		return nil
@@ -85,13 +95,7 @@ func (svc *ModelService) modelChannelScope(ctx context.Context, project *objects
 			return (project == nil || (len(project.ChannelIDs) == 0 || slices.Contains(project.ChannelIDs, ch.ID)) && project.MatchChannelTags(ch.Tags)) &&
 				(profile == nil || (len(profile.ChannelIDs) == 0 || slices.Contains(profile.ChannelIDs, ch.ID)) && profile.MatchChannelTags(ch.Tags))
 		},
-		targets: sync.OnceValues(func() ([]*ent.Channel, error) {
-			client := svc.entFromContext(ctx)
-			return authz.RunAsHost(ctx, client, "model-association-channel-scope", func(hostCtx context.Context) ([]*ent.Channel, error) {
-				return client.Channel.Query().Where(channel.StatusIn(channel.StatusEnabled, channel.StatusDisabled)).
-					Select(channel.FieldID, channel.FieldName, channel.FieldTags).All(hostCtx)
-			})
-		}),
+		targets: targets,
 	}
 }
 

@@ -25,28 +25,31 @@ type ChannelUpstreamState = {
     applied: { value: number; source: string; observedAt: string | null };
   }[];
 };
-type RateChannel = { channelID: number; name: string; tags: string[]; profiles: string[] };
+type RateChannel = { channelID: number; name: string; tags: string[]; profiles?: string[]; disabled?: boolean };
 type ChannelScope = { activeProfile: string; profiles: string[]; channels: RateChannel[] };
-type ChannelNode = { id: string; name: string; tags: string[] | null };
+type ChannelNode = { id: string; name: string; tags: string[] | null; status: string };
 const pageSize = 25;
 
 type ChannelList = {
   queryChannels: { edges: { node: ChannelNode }[]; pageInfo: { endCursor: string | null; hasNextPage: boolean } };
 };
-const namesQuery = `query RateChannels($input:QueryChannelInput!){queryChannels(input:$input){edges{node{id name tags}} pageInfo{hasNextPage endCursor}}}`;
+const namesQuery = `query RateChannels($input:QueryChannelInput!){queryChannels(input:$input){edges{node{id name tags status}} pageInfo{hasNextPage endCursor}}}`;
 const stateQuery = `query RateChannelNumbers($ids:[ID!]!){channelUpstreamStates(channelIds:$ids){channelId manualMultiplier enabledCredentialCount settings{enabled costMode} keys{keyRef label remark disabled applied{value source observedAt}}}}`;
 
 type Target = { keyID?: number; groupID?: number; name: string };
 type Rule = { channelID: number; multiplier: string | number };
-type RateChanges = { revision: string; rules: Rule[] };
-type Rates = RateChanges & { inherited: Rule[] };
-const rateFields = 'rules{channelID multiplier} inherited{channelID multiplier} revision';
+type RateChanges = { revision: string; rules: Rule[]; globalRate: string | null };
+type Rates = RateChanges & { inherited: Rule[]; inheritedGlobalRate: string | null };
+const rateFields = 'rules{channelID multiplier} inherited{channelID multiplier} globalRate inheritedGlobalRate revision';
 const keyQuery = `query KeyRatesAndScope($keyID:Int!){
   keyChannelRates(keyID:$keyID){${rateFields}}
-  keyRateChannelScope(keyID:$keyID){activeProfile profiles channels{channelID name tags profiles}}
+  keyRateChannelScope(keyID:$keyID){activeProfile profiles channels{channelID name tags profiles disabled}}
 }`;
 const groupQuery = `query GroupRates($groupID:Int!){keyChannelRates(groupID:$groupID){${rateFields}}}`;
-const saveRates = `mutation SaveKeyChannelRates($keyID:Int,$groupID:Int,$revision:String!,$rules:[KeyChannelRateInput!]!){saveKeyChannelRates(keyID:$keyID,groupID:$groupID,revision:$revision,rules:$rules)}`;
+const groupChannelsQuery = `query GroupRateChannels($groupID:Int!){
+  groupRateChannels(groupID:$groupID){channelID name tags disabled}
+}`;
+const saveRates = `mutation SaveKeyChannelRates($keyID:Int,$groupID:Int,$revision:String!,$rules:[KeyChannelRateInput!]!,$globalRate:KeyGlobalRateInput!){saveKeyChannelRates(keyID:$keyID,groupID:$groupID,revision:$revision,rules:$rules,globalRate:$globalRate)}`;
 
 function rateRange(state: ChannelUpstreamState) {
   const keys = state.keys.filter((k) => !k.disabled);
@@ -93,10 +96,11 @@ function CurrentRate({ state }: { state?: ChannelUpstreamState }) {
 }
 
 function channelRow(node: ChannelNode): RateChannel {
-  return { channelID: extractNumberIDAsNumber(node.id), name: node.name, tags: node.tags ?? [], profiles: [] };
+  return { channelID: extractNumberIDAsNumber(node.id), name: node.name, tags: node.tags ?? [], disabled: node.status === 'disabled' };
 }
 
 function ChannelLabel({ row }: { row: RateChannel }) {
+  const { t } = useTranslation();
   return (
     <div className='flex max-w-64 flex-col gap-0.5'>
       <div className='flex items-baseline gap-1.5'>
@@ -104,6 +108,7 @@ function ChannelLabel({ row }: { row: RateChannel }) {
           {row.name}
         </span>
         <span className='text-muted-foreground shrink-0 text-xs tabular-nums'>#{row.channelID}</span>
+        {row.disabled && <Badge variant='secondary'>{t('kg.rate.disabledChannel')}</Badge>}
       </div>
       {row.tags.length > 0 && (
         <div className='flex items-center gap-1 overflow-hidden' title={row.tags.join(' · ')}>
@@ -133,7 +138,7 @@ function GroupChannelPicker({ project, excluded, onAdd }: { project: string; exc
         await graphqlRequest<ChannelList>(
           namesQuery,
           {
-            input: { first: 40, after: pageParam, where: term ? { nameContainsFold: term } : {} },
+            input: { first: 40, after: pageParam, where: { statusIn: ['enabled', 'disabled'], ...(term && { nameContainsFold: term }) } },
           },
           { 'X-Project-ID': project },
           { signal }
@@ -191,6 +196,8 @@ function RateForm({
   saveError,
   onSave,
   scope,
+  channels,
+  channelsPending,
   project,
   onClose,
 }: {
@@ -199,11 +206,14 @@ function RateForm({
   saveError: Error | null;
   onSave: (changes: RateChanges) => void;
   scope?: ChannelScope;
+  channels?: RateChannel[];
+  channelsPending: boolean;
   project: string;
   onClose: () => void;
 }) {
   const { t } = useTranslation();
   const [draft, setDraft] = useState(() => new Map(initial.rules.map((r) => [r.channelID, String(r.multiplier)])));
+  const [globalRate, setGlobalRate] = useState(() => String(initial.globalRate ?? ''));
   const inherited = useMemo(() => new Map(initial.inherited.map((r) => [r.channelID, String(r.multiplier)])), [initial]);
   const [added, setAdded] = useState<RateChannel[]>([]);
   const [search, setSearch] = useState('');
@@ -211,13 +221,11 @@ function RateForm({
   const [page, setPage] = useState(0);
   const identity = useAuthStore((s) => s.auth.user?.id);
   const headers = { 'X-Project-ID': project };
-  const savedOutside = useMemo(() => {
-    const scopedIDs = new Set(scope?.channels.map((row) => row.channelID));
-    return initial.rules.map((r) => r.channelID).filter((id) => !scopedIDs.has(id));
-  }, [initial, scope]);
+  const scopedIDs = useMemo(() => new Set(channels?.map((row) => row.channelID)), [channels]);
+  const savedOutside = useMemo(() => initial.rules.map((r) => r.channelID).filter((id) => !scopedIDs.has(id)), [initial, scopedIDs]);
   const savedNames = useQuery({
     queryKey: ['rateSavedChannelNames', identity, project, savedOutside],
-    enabled: savedOutside.length > 0 && (!scope || profileFilter === 'outside'),
+    enabled: savedOutside.length > 0 && (profileFilter === 'outside' || (!channels && !channelsPending)),
     queryFn: async ({ signal }) => {
       const rows = new Map<number, RateChannel>();
       for (let i = 0; i < savedOutside.length; i += 100) {
@@ -236,9 +244,12 @@ function RateForm({
   const profileLabel = (name: string) => name || t('kg.defaultProfile');
   const term = search.trim().toLowerCase();
   const savedRows = savedOutside.map((id) => savedNames.data?.get(id) ?? { channelID: id, name: '', tags: [], profiles: [] });
-  const source = scope && profileFilter !== 'outside' ? scope.channels : [...savedRows, ...added];
+  const outsideRows = [...savedRows, ...added.filter((row) => !scopedIDs.has(row.channelID))];
+  const showOutside = profileFilter === 'outside' && outsideRows.length > 0;
+  const source = !channels || showOutside ? outsideRows : channels;
+  const emptyGroupMessage = channels ? 'kg.rate.noMemberChannels' : 'kg.rate.noSavedRates';
   const rows = source.filter((row) => {
-    if (scope && profileFilter.startsWith('profile-') && !row.profiles.includes(scope.profiles[Number(profileFilter.slice(8))]))
+    if (scope && profileFilter.startsWith('profile-') && !row.profiles?.includes(scope.profiles[Number(profileFilter.slice(8))]))
       return false;
     if (!term) return true;
     return (
@@ -274,46 +285,73 @@ function RateForm({
     });
   return (
     <>
-      {scope ? (
+      <div className='space-y-1'>
         <div className='flex flex-wrap items-center gap-2'>
-          <Input
-            className='min-w-40 flex-1'
-            aria-label={t('kg.rate.filter')}
-            placeholder={t('kg.rate.filter')}
-            value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
-              setPage(0);
-            }}
-          />
+          <label className='flex items-center gap-2 text-sm font-medium'>
+            {t(scope ? 'kg.rate.keyGlobal' : 'kg.rate.groupGlobal')}
+            <Input
+              className='w-24'
+              type='number'
+              min='0'
+              step='any'
+              placeholder={t('kg.rate.inherit')}
+              value={globalRate}
+              disabled={saving}
+              onChange={(e) => setGlobalRate(e.target.value)}
+            />
+            ×
+          </label>
+          {globalRate !== '' && (
+            <Button variant='ghost' size='sm' disabled={saving} onClick={() => setGlobalRate('')}>
+              {t('kg.rate.restore')}
+            </Button>
+          )}
+        </div>
+        <p className='text-muted-foreground text-xs'>{t('kg.rate.globalHint')}</p>
+      </div>
+      <div className='flex flex-wrap items-center gap-2'>
+        <Input
+          className='min-w-40 flex-1'
+          aria-label={t('kg.rate.filter')}
+          placeholder={t('kg.rate.filter')}
+          value={search}
+          onChange={(e) => {
+            setSearch(e.target.value);
+            setPage(0);
+          }}
+        />
+        {channels && (scope || outsideRows.length > 0) && (
           <select
             className='border-input bg-background h-9 max-w-full rounded-md border px-2 text-sm'
-            aria-label={t('kg.rate.profiles')}
+            aria-label={t(scope ? 'kg.rate.profiles' : 'kg.rate.channel')}
             value={profileFilter}
             onChange={(e) => {
               setProfileFilter(e.target.value);
               setPage(0);
             }}
           >
-            <option value='all'>{t('kg.rate.allProfiles')}</option>
-            {scope.profiles.map((name, i) => (
+            <option value='all'>{t(scope ? 'kg.rate.allProfiles' : 'kg.rate.memberChannels')}</option>
+            {scope?.profiles.map((name, i) => (
               <option key={name} value={`profile-${i}`}>
                 {profileLabel(name)}
               </option>
             ))}
-            {savedOutside.length > 0 && <option value='outside'>{t('kg.rate.outside', { count: savedOutside.length })}</option>}
+            {outsideRows.length > 0 && <option value='outside'>{t('kg.rate.outside', { count: outsideRows.length })}</option>}
           </select>
-        </div>
-      ) : (
+        )}
+      </div>
+      {!scope && (
         <fieldset disabled={saving} className='min-w-0'>
           <legend className='sr-only'>{t('kg.rate.channel')}</legend>
           <GroupChannelPicker
             project={project}
-            excluded={new Set(source.map((r) => r.channelID))}
+            excluded={new Set([...scopedIDs, ...outsideRows.map((row) => row.channelID)])}
             onAdd={(row) => {
               setAdded((previous) => [...previous, row]);
               change(row.channelID, '');
-              setPage(Math.floor(source.length / pageSize));
+              setSearch('');
+              setProfileFilter('outside');
+              setPage(Math.floor(outsideRows.length / pageSize));
             }}
           />
         </fieldset>
@@ -349,7 +387,7 @@ function RateForm({
             {visible.map((row) => {
               const id = row.channelID;
               const value = draft.get(id),
-                parent = inherited.get(id);
+                parent = inherited.get(id) ?? initial.inheritedGlobalRate ?? undefined;
               const state = upstream.data?.get(id);
               const parentLabel = parent !== undefined ? parent + '×' : state ? rateRange(state).label : t('kg.rate.unavailable');
               const name = [row.name, '#' + id].filter(Boolean).join(' ');
@@ -359,8 +397,8 @@ function RateForm({
                     <ChannelLabel row={row} />
                   </th>
                   {scope && (
-                    <td className='max-w-40 truncate px-2' title={row.profiles.map(profileLabel).join('、')}>
-                      {row.profiles.length ? row.profiles.map(profileLabel).join('、') : t('kg.rate.unmatched')}
+                    <td className='max-w-40 truncate px-2' title={row.profiles?.map(profileLabel).join('、')}>
+                      {row.profiles?.length ? row.profiles.map(profileLabel).join('、') : t('kg.rate.unmatched')}
                     </td>
                   )}
                   <td>
@@ -371,8 +409,8 @@ function RateForm({
                   )}
                   <td>
                     {value === undefined ? (
-                      <Button variant='ghost' size='sm' disabled={saving} onClick={() => change(id, parent ?? '')}>
-                        {t('kg.rate.inherit')} {parentLabel}
+                      <Button variant='ghost' size='sm' disabled={saving} onClick={() => change(id, globalRate || parent || '')}>
+                        {globalRate ? t('kg.rate.useGlobal', { rate: globalRate }) : t('kg.rate.inherit') + ' ' + parentLabel}
                       </Button>
                     ) : (
                       <label className='flex items-center gap-1'>
@@ -409,7 +447,11 @@ function RateForm({
             })}
           </tbody>
         </table>
-        {rows.length === 0 && <p className='text-muted-foreground p-2 text-sm'>{t(scope ? 'kg.rate.noMatches' : 'kg.rate.empty')}</p>}
+        {rows.length === 0 && !channelsPending && (
+          <p className='text-muted-foreground p-2 text-sm'>
+            {t(!scope && !term && !showOutside ? emptyGroupMessage : 'kg.rate.noMatches')}
+          </p>
+        )}
         {saveError && <p role='alert'>{saveError.message}</p>}
       </div>
       {lastPage > 0 && (
@@ -442,8 +484,17 @@ function RateForm({
           {t('common.buttons.cancel')}
         </Button>
         <Button
-          disabled={saving || [...draft.values()].some((v) => !v.trim() || !Number.isFinite(Number(v)) || Number(v) < 0)}
-          onClick={() => onSave({ revision: initial.revision, rules: [...draft].map(([channelID, multiplier]) => ({ channelID, multiplier })) })}
+          disabled={
+            saving ||
+            [...(globalRate ? [globalRate] : []), ...draft.values()].some((v) => !v.trim() || !Number.isFinite(Number(v)) || Number(v) < 0)
+          }
+          onClick={() =>
+            onSave({
+              revision: initial.revision,
+              globalRate: globalRate || null,
+              rules: [...draft].map(([channelID, multiplier]) => ({ channelID, multiplier })),
+            })
+          }
         >
           {t(saving ? 'common.buttons.saving' : 'common.buttons.save')}
         </Button>
@@ -469,11 +520,32 @@ export function ChannelRateDialog({ target, onClose }: { target: Target; onClose
         { signal }
       ),
   });
+  const groupChannels = useQuery({
+    queryKey: ['groupRateChannels', identity, project, target.groupID],
+    enabled: !!project && target.groupID !== undefined,
+    gcTime: 0,
+    staleTime: Infinity,
+    retry: false,
+    queryFn: async ({ signal }) => {
+      const { groupRateChannels } = await graphqlRequest<{ groupRateChannels: RateChannel[] }>(
+        groupChannelsQuery,
+        { groupID: target.groupID },
+        { 'X-Project-ID': project! },
+        { signal }
+      );
+      return groupRateChannels;
+    },
+  });
+  const channelsPending = target.groupID !== undefined && groupChannels.isPending;
   const save = useMutation({
     // 离线时直接反馈保存失败，保留草稿供用户重试。
     networkMode: 'always',
-    mutationFn: ({ revision, rules }: RateChanges) =>
-      graphqlRequest(saveRates, { keyID: target.keyID, groupID: target.groupID, revision, rules }, { 'X-Project-ID': project! }),
+    mutationFn: ({ revision, rules, globalRate }: RateChanges) =>
+      graphqlRequest(
+        saveRates,
+        { keyID: target.keyID, groupID: target.groupID, revision, rules, globalRate: { multiplier: globalRate } },
+        { 'X-Project-ID': project! }
+      ),
     onSuccess: onClose,
   });
   return (
@@ -490,11 +562,29 @@ export function ChannelRateDialog({ target, onClose }: { target: Target; onClose
             {target.name} ·{' '}
             {query.data?.keyRateChannelScope
               ? t('kg.rate.activeProfile', { name: query.data.keyRateChannelScope.activeProfile || t('kg.defaultProfile') })
-              : t('kg.rate.hint')}
+              : t(target.groupID ? 'kg.rate.groupHint' : 'kg.rate.hint')}
           </DialogDescription>
         </DialogHeader>
         {query.error && <p role='alert'>{query.error.message}</p>}
         {query.isLoading && <p>{t('kg.loading')}</p>}
+        {query.data && channelsPending && (
+          <p role='status' className='text-muted-foreground text-sm'>
+            {t('kg.rate.channelsLoading')}
+          </p>
+        )}
+        {query.data && groupChannels.isError && (
+          <div role='alert' className='flex items-center justify-between gap-2 text-sm'>
+            <span>{t('kg.rate.channelsFailed')}</span>
+            <Button
+              variant='outline'
+              size='sm'
+              disabled={save.isPending || groupChannels.isFetching}
+              onClick={() => void groupChannels.refetch()}
+            >
+              {t('common.buttons.retry')}
+            </Button>
+          </div>
+        )}
         {query.data && project && (
           <RateForm
             key={`${project}-${target.keyID ?? target.groupID}`}
@@ -502,6 +592,8 @@ export function ChannelRateDialog({ target, onClose }: { target: Target; onClose
             saveError={save.error}
             onSave={save.mutate}
             scope={query.data.keyRateChannelScope}
+            channels={query.data.keyRateChannelScope?.channels ?? groupChannels.data}
+            channelsPending={channelsPending}
             initial={query.data.keyChannelRates}
             project={project}
             onClose={onClose}

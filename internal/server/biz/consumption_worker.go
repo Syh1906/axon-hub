@@ -208,7 +208,7 @@ func (s *ConsumptionService) fillConsumptionDate(ctx context.Context, limit int)
 
 			query.Filter.Uncached, query.Filter.DailySnapshot = true, true
 
-			if query.Version != consumptionSnapshotVersion || s.system.TimeLocation(ctx).String() != query.Timezone {
+			if query.Version != consumptionVersion(query.Filter) || s.system.TimeLocation(ctx).String() != query.Timezone {
 				err = fmt.Errorf("consumption summary configuration changed")
 			}
 

@@ -10,6 +10,7 @@ import (
 	"github.com/looplj/axonhub/internal/ent/apikeygroup"
 	"github.com/looplj/axonhub/internal/ent/apikeygroupchannelrate"
 	"github.com/looplj/axonhub/internal/ent/project"
+	"github.com/looplj/axonhub/internal/objects"
 )
 
 func restoreKeyGroup(ctx context.Context, db *ent.Client, projectID int, name string) (*int, error) {
@@ -45,7 +46,7 @@ func (svc *BackupService) streamAPIKeyGroups(ctx context.Context, out *objWriter
 					rates = append(rates, BackupChannelRate{r.ChannelID, c.Name, r.Multiplier})
 				}
 			}
-			data, err := json.Marshal(BackupAPIKeyGroup{ChannelRates: rates, ProjectName: projectName, Name: group.Name, Note: group.Note, Enabled: group.Enabled, ShowChannelInSelfUsage: group.ShowChannelInSelfUsage})
+			data, err := json.Marshal(BackupAPIKeyGroup{GlobalRate: group.GlobalRate, ChannelRates: rates, ProjectName: projectName, Name: group.Name, Note: group.Note, Enabled: group.Enabled, ShowChannelInSelfUsage: group.ShowChannelInSelfUsage})
 			return data, true, err
 		})
 }
@@ -63,9 +64,14 @@ func (svc *BackupService) restoreAPIKeyGroups(ctx context.Context, db *ent.Clien
 			return err
 		}
 		existing, err := db.APIKeyGroup.Query().Where(apikeygroup.ProjectIDEQ(target.ID), apikeygroup.NameEQ(source.Name)).Only(ctx)
+		if ent.IsNotFound(err) || (err == nil && strategy == ConflictStrategyOverwrite) {
+			if err := objects.ValidateGlobalRate(source.GlobalRate); err != nil {
+				return fmt.Errorf("restore API key group %q: %w", source.Name, err)
+			}
+		}
 		if ent.IsNotFound(err) {
 			existing, err = db.APIKeyGroup.Create().SetProjectID(target.ID).SetName(source.Name).SetNote(source.Note).SetEnabled(source.Enabled).
-				SetShowChannelInSelfUsage(source.ShowChannelInSelfUsage).Save(ctx)
+				SetNillableGlobalRate(source.GlobalRate).SetShowChannelInSelfUsage(source.ShowChannelInSelfUsage).Save(ctx)
 		} else if err == nil {
 			switch strategy {
 			case ConflictStrategySkip, "":
@@ -73,8 +79,14 @@ func (svc *BackupService) restoreAPIKeyGroups(ctx context.Context, db *ent.Clien
 			case ConflictStrategyError:
 				return fmt.Errorf("API key group %s already exists", source.Name)
 			case ConflictStrategyOverwrite:
-				_, err = existing.Update().SetNote(source.Note).SetEnabled(source.Enabled).
-					SetShowChannelInSelfUsage(source.ShowChannelInSelfUsage).AddRevision(1).Save(ctx)
+				update := existing.Update().SetNote(source.Note).SetEnabled(source.Enabled).
+					SetShowChannelInSelfUsage(source.ShowChannelInSelfUsage).AddRevision(1)
+				if source.GlobalRate == nil {
+					update.ClearGlobalRate()
+				} else {
+					update.SetGlobalRate(*source.GlobalRate)
+				}
+				err = update.Exec(ctx)
 			}
 		}
 		if err != nil {

@@ -7,6 +7,7 @@ import { useDebounce } from '@/hooks/use-debounce';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { QueryLoadAlert } from '@/components/query-load-alert';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -32,6 +33,8 @@ export default function ConsumptionPage({ view = 'leaderboard' }: { view?: 'lead
   const isLeaderboard = view === 'leaderboard';
   const [dimension, setDimension] = useState<ConsumptionDimension>(isLeaderboard ? 'CHANNEL' : 'API_KEY_GROUP');
   const [metric, setMetric] = useState<ConsumptionMetric>('COST');
+  const [showChannelCost, setShowChannelCost] = useState(false);
+  const channelCostRank = isLeaderboard && dimension === 'CHANNEL' && metric === 'COST';
   const [range, setRange] = useState<ConsumptionDateRange>({ period: 'TODAY' });
   const [projectID, setProjectID] = useState('all');
   const [search, setSearch] = useState('');
@@ -176,6 +179,15 @@ export default function ConsumptionPage({ view = 'leaderboard' }: { view?: 'lead
                 </SelectContent>
               </Select>
             )}
+            {channelCostRank && (
+              <label className='ml-auto flex cursor-pointer items-center gap-2 text-sm'>
+                <Checkbox checked={showChannelCost} onCheckedChange={(checked) => {
+                  setShowChannelCost(checked === true);
+                  if (rankSort?.key === 'totalCost') setSortSelection(null);
+                }} />
+                {t('consumption.showChannelCost')}
+              </label>
+            )}
             <div className='relative w-full sm:w-60'>
               <Search className='text-muted-foreground absolute top-2.5 left-3 size-4' aria-hidden />
               <Input
@@ -205,8 +217,10 @@ export default function ConsumptionPage({ view = 'leaderboard' }: { view?: 'lead
               ) : data?.entries.length ? (
                 <ConsumptionTable
                   key={tableScope}
-                  remoteSort={paged ? rankSort : undefined}
-                  onSort={paged ? (sort) => setSortSelection({ scope: sortScope, sort }) : undefined}
+                  sort={rankSort}
+                  serverSorted={paged}
+                  showChannelCost={channelCostRank && showChannelCost}
+                  onSort={(sort) => setSortSelection({ scope: sortScope, sort })}
                   loadMore={paged && ranked.hasNextPage && !ranked.isFetching && !ranked.isError ? ranked.fetchNextPage : undefined}
                   scrollElement={tableScrollElement}
                   view={view}

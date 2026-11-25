@@ -98,19 +98,19 @@ func init() {
 	// apikey.DefaultDeletedAt holds the default value on creation for the deleted_at field.
 	apikey.DefaultDeletedAt = apikeyDescDeletedAt.Default.(int)
 	// apikeyDescProjectID is the schema descriptor for project_id field.
-	apikeyDescProjectID := apikeyFields[2].Descriptor()
+	apikeyDescProjectID := apikeyFields[3].Descriptor()
 	// apikey.DefaultProjectID holds the default value on creation for the project_id field.
 	apikey.DefaultProjectID = apikeyDescProjectID.Default.(int)
 	// apikeyDescScopes is the schema descriptor for scopes field.
-	apikeyDescScopes := apikeyFields[7].Descriptor()
+	apikeyDescScopes := apikeyFields[8].Descriptor()
 	// apikey.DefaultScopes holds the default value on creation for the scopes field.
 	apikey.DefaultScopes = apikeyDescScopes.Default.([]string)
 	// apikeyDescProfiles is the schema descriptor for profiles field.
-	apikeyDescProfiles := apikeyFields[8].Descriptor()
+	apikeyDescProfiles := apikeyFields[9].Descriptor()
 	// apikey.DefaultProfiles holds the default value on creation for the profiles field.
 	apikey.DefaultProfiles = apikeyDescProfiles.Default.(*objects.APIKeyProfiles)
 	// apikeyDescAllowedIps is the schema descriptor for allowed_ips field.
-	apikeyDescAllowedIps := apikeyFields[9].Descriptor()
+	apikeyDescAllowedIps := apikeyFields[10].Descriptor()
 	// apikey.DefaultAllowedIps holds the default value on creation for the allowed_ips field.
 	apikey.DefaultAllowedIps = apikeyDescAllowedIps.Default.([]string)
 	apikeychannelrate.Policy = privacy.NewPolicies(schema.APIKeyChannelRate{})
@@ -175,11 +175,11 @@ func init() {
 	// apikeygroup.DefaultEnabled holds the default value on creation for the enabled field.
 	apikeygroup.DefaultEnabled = apikeygroupDescEnabled.Default.(bool)
 	// apikeygroupDescShowChannelInSelfUsage is the schema descriptor for show_channel_in_self_usage field.
-	apikeygroupDescShowChannelInSelfUsage := apikeygroupFields[3].Descriptor()
+	apikeygroupDescShowChannelInSelfUsage := apikeygroupFields[4].Descriptor()
 	// apikeygroup.DefaultShowChannelInSelfUsage holds the default value on creation for the show_channel_in_self_usage field.
 	apikeygroup.DefaultShowChannelInSelfUsage = apikeygroupDescShowChannelInSelfUsage.Default.(bool)
 	// apikeygroupDescRevision is the schema descriptor for revision field.
-	apikeygroupDescRevision := apikeygroupFields[4].Descriptor()
+	apikeygroupDescRevision := apikeygroupFields[5].Descriptor()
 	// apikeygroup.DefaultRevision holds the default value on creation for the revision field.
 	apikeygroup.DefaultRevision = apikeygroupDescRevision.Default.(int)
 	apikeygroupchannelrate.Policy = privacy.NewPolicies(schema.APIKeyGroupChannelRate{})

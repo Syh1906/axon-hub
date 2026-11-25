@@ -28,7 +28,7 @@ func newConsumptionRangeTotals() *consumptionRangeTotals {
 }
 
 func consumptionMetricGroup(m ConsumptionMetrics) consumptionGroup {
-	return consumptionGroup{
+	group := consumptionGroup{
 		Requests: m.RequestCount, Tokens: m.TotalTokens, Cost: m.TotalCost,
 		PricedRequests: m.PricedRequestCount, UnpricedRequests: m.UnpricedRequestCount, TokenPricedRequests: m.TokenPricedRequestCount,
 		PricedCost: m.PricedCost, TokenPricedCost: m.TokenPricedCost, PricedTokens: m.PricedTokens,
@@ -36,6 +36,10 @@ func consumptionMetricGroup(m ConsumptionMetrics) consumptionGroup {
 		SuccessCount: m.SuccessCount, OutcomeCount: m.OutcomeCount, FirstTokenSum: m.FirstTokenSum, FirstTokenCount: m.FirstTokenCount,
 		SpeedSum: m.SpeedSum, SpeedCount: m.SpeedSampleCount,
 	}
+	if m.BilledCost != nil {
+		group.BilledCost, group.BilledRecords = *m.BilledCost, 1
+	}
+	return group
 }
 
 func rangeGroup[K comparable, T any](rows map[K]*T, key K) *T {

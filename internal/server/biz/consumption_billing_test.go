@@ -88,6 +88,54 @@ func TestConsumptionBillingKeepsUnknownAttemptCost(t *testing.T) {
 	require.Nil(t, rows[0].metrics().AvgCostPerRequest)
 }
 
+func TestChannelRankingBilledAndSupplyAmounts(t *testing.T) {
+	f := newConsumptionFixture(t)
+	req, retry := addCrossChannelBilling(t, f, lo.ToPtr(4.0))
+	logs := f.client.UsageLog.Query().Where(usagelog.RequestIDEQ(req.ID)).AllX(f.ctx)
+	for _, bill := range logs {
+		if bill.ChannelID == retry.ID {
+			bill.Update().SetBilledCost(8).SetBillingGroupID(0).ExecX(f.ctx)
+		} else {
+			bill.Update().SetTotalCost(5).SetBilledCost(6).SetBillingGroupID(0).ExecX(f.ctx)
+		}
+	}
+	input := ConsumptionFilter{Dimension: ConsumptionDimensionChannel, Metric: ConsumptionMetricCost}
+	check := func() {
+		rows, err := f.service.queryGroups(f.ctx, f.project.ID, input, nil, time.Now())
+		require.NoError(t, err)
+		entries := consumptionEntries(rows, input)
+		sortConsumptionEntries(entries, input)
+		require.Len(t, entries, 2)
+		for i, expected := range []struct {
+			channel, requests int
+			billed, supply    float64
+		}{{retry.ID, 0, 8, 4}, {f.channel.ID, 1, 6, 5}} {
+			row := entries[i]
+			require.Equal(t, expected.channel, row.ID.ID)
+			require.Equal(t, expected.requests, row.Metrics.RequestCount)
+			require.Equal(t, expected.supply, row.Metrics.TotalCost)
+			require.Equal(t, lo.ToPtr(expected.billed), row.Metrics.BilledCost)
+			require.Len(t, row.Models, 1)
+			require.Equal(t, row.Metrics.BilledCost, row.Models[0].Metrics.BilledCost)
+		}
+	}
+	check()
+	require.NoError(t, ArchiveRequestStatistics(f.ctx, f.client, []int{req.ID}))
+	check()
+	logs = f.client.UsageLog.Query().Where(usagelog.RequestIDEQ(req.ID)).AllX(f.ctx)
+	require.NoError(t, ArchiveUsageStatistics(f.ctx, f.client, logs))
+	f.client.UsageLog.Delete().Where(usagelog.RequestIDEQ(req.ID)).ExecX(f.ctx)
+	check()
+	require.NoError(t, f.client.UsageArchive.Update().Where(usagearchive.KindEQ(usagearchive.KindUsage), usagearchive.ChannelIDEQ(retry.ID)).SetBilledCost(0).Exec(f.ctx))
+	rows, err := f.service.queryGroups(f.ctx, f.project.ID, input, nil, time.Now())
+	require.NoError(t, err)
+	for _, row := range rows {
+		if row.EntityID == retry.ID {
+			require.Equal(t, lo.ToPtr(0.0), row.metrics().BilledCost)
+		}
+	}
+}
+
 func TestConsumptionBillingLegacySnapshotIsNotInventedComplete(t *testing.T) {
 	f := newConsumptionFixture(t)
 	f.client.UsageArchive.Create().SetKind(usagearchive.KindRequest).SetSourceID(999).SetRequestID(999).

@@ -14,6 +14,7 @@ import (
 	"github.com/looplj/axonhub/internal/ent/apikeygroup"
 	"github.com/looplj/axonhub/internal/ent/apikeygroupchannelrate"
 	"github.com/looplj/axonhub/internal/ent/predicate"
+	"github.com/shopspring/decimal"
 )
 
 // APIKeyGroupUpdate is the builder for updating APIKeyGroup entities.
@@ -75,6 +76,26 @@ func (_u *APIKeyGroupUpdate) SetNillableEnabled(v *bool) *APIKeyGroupUpdate {
 	if v != nil {
 		_u.SetEnabled(*v)
 	}
+	return _u
+}
+
+// SetGlobalRate sets the "global_rate" field.
+func (_u *APIKeyGroupUpdate) SetGlobalRate(v decimal.Decimal) *APIKeyGroupUpdate {
+	_u.mutation.SetGlobalRate(v)
+	return _u
+}
+
+// SetNillableGlobalRate sets the "global_rate" field if the given value is not nil.
+func (_u *APIKeyGroupUpdate) SetNillableGlobalRate(v *decimal.Decimal) *APIKeyGroupUpdate {
+	if v != nil {
+		_u.SetGlobalRate(*v)
+	}
+	return _u
+}
+
+// ClearGlobalRate clears the value of the "global_rate" field.
+func (_u *APIKeyGroupUpdate) ClearGlobalRate() *APIKeyGroupUpdate {
+	_u.mutation.ClearGlobalRate()
 	return _u
 }
 
@@ -244,6 +265,12 @@ func (_u *APIKeyGroupUpdate) sqlSave(ctx context.Context) (_node int, err error)
 	if value, ok := _u.mutation.Enabled(); ok {
 		_spec.SetField(apikeygroup.FieldEnabled, field.TypeBool, value)
 	}
+	if value, ok := _u.mutation.GlobalRate(); ok {
+		_spec.SetField(apikeygroup.FieldGlobalRate, field.TypeString, value)
+	}
+	if _u.mutation.GlobalRateCleared() {
+		_spec.ClearField(apikeygroup.FieldGlobalRate, field.TypeString)
+	}
 	if value, ok := _u.mutation.ShowChannelInSelfUsage(); ok {
 		_spec.SetField(apikeygroup.FieldShowChannelInSelfUsage, field.TypeBool, value)
 	}
@@ -365,6 +392,26 @@ func (_u *APIKeyGroupUpdateOne) SetNillableEnabled(v *bool) *APIKeyGroupUpdateOn
 	if v != nil {
 		_u.SetEnabled(*v)
 	}
+	return _u
+}
+
+// SetGlobalRate sets the "global_rate" field.
+func (_u *APIKeyGroupUpdateOne) SetGlobalRate(v decimal.Decimal) *APIKeyGroupUpdateOne {
+	_u.mutation.SetGlobalRate(v)
+	return _u
+}
+
+// SetNillableGlobalRate sets the "global_rate" field if the given value is not nil.
+func (_u *APIKeyGroupUpdateOne) SetNillableGlobalRate(v *decimal.Decimal) *APIKeyGroupUpdateOne {
+	if v != nil {
+		_u.SetGlobalRate(*v)
+	}
+	return _u
+}
+
+// ClearGlobalRate clears the value of the "global_rate" field.
+func (_u *APIKeyGroupUpdateOne) ClearGlobalRate() *APIKeyGroupUpdateOne {
+	_u.mutation.ClearGlobalRate()
 	return _u
 }
 
@@ -563,6 +610,12 @@ func (_u *APIKeyGroupUpdateOne) sqlSave(ctx context.Context) (_node *APIKeyGroup
 	}
 	if value, ok := _u.mutation.Enabled(); ok {
 		_spec.SetField(apikeygroup.FieldEnabled, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.GlobalRate(); ok {
+		_spec.SetField(apikeygroup.FieldGlobalRate, field.TypeString, value)
+	}
+	if _u.mutation.GlobalRateCleared() {
+		_spec.ClearField(apikeygroup.FieldGlobalRate, field.TypeString)
 	}
 	if value, ok := _u.mutation.ShowChannelInSelfUsage(); ok {
 		_spec.SetField(apikeygroup.FieldShowChannelInSelfUsage, field.TypeBool, value)

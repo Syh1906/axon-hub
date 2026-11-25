@@ -14,6 +14,7 @@ import {
   fetchStats,
   SelfUsageError,
   type SelfUsageDisplayMeta as SelfUsageMeta,
+  type SelfUsageStats,
   type Usage,
 } from './api';
 import { SelfUsageBudgets } from './components/budgets';
@@ -25,6 +26,7 @@ import { UsagePageShell } from './components/page-shell';
 import { RequestLog } from './components/request-log';
 import { displayCost } from './cost/format';
 import { selfUsageQueryClient } from './query-client';
+import { sameUsageScope } from './scope';
 import { getPageKey, setPageKey } from './session';
 import { chartDay, presetRange, validRange, type DatePreset, type DateRange } from './utils/date-range';
 
@@ -105,8 +107,8 @@ function Login({
 
 export function DatePicker({ meta, onChange }: { meta: SelfUsageMeta; onChange: (range: DateRange) => void }) {
   const { t } = useTranslation();
-  const [preset, setPreset] = useState<DatePreset | 'custom'>('last7');
-  const [draft, setDraft] = useState<DateRange>(() => presetRange('last7', meta.timezone));
+  const [preset, setPreset] = useState<DatePreset | 'custom'>('today');
+  const [draft, setDraft] = useState<DateRange>(() => presetRange('today', meta.timezone));
   const [invalid, setInvalid] = useState(false);
   function applyPreset(value: DatePreset | 'custom') {
     setPreset(value);
@@ -121,7 +123,7 @@ export function DatePicker({ meta, onChange }: { meta: SelfUsageMeta; onChange: 
     <div className='space-y-3'>
       <div className='flex flex-wrap gap-2'>
         {(['today', 'yesterday', 'last7', 'last30', 'thisMonth', 'custom'] as const).map((value) => (
-          <Button key={value} size='sm' variant={preset === value ? 'default' : 'outline'} onClick={() => applyPreset(value)}>
+          <Button key={value} size='sm' aria-pressed={preset === value} variant={preset === value ? 'default' : 'outline'} onClick={() => applyPreset(value)}>
             {t(`selfUsage.range.${value}`)}
           </Button>
         ))}
@@ -202,7 +204,39 @@ export function Summary({ usage, meta, models }: { usage: Usage; meta: SelfUsage
   );
 }
 
-export function Trend({ daily, meta }: { daily: { date: string; usage: Usage }[]; meta: SelfUsageMeta }) {
+export function MonthlyTrend({ stats, meta, queryKey, load, onScopeMismatch, onUnauthorized }: {
+  stats?: SelfUsageStats;
+  meta: SelfUsageMeta;
+  queryKey: readonly unknown[];
+  load: (range: DateRange, signal: AbortSignal) => Promise<SelfUsageStats>;
+  onScopeMismatch: () => void;
+  onUnauthorized?: () => void;
+}) {
+  const { t } = useTranslation();
+  const range = presetRange('thisMonth', meta.timezone);
+  const sameRange = stats?.start === range.start && stats.end === range.end;
+  const trend = useQuery({
+    queryKey: [...queryKey, range],
+    queryFn: ({ signal }) => load(range, signal),
+    enabled: !!stats && !sameRange,
+    gcTime: 0,
+    staleTime: Infinity,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+  });
+  const data = sameRange ? stats : trend.data;
+  const mismatch = !!data && !!stats && !sameUsageScope(data, stats);
+  useEffect(() => { if (mismatch) onScopeMismatch(); }, [mismatch, onScopeMismatch]);
+  useEffect(() => {
+    if (!sameRange && trend.error instanceof SelfUsageError && trend.error.status === 401) onUnauthorized?.();
+  }, [sameRange, trend.error, onUnauthorized]);
+  if (!stats) return null;
+  if (!sameRange && trend.error) return <PageError error={trend.error} retry={() => void trend.refetch()} />;
+  if (!data || mismatch) return <p role='status'>{t('selfUsage.trend.title')} · {t('selfUsage.loading')}</p>;
+  return <Trend daily={data.daily} meta={meta} />;
+}
+
+function Trend({ daily, meta }: { daily: { date: string; usage: Usage }[]; meta: SelfUsageMeta }) {
   const { t, locale, money, number } = usePageLabels(meta);
   const [metric, setMetric] = useState<'requests' | 'tokens' | 'cost'>('requests');
   const points = daily.map(({ date, usage }) => ({
@@ -382,7 +416,8 @@ function Dashboard({
   // Advance both queries together so old totals and a new group log cannot mix.
   const [scopeRevision, setScopeRevision] = useState(0);
   const syncScope = useCallback(() => setScopeRevision((value) => value + 1), []);
-  const [range, setRange] = useState<DateRange>(() => presetRange('last7', meta.timezone));
+  const [range, setRange] = useState<DateRange>(() => presetRange('today', meta.timezone));
+  const trendKey = ['selfUsage', group, scopeRevision, sessionID, 'monthly'];
   const stats = useQuery({
     queryKey: ['selfUsage', 'stats', scopeRevision, group, range.start, range.end, sessionID],
     queryFn: ({ signal }) => fetchStats(keyValue, range.start, range.end, signal, group, sessionID || undefined),
@@ -422,13 +457,11 @@ function Dashboard({
           }}
         />
       )}
-      {stats.data && (
-        <>
-          <Summary usage={stats.data.totals} meta={meta} models={stats.data.models} />
-          <Trend daily={stats.data.daily} meta={meta} />
-          <ModelTable models={stats.data.models} meta={meta} />
-        </>
-      )}
+      {stats.data && <Summary usage={stats.data.totals} meta={meta} models={stats.data.models} />}
+      <MonthlyTrend stats={stats.data} meta={meta} queryKey={trendKey}
+        load={(dates, signal) => fetchStats(keyValue, dates.start, dates.end, signal, group, sessionID || undefined)}
+        onScopeMismatch={syncScope} onUnauthorized={onUnauthorized} />
+      {stats.data && <ModelTable models={stats.data.models} meta={meta} />}
       <RequestLog
         key={`${group}:${range.start}:${range.end}`}
         group={group}
@@ -438,7 +471,7 @@ function Dashboard({
         range={range}
         meta={meta}
         models={stats.data?.models.map((item) => item.model) ?? []}
-        refreshStats={stats.refetch}
+        refreshStats={(options) => Promise.all([stats.refetch(options), selfUsageQueryClient.refetchQueries({ queryKey: trendKey, type: 'active' }, options)])}
         expectedScope={stats.data}
         scopeRevision={scopeRevision}
         onScopeMismatch={syncScope}

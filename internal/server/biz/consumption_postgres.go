@@ -14,15 +14,18 @@ func postgresConsumptionUsage(requestID, projectID, alias string) *sql.SelectTab
 		" UNION ALL SELECT source_id AS id, NULL AS statistics_standard_cost, " + fields + " FROM usage_archives WHERE kind = 'usage' AND request_id = " + requestID + " AND project_id = " + projectID + " OFFSET 0) AS " + alias).Unquote().As(alias)
 }
 
-func joinPostgresConsumptionUsage(s *sql.Selector, byChannel bool) *sql.Selector {
+func joinPostgresConsumptionUsage(s *sql.Selector, input ConsumptionFilter) *sql.Selector {
 	rows := postgresConsumptionUsage(s.C("id"), s.C("project_id"), "usage_fact")
 	q := sql.Dialect(s.Dialect()).Select().From(rows)
-	if byChannel {
+	if input.Dimension == ConsumptionDimensionChannel {
 		q.Where(sql.ColumnsEQ(rows.C("channel_id"), s.C("channel_id")))
 	}
 	amount := rows.C("total_cost")
-	if !byChannel {
-		amount = billedCostExpression(rows.C("billing_group_id"), rows.C("total_cost"), rows.C("billed_cost"))
+	billed := billedCostExpression(rows.C("billing_group_id"), amount, rows.C("billed_cost"))
+	if input.Dimension != ConsumptionDimensionChannel {
+		amount = billed
+	} else if input.channelCostRanking() {
+		q.AppendSelect(sql.As("SUM("+billed+")", "billed_cost"), sql.As("COUNT("+billed+")", "billed_records"))
 	}
 	for _, field := range []string{"prompt_tokens", "completion_tokens", "total_tokens", "prompt_cached_tokens", "prompt_write_cached_tokens"} {
 		q.AppendSelect(sql.As("COALESCE(SUM("+rows.C(field)+"),0)", field))

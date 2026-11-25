@@ -48,7 +48,7 @@ func (s *ConsumptionService) consumptionHours(ctx context.Context, query consump
 			return nil, err
 		}
 		key := fmt.Sprintf("%x", sha256.Sum256(append([]byte("consumption-hour:v1:"), bytes...)))
-		hours = append(hours, consumptionHour{key: key, start: start, end: end, version: statisticsFingerprint(revisions, start, end)})
+		hours = append(hours, consumptionHour{key: key, start: start, end: end, version: statisticsFingerprint(revisions, start, end, query.Version)})
 		keys = append(keys, key)
 		start = end
 	}

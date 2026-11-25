@@ -14,6 +14,7 @@ import (
 	"github.com/looplj/axonhub/internal/ent/apikeygroup"
 	"github.com/looplj/axonhub/internal/ent/apikeygroupchannelrate"
 	"github.com/looplj/axonhub/internal/ent/project"
+	"github.com/shopspring/decimal"
 )
 
 // APIKeyGroupCreate is the builder for creating a APIKeyGroup entity.
@@ -82,6 +83,20 @@ func (_c *APIKeyGroupCreate) SetEnabled(v bool) *APIKeyGroupCreate {
 func (_c *APIKeyGroupCreate) SetNillableEnabled(v *bool) *APIKeyGroupCreate {
 	if v != nil {
 		_c.SetEnabled(*v)
+	}
+	return _c
+}
+
+// SetGlobalRate sets the "global_rate" field.
+func (_c *APIKeyGroupCreate) SetGlobalRate(v decimal.Decimal) *APIKeyGroupCreate {
+	_c.mutation.SetGlobalRate(v)
+	return _c
+}
+
+// SetNillableGlobalRate sets the "global_rate" field if the given value is not nil.
+func (_c *APIKeyGroupCreate) SetNillableGlobalRate(v *decimal.Decimal) *APIKeyGroupCreate {
+	if v != nil {
+		_c.SetGlobalRate(*v)
 	}
 	return _c
 }
@@ -290,6 +305,10 @@ func (_c *APIKeyGroupCreate) createSpec() (*APIKeyGroup, *sqlgraph.CreateSpec) {
 		_spec.SetField(apikeygroup.FieldEnabled, field.TypeBool, value)
 		_node.Enabled = value
 	}
+	if value, ok := _c.mutation.GlobalRate(); ok {
+		_spec.SetField(apikeygroup.FieldGlobalRate, field.TypeString, value)
+		_node.GlobalRate = &value
+	}
 	if value, ok := _c.mutation.ShowChannelInSelfUsage(); ok {
 		_spec.SetField(apikeygroup.FieldShowChannelInSelfUsage, field.TypeBool, value)
 		_node.ShowChannelInSelfUsage = value
@@ -431,6 +450,24 @@ func (u *APIKeyGroupUpsert) UpdateEnabled() *APIKeyGroupUpsert {
 	return u
 }
 
+// SetGlobalRate sets the "global_rate" field.
+func (u *APIKeyGroupUpsert) SetGlobalRate(v decimal.Decimal) *APIKeyGroupUpsert {
+	u.Set(apikeygroup.FieldGlobalRate, v)
+	return u
+}
+
+// UpdateGlobalRate sets the "global_rate" field to the value that was provided on create.
+func (u *APIKeyGroupUpsert) UpdateGlobalRate() *APIKeyGroupUpsert {
+	u.SetExcluded(apikeygroup.FieldGlobalRate)
+	return u
+}
+
+// ClearGlobalRate clears the value of the "global_rate" field.
+func (u *APIKeyGroupUpsert) ClearGlobalRate() *APIKeyGroupUpsert {
+	u.SetNull(apikeygroup.FieldGlobalRate)
+	return u
+}
+
 // SetShowChannelInSelfUsage sets the "show_channel_in_self_usage" field.
 func (u *APIKeyGroupUpsert) SetShowChannelInSelfUsage(v bool) *APIKeyGroupUpsert {
 	u.Set(apikeygroup.FieldShowChannelInSelfUsage, v)
@@ -562,6 +599,27 @@ func (u *APIKeyGroupUpsertOne) SetEnabled(v bool) *APIKeyGroupUpsertOne {
 func (u *APIKeyGroupUpsertOne) UpdateEnabled() *APIKeyGroupUpsertOne {
 	return u.Update(func(s *APIKeyGroupUpsert) {
 		s.UpdateEnabled()
+	})
+}
+
+// SetGlobalRate sets the "global_rate" field.
+func (u *APIKeyGroupUpsertOne) SetGlobalRate(v decimal.Decimal) *APIKeyGroupUpsertOne {
+	return u.Update(func(s *APIKeyGroupUpsert) {
+		s.SetGlobalRate(v)
+	})
+}
+
+// UpdateGlobalRate sets the "global_rate" field to the value that was provided on create.
+func (u *APIKeyGroupUpsertOne) UpdateGlobalRate() *APIKeyGroupUpsertOne {
+	return u.Update(func(s *APIKeyGroupUpsert) {
+		s.UpdateGlobalRate()
+	})
+}
+
+// ClearGlobalRate clears the value of the "global_rate" field.
+func (u *APIKeyGroupUpsertOne) ClearGlobalRate() *APIKeyGroupUpsertOne {
+	return u.Update(func(s *APIKeyGroupUpsert) {
+		s.ClearGlobalRate()
 	})
 }
 
@@ -867,6 +925,27 @@ func (u *APIKeyGroupUpsertBulk) SetEnabled(v bool) *APIKeyGroupUpsertBulk {
 func (u *APIKeyGroupUpsertBulk) UpdateEnabled() *APIKeyGroupUpsertBulk {
 	return u.Update(func(s *APIKeyGroupUpsert) {
 		s.UpdateEnabled()
+	})
+}
+
+// SetGlobalRate sets the "global_rate" field.
+func (u *APIKeyGroupUpsertBulk) SetGlobalRate(v decimal.Decimal) *APIKeyGroupUpsertBulk {
+	return u.Update(func(s *APIKeyGroupUpsert) {
+		s.SetGlobalRate(v)
+	})
+}
+
+// UpdateGlobalRate sets the "global_rate" field to the value that was provided on create.
+func (u *APIKeyGroupUpsertBulk) UpdateGlobalRate() *APIKeyGroupUpsertBulk {
+	return u.Update(func(s *APIKeyGroupUpsert) {
+		s.UpdateGlobalRate()
+	})
+}
+
+// ClearGlobalRate clears the value of the "global_rate" field.
+func (u *APIKeyGroupUpsertBulk) ClearGlobalRate() *APIKeyGroupUpsertBulk {
+	return u.Update(func(s *APIKeyGroupUpsert) {
+		s.ClearGlobalRate()
 	})
 }
 

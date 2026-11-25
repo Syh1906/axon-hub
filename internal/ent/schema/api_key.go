@@ -15,6 +15,7 @@ import (
 	"github.com/looplj/axonhub/internal/ent/schema/schematype"
 	"github.com/looplj/axonhub/internal/objects"
 	"github.com/looplj/axonhub/internal/scopes"
+	"github.com/shopspring/decimal"
 )
 
 type APIKey struct {
@@ -54,6 +55,7 @@ func (APIKey) Indexes() []ent.Index {
 
 func (APIKey) Fields() []ent.Field {
 	return []ent.Field{
+		field.String("global_rate").GoType(decimal.Decimal{}).Optional().Nillable().Annotations(entgql.Skip(entgql.SkipAll)),
 		field.Int("group_ref").Optional().Nillable(),
 		field.Int("user_id").Optional().Immutable().
 			Annotations(

@@ -14,6 +14,7 @@ var (
 		{Name: "created_at", Type: field.TypeTime, Default: schema.Expr("CURRENT_TIMESTAMP")},
 		{Name: "updated_at", Type: field.TypeTime, Default: schema.Expr("CURRENT_TIMESTAMP")},
 		{Name: "deleted_at", Type: field.TypeInt, Default: 0},
+		{Name: "global_rate", Type: field.TypeString, Nullable: true},
 		{Name: "group_ref", Type: field.TypeInt, Nullable: true},
 		{Name: "key", Type: field.TypeString},
 		{Name: "name", Type: field.TypeString},
@@ -33,13 +34,13 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "api_keys_projects_api_keys",
-				Columns:    []*schema.Column{APIKeysColumns[12]},
+				Columns:    []*schema.Column{APIKeysColumns[13]},
 				RefColumns: []*schema.Column{ProjectsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
 			{
 				Symbol:     "api_keys_users_api_keys",
-				Columns:    []*schema.Column{APIKeysColumns[13]},
+				Columns:    []*schema.Column{APIKeysColumns[14]},
 				RefColumns: []*schema.Column{UsersColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
@@ -48,22 +49,22 @@ var (
 			{
 				Name:    "api_keys_by_project_group",
 				Unique:  false,
-				Columns: []*schema.Column{APIKeysColumns[12], APIKeysColumns[4]},
+				Columns: []*schema.Column{APIKeysColumns[13], APIKeysColumns[5]},
 			},
 			{
 				Name:    "api_keys_by_user_id",
 				Unique:  false,
-				Columns: []*schema.Column{APIKeysColumns[13]},
+				Columns: []*schema.Column{APIKeysColumns[14]},
 			},
 			{
 				Name:    "api_keys_by_project_id",
 				Unique:  false,
-				Columns: []*schema.Column{APIKeysColumns[12]},
+				Columns: []*schema.Column{APIKeysColumns[13]},
 			},
 			{
 				Name:    "api_keys_by_key",
 				Unique:  true,
-				Columns: []*schema.Column{APIKeysColumns[5]},
+				Columns: []*schema.Column{APIKeysColumns[6]},
 			},
 		},
 	}
@@ -109,6 +110,7 @@ var (
 		{Name: "name", Type: field.TypeString, Size: 128},
 		{Name: "note", Type: field.TypeString, Size: 1024, Default: ""},
 		{Name: "enabled", Type: field.TypeBool, Default: true},
+		{Name: "global_rate", Type: field.TypeString, Nullable: true},
 		{Name: "show_channel_in_self_usage", Type: field.TypeBool, Default: false},
 		{Name: "revision", Type: field.TypeInt, Default: 0},
 		{Name: "project_id", Type: field.TypeInt},
@@ -121,7 +123,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "api_key_groups_projects_api_key_groups",
-				Columns:    []*schema.Column{APIKeyGroupsColumns[8]},
+				Columns:    []*schema.Column{APIKeyGroupsColumns[9]},
 				RefColumns: []*schema.Column{ProjectsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
@@ -130,7 +132,7 @@ var (
 			{
 				Name:    "api_key_groups_by_project_name",
 				Unique:  true,
-				Columns: []*schema.Column{APIKeyGroupsColumns[8], APIKeyGroupsColumns[3]},
+				Columns: []*schema.Column{APIKeyGroupsColumns[9], APIKeyGroupsColumns[3]},
 			},
 		},
 	}

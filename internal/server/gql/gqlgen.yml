@@ -112,6 +112,8 @@ models:
     model: github.com/looplj/axonhub/internal/objects.KeyRateChannelScope
   KeyChannelRates:
     model: github.com/looplj/axonhub/internal/objects.KeyChannelRates
+  KeyGlobalRateInput:
+    model: github.com/looplj/axonhub/internal/objects.KeyGlobalRateInput
   KeyChannelRateInput:
     model: github.com/looplj/axonhub/internal/objects.KeyChannelRate
   KeyChannelRate:

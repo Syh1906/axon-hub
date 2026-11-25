@@ -905,6 +905,9 @@ func (svc *BackupService) restoreAPIKeys(ctx context.Context, db *ent.Client, ap
 				if existing.DeletedAt != 0 {
 					continue
 				} // Deletion records are immutable.
+				if err := objects.ValidateGlobalRate(akData.GlobalRate); err != nil {
+					return fmt.Errorf("restore API key %q: %w", akData.Name, err)
+				}
 				if err := channels.resolveConfigurationReferences(BackupData{APIKeys: []*BackupAPIKey{akData}}, RestoreOptions{IncludeAPIKeys: true}); err != nil {
 					return err
 				}
@@ -923,7 +926,16 @@ func (svc *BackupService) restoreAPIKeys(ctx context.Context, db *ent.Client, ap
 				if err := restoreChannelRates(ctx, db, channels, &existing.ID, nil, akData.ChannelRates); err != nil {
 					return err
 				}
-				update.ClearGroupRef().SetNillableGroupRef(groupID)
+				if groupID == nil {
+					update.ClearGroupRef()
+				} else {
+					update.SetGroupRef(*groupID)
+				}
+				if akData.GlobalRate == nil {
+					update.ClearGlobalRate()
+				} else {
+					update.SetGlobalRate(*akData.GlobalRate)
+				}
 				if _, err := update.Save(ctx); err != nil {
 					log.Error(ctx, "failed to restore API key",
 						log.String("name", akData.Name),
@@ -956,12 +968,15 @@ func (svc *BackupService) restoreAPIKeys(ctx context.Context, db *ent.Client, ap
 			if err := channels.resolveConfigurationReferences(BackupData{APIKeys: []*BackupAPIKey{akData}}, RestoreOptions{IncludeAPIKeys: true}); err != nil {
 				return err
 			}
+			if err := objects.ValidateGlobalRate(akData.GlobalRate); err != nil {
+				return fmt.Errorf("restore API key %q: %w", akData.Name, err)
+			}
 			remapAPIKeyProfilesChannelIDs(akData.Profiles, channels.ids)
 			groupID, err := restoreKeyGroup(ctx, db, proj.ID, akData.GroupName)
 			if err != nil {
 				return err
 			}
-			create := db.APIKey.Create().SetNillableGroupRef(groupID).
+			create := db.APIKey.Create().SetNillableGroupRef(groupID).SetNillableGlobalRate(akData.GlobalRate).
 				SetKey(akData.Key).
 				SetDeletedAt(akData.DeletedAt).
 				SetName(akData.Name).

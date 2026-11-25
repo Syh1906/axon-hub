@@ -18,7 +18,7 @@ func (s *ConsumptionService) consumptionFingerprint(ctx context.Context, query c
 	if err != nil {
 		return "", err
 	}
-	return statisticsFingerprint(rows, query.Start, query.End), nil
+	return statisticsFingerprint(rows, query.Start, query.End, query.Version), nil
 }
 
 func readStatisticsRevisions(ctx context.Context, client *ent.Client, projectID int, start, end time.Time) ([]*ent.StatisticsRevision, error) {
@@ -33,13 +33,13 @@ func readStatisticsRevisions(ctx context.Context, client *ent.Client, projectID 
 		Order(ent.Asc(statisticsrevision.FieldProjectID), ent.Asc(statisticsrevision.FieldOccurredAt)).All(ctx)
 }
 
-func statisticsFingerprint(rows []*ent.StatisticsRevision, start, end time.Time) string {
+func statisticsFingerprint(rows []*ent.StatisticsRevision, start, end time.Time, version int) string {
 	hash := sha256.New()
 	metadata := sha256.New()
 	encoder := json.NewEncoder(hash)
 	metaEncoder := json.NewEncoder(metadata)
-	_ = encoder.Encode(consumptionSnapshotVersion)
-	_ = metaEncoder.Encode(consumptionSnapshotVersion)
+	_ = encoder.Encode(version)
+	_ = metaEncoder.Encode(version)
 	for _, row := range rows {
 		if row.OccurredAt.Equal(time.Unix(0, 0)) {
 			_ = metaEncoder.Encode([]any{row.ProjectID, row.Version})

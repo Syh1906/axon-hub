@@ -110,8 +110,8 @@ func TestChannelRateBackupRestoreRemapsBothOwners(t *testing.T) {
 	db, service, ctx := setupBackupTest(t)
 	t.Cleanup(func() { require.NoError(t, db.Close()) })
 	p := db.Project.Create().SetName("rates").SaveX(ctx)
-	group := db.APIKeyGroup.Create().SetName("partner").SetProjectID(p.ID).SaveX(ctx)
-	key := db.APIKey.Create().SetKey("fixture-rate").SetName("member").SetProjectID(p.ID).SetGroupRef(group.ID).SaveX(ctx)
+	group := db.APIKeyGroup.Create().SetName("partner").SetProjectID(p.ID).SetGlobalRate(decimal.RequireFromString("0.9")).SaveX(ctx)
+	key := db.APIKey.Create().SetKey("fixture-rate").SetName("member").SetProjectID(p.ID).SetGroupRef(group.ID).SetGlobalRate(decimal.Zero).SaveX(ctx)
 	ch := createBackupTestChannel(t, db, ctx, "upstream", "openai")
 	db.APIKeyGroupChannelRate.Create().SetGroupID(group.ID).SetChannelID(ch.ID).SetMultiplier(decimal.RequireFromString("0.8")).ExecX(ctx)
 	db.APIKeyChannelRate.Create().SetKeyID(key.ID).SetChannelID(ch.ID).SetMultiplier(decimal.Zero).ExecX(ctx)
@@ -132,12 +132,38 @@ func TestChannelRateBackupRestoreRemapsBothOwners(t *testing.T) {
 	}
 	gRate := target.APIKeyGroupChannelRate.Query().OnlyX(tc)
 	kRate := target.APIKeyChannelRate.Query().OnlyX(tc)
+	require.Equal(t, "0.9", target.APIKeyGroup.GetX(tc, gRate.GroupID).GlobalRate.String())
+	require.Equal(t, "0", target.APIKey.GetX(tc, kRate.KeyID).GlobalRate.String())
 	require.Equal(t, mapped.ID, gRate.ChannelID)
 	require.Equal(t, mapped.ID, kRate.ChannelID)
 	require.True(t, kRate.Multiplier.IsZero())
 	log := target.UsageLog.Query().OnlyX(tc)
 	require.Equal(t, gRate.GroupID, *log.BillingGroupID)
 	require.Equal(t, 0.0, *log.BilledCost)
+
+	for _, owner := range []string{"group", "key"} {
+		for _, create := range []bool{true, false} {
+			var invalid BackupData
+			require.NoError(t, json.Unmarshal(source, &invalid))
+			negative := lo.ToPtr(decimal.NewFromInt(-1))
+			if owner == "group" {
+				invalid.APIKeyGroups[0].GlobalRate = negative
+				if create {
+					invalid.APIKeyGroups[0].Name = "invalid-new-group"
+				}
+			} else {
+				invalid.APIKeys[0].GlobalRate = negative
+				if create {
+					invalid.APIKeys[0].Key = "invalid-new-key"
+				}
+			}
+			data, err := json.Marshal(invalid)
+			require.NoError(t, err)
+			require.ErrorContains(t, restore.Restore(tc, bytesreader.NewReader(data), opts), "global rate must be nonnegative")
+		}
+	}
+	require.Equal(t, "0.9", target.APIKeyGroup.GetX(tc, gRate.GroupID).GlobalRate.String())
+	require.Equal(t, "0", target.APIKey.GetX(tc, kRate.KeyID).GlobalRate.String())
 }
 
 func TestArchivedChannelRateBackup(t *testing.T) {

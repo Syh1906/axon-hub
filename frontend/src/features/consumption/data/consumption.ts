@@ -35,6 +35,7 @@ const metricsSchema = z.object({
   requestCount: z.number(),
   totalTokens: z.number(),
   totalCost: z.number(),
+  billedCost: z.number().nullable().default(null),
   unpricedRequestCount: z.number(),
   pricedRequestCount: z.number(),
   tokenPricedRequestCount: z.number().default(0),
@@ -104,6 +105,7 @@ export function consumptionFields(input: ConsumptionFilter) {
   const channel = input.dimension === 'CHANNEL';
   // 跨天比率由浏览器用累计量计算，避免重复传输每日平均值。
   const metrics = `requestCount totalTokens totalCost unpricedRequestCount pricedRequestCount
+    ${channel && input.metric === 'COST' ? 'billedCost' : ''}
     cacheRequests cacheReadTokens cacheInputTokens
     ${input.metric === 'COST' && input.dimension !== 'MODEL' ? 'tokenPricedCost pricedTokens' : ''}
     ${channel && input.metric === 'COST' ? 'pricedCost' : ''}

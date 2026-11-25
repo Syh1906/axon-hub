@@ -87,6 +87,11 @@ func queryAdditionalChannelBilling(ctx context.Context, client *ent.Client, proj
 			units.AppendSelect(sql.As("COALESCE(SUM("+u.C(field)+"), 0)", field))
 		}
 		units.AppendSelect(sql.As(sql.Count("*"), "usage_count"), sql.As(sql.Count(u.C("total_cost")), "priced_count"))
+		includeBilled := groupModels && input.Metric == ConsumptionMetricCost
+		if includeBilled {
+			amount := billedCostExpression(u.C("billing_group_id"), u.C("total_cost"), u.C("billed_cost"))
+			units.AppendSelect(sql.As("SUM("+amount+")", "billed_cost"), sql.As("COUNT("+amount+")", "billed_records"))
+		}
 		if groupModels {
 			// Aggregate both the per-model and per-request denominators from
 			// the same bounded set of bills. Empty model names remain valid.
@@ -95,6 +100,9 @@ func queryAdditionalChannelBilling(ctx context.Context, client *ent.Client, proj
 			t := sql.Table("billed_models")
 			t.SetDialect(q.Dialect())
 			values := []string{"prompt_tokens", "completion_tokens", "prompt_cached_tokens", "prompt_write_cached_tokens", "total_cost", "usage_count", "priced_count"}
+			if includeBilled {
+				values = append(values, "billed_cost", "billed_records")
+			}
 			byModel := d.Select(t.C("channel_id"), t.C("model_id"), "0 AS parent_row").From(t)
 			byRequest := d.Select(t.C("channel_id"), "'' AS model_id", "1 AS parent_row").From(t).
 				GroupBy(t.C("request_id"), t.C("project_id"), t.C("channel_id"))
@@ -116,6 +124,9 @@ func queryAdditionalChannelBilling(ctx context.Context, client *ent.Client, proj
 		unpriced := consumptionUnpriced(units)
 		tokens := "(" + q.C("prompt_tokens") + " + " + q.C("completion_tokens") + ")"
 		appendConsumptionPricing(q, "("+unpriced+") = 0", q.C("total_cost"), tokens)
+		if includeBilled {
+			q.AppendSelect(sql.As("COALESCE(SUM("+q.C("billed_cost")+"),0)", "billed_cost"), sql.As(sql.Sum(q.C("billed_records")), "billed_records"))
+		}
 		q.AppendSelect("0 AS requests", sql.As("SUM("+unpriced+")", "unpriced_requests"),
 			sql.As("SUM("+tokens+")", "tokens"), sql.As(sql.Sum(q.C("total_cost")), "cost"),
 			sql.As("SUM(CASE WHEN "+cache+" THEN 1 ELSE 0 END)", "cache_requests"),

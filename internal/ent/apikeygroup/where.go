@@ -8,6 +8,7 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"github.com/looplj/axonhub/internal/ent/predicate"
+	"github.com/shopspring/decimal"
 )
 
 // ID filters vertices based on their ID field.
@@ -78,6 +79,11 @@ func Note(v string) predicate.APIKeyGroup {
 // Enabled applies equality check predicate on the "enabled" field. It's identical to EnabledEQ.
 func Enabled(v bool) predicate.APIKeyGroup {
 	return predicate.APIKeyGroup(sql.FieldEQ(FieldEnabled, v))
+}
+
+// GlobalRate applies equality check predicate on the "global_rate" field. It's identical to GlobalRateEQ.
+func GlobalRate(v decimal.Decimal) predicate.APIKeyGroup {
+	return predicate.APIKeyGroup(sql.FieldEQ(FieldGlobalRate, v))
 }
 
 // ShowChannelInSelfUsage applies equality check predicate on the "show_channel_in_self_usage" field. It's identical to ShowChannelInSelfUsageEQ.
@@ -313,6 +319,86 @@ func EnabledEQ(v bool) predicate.APIKeyGroup {
 // EnabledNEQ applies the NEQ predicate on the "enabled" field.
 func EnabledNEQ(v bool) predicate.APIKeyGroup {
 	return predicate.APIKeyGroup(sql.FieldNEQ(FieldEnabled, v))
+}
+
+// GlobalRateEQ applies the EQ predicate on the "global_rate" field.
+func GlobalRateEQ(v decimal.Decimal) predicate.APIKeyGroup {
+	return predicate.APIKeyGroup(sql.FieldEQ(FieldGlobalRate, v))
+}
+
+// GlobalRateNEQ applies the NEQ predicate on the "global_rate" field.
+func GlobalRateNEQ(v decimal.Decimal) predicate.APIKeyGroup {
+	return predicate.APIKeyGroup(sql.FieldNEQ(FieldGlobalRate, v))
+}
+
+// GlobalRateIn applies the In predicate on the "global_rate" field.
+func GlobalRateIn(vs ...decimal.Decimal) predicate.APIKeyGroup {
+	return predicate.APIKeyGroup(sql.FieldIn(FieldGlobalRate, vs...))
+}
+
+// GlobalRateNotIn applies the NotIn predicate on the "global_rate" field.
+func GlobalRateNotIn(vs ...decimal.Decimal) predicate.APIKeyGroup {
+	return predicate.APIKeyGroup(sql.FieldNotIn(FieldGlobalRate, vs...))
+}
+
+// GlobalRateGT applies the GT predicate on the "global_rate" field.
+func GlobalRateGT(v decimal.Decimal) predicate.APIKeyGroup {
+	return predicate.APIKeyGroup(sql.FieldGT(FieldGlobalRate, v))
+}
+
+// GlobalRateGTE applies the GTE predicate on the "global_rate" field.
+func GlobalRateGTE(v decimal.Decimal) predicate.APIKeyGroup {
+	return predicate.APIKeyGroup(sql.FieldGTE(FieldGlobalRate, v))
+}
+
+// GlobalRateLT applies the LT predicate on the "global_rate" field.
+func GlobalRateLT(v decimal.Decimal) predicate.APIKeyGroup {
+	return predicate.APIKeyGroup(sql.FieldLT(FieldGlobalRate, v))
+}
+
+// GlobalRateLTE applies the LTE predicate on the "global_rate" field.
+func GlobalRateLTE(v decimal.Decimal) predicate.APIKeyGroup {
+	return predicate.APIKeyGroup(sql.FieldLTE(FieldGlobalRate, v))
+}
+
+// GlobalRateContains applies the Contains predicate on the "global_rate" field.
+func GlobalRateContains(v decimal.Decimal) predicate.APIKeyGroup {
+	vc := v.String()
+	return predicate.APIKeyGroup(sql.FieldContains(FieldGlobalRate, vc))
+}
+
+// GlobalRateHasPrefix applies the HasPrefix predicate on the "global_rate" field.
+func GlobalRateHasPrefix(v decimal.Decimal) predicate.APIKeyGroup {
+	vc := v.String()
+	return predicate.APIKeyGroup(sql.FieldHasPrefix(FieldGlobalRate, vc))
+}
+
+// GlobalRateHasSuffix applies the HasSuffix predicate on the "global_rate" field.
+func GlobalRateHasSuffix(v decimal.Decimal) predicate.APIKeyGroup {
+	vc := v.String()
+	return predicate.APIKeyGroup(sql.FieldHasSuffix(FieldGlobalRate, vc))
+}
+
+// GlobalRateIsNil applies the IsNil predicate on the "global_rate" field.
+func GlobalRateIsNil() predicate.APIKeyGroup {
+	return predicate.APIKeyGroup(sql.FieldIsNull(FieldGlobalRate))
+}
+
+// GlobalRateNotNil applies the NotNil predicate on the "global_rate" field.
+func GlobalRateNotNil() predicate.APIKeyGroup {
+	return predicate.APIKeyGroup(sql.FieldNotNull(FieldGlobalRate))
+}
+
+// GlobalRateEqualFold applies the EqualFold predicate on the "global_rate" field.
+func GlobalRateEqualFold(v decimal.Decimal) predicate.APIKeyGroup {
+	vc := v.String()
+	return predicate.APIKeyGroup(sql.FieldEqualFold(FieldGlobalRate, vc))
+}
+
+// GlobalRateContainsFold applies the ContainsFold predicate on the "global_rate" field.
+func GlobalRateContainsFold(v decimal.Decimal) predicate.APIKeyGroup {
+	vc := v.String()
+	return predicate.APIKeyGroup(sql.FieldContainsFold(FieldGlobalRate, vc))
 }
 
 // ShowChannelInSelfUsageEQ applies the EQ predicate on the "show_channel_in_self_usage" field.

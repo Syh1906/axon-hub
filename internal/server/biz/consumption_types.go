@@ -57,7 +57,12 @@ type ConsumptionProject struct {
 	Name string
 }
 
+func (input ConsumptionFilter) channelCostRanking() bool {
+	return input.Dimension == ConsumptionDimensionChannel && input.Metric == ConsumptionMetricCost
+}
+
 type ConsumptionMetrics struct {
+	BilledCost              *float64 `json:"billedCost"`
 	PricedCost              float64  `json:"pricedCost"`
 	TokenPricedCost         float64  `json:"tokenPricedCost"`
 	PricedTokens            int64    `json:"pricedTokens"`

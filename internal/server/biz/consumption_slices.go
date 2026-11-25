@@ -80,7 +80,7 @@ func (s *ConsumptionService) verifyConsumptionDays(ctx context.Context, projectI
 			keys = append(keys, key)
 
 			expected[key] = day.Revision
-			current[key] = statisticsFingerprint(source, start, start.AddDate(0, 0, 1))
+			current[key] = statisticsFingerprint(source, start, start.AddDate(0, 0, 1), consumptionVersion(input))
 
 		}
 
@@ -117,6 +117,13 @@ func (s *ConsumptionService) verifyConsumptionDays(ctx context.Context, projectI
 }
 
 const consumptionSnapshotVersion = 3
+
+func consumptionVersion(input ConsumptionFilter) int {
+	if input.channelCostRanking() {
+		return 4
+	}
+	return consumptionSnapshotVersion
+}
 
 const consumptionSlicePageDays = 31
 
@@ -485,7 +492,7 @@ func requestConsumptionDays(ctx context.Context, client *ent.Client, projectID i
 	for i, start := range dates {
 
 		keys[i], queries[i], err = consumptionDayKey(projectID, input, start, start.AddDate(0, 0, 1), currency)
-		versions[keys[i]] = statisticsFingerprint(revisionsRows, start, start.AddDate(0, 0, 1))
+		versions[keys[i]] = statisticsFingerprint(revisionsRows, start, start.AddDate(0, 0, 1), consumptionVersion(input))
 		if err != nil {
 			return nil, err
 		}
@@ -610,7 +617,7 @@ func consumptionDayKey(projectID int, input ConsumptionFilter, start, end time.T
 
 	input.ProjectID = nil
 
-	query := consumptionDayQuery{Version: consumptionSnapshotVersion, Project: projectID, Timezone: start.Location().String(), Currency: currency, Start: start.UTC(), End: end.UTC(), Filter: input}
+	query := consumptionDayQuery{Version: consumptionVersion(input), Project: projectID, Timezone: start.Location().String(), Currency: currency, Start: start.UTC(), End: end.UTC(), Filter: input}
 
 	bytes, err := json.Marshal(query)
 	if err != nil {

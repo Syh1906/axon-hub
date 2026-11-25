@@ -51,6 +51,7 @@ const performanceKeys = ['successCount', 'outcomeCount', 'firstTokenSum', 'first
 
 function addMetrics(a: ConsumptionMetrics, b: ConsumptionMetrics) {
   for (const key of SUM_FIELDS) a[key] += b[key];
+  if (b.billedCost != null) a.billedCost = (a.billedCost ?? 0) + b.billedCost;
 }
 
 function finishMetrics(m: ConsumptionMetrics) {
@@ -115,9 +116,11 @@ export function combineConsumptionSlices(
     }
   }
   const compareNullable = (a: number | null, b: number | null) => (a === b ? 0 : a === null ? 1 : b === null ? -1 : b - a);
+  const compareCost = (a: ConsumptionMetrics, b: ConsumptionMetrics) =>
+    filter.dimension === 'CHANNEL' ? compareNullable(a.billedCost, b.billedCost) : b.totalCost - a.totalCost;
   const compare = (a: ConsumptionMetrics, b: ConsumptionMetrics) =>
     filter.metric === 'COST'
-      ? b.totalCost - a.totalCost
+      ? compareCost(a, b)
       : (filter.dimension === 'CHANNEL' ? compareNullable(a.cacheCoefficient, b.cacheCoefficient) : 0) ||
         compareNullable(a.cacheHitRate, b.cacheHitRate) ||
         b.requestCount - a.requestCount;
@@ -163,7 +166,7 @@ export function combineConsumptionSlices(
       (a, b) =>
         (filter.metric === 'CACHE'
           ? compareNullable(a.metrics.cacheHitRate, b.metrics.cacheHitRate) || b.metrics.requestCount - a.metrics.requestCount
-          : b.metrics.totalCost - a.metrics.totalCost) || a.model.localeCompare(b.model)
+          : compareCost(a.metrics, b.metrics)) || a.model.localeCompare(b.model)
     );
   }
   return {

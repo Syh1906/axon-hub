@@ -1,7 +1,8 @@
 type KeyChannelRate { channelID: Int!, multiplier: Decimal! }
 input KeyChannelRateInput { channelID: Int!, multiplier: Decimal! }
-type KeyChannelRates { rules: [KeyChannelRate!]!, inherited: [KeyChannelRate!]!, revision: String! }
-type KeyRateChannel { channelID: Int!, name: String!, tags: [String!]!, profiles: [String!]! }
+input KeyGlobalRateInput { multiplier: Decimal }
+type KeyChannelRates { rules: [KeyChannelRate!]!, inherited: [KeyChannelRate!]!, globalRate: Decimal, inheritedGlobalRate: Decimal, revision: String! }
+type KeyRateChannel { channelID: Int!, name: String!, tags: [String!]!, profiles: [String!]!, disabled: Boolean! }
 type KeyRateChannelScope { activeProfile: String!, profiles: [String!]!, channels: [KeyRateChannel!]! }
 type GroupCostRow {
  keyID: Int!, keyName: String!, channelID: Int, channelName: String, requests: Int!,
@@ -12,8 +13,9 @@ type GroupCostEntry { items: [GroupBillingItem!]!, usageID: Int!, requestID: Int
 type GroupCostComparison { total: GroupCostRow!, keys: [GroupCostRow!]!, channels: [GroupCostRow!]! }
 extend type Query {
  keyRateChannelScope(keyID: Int!): KeyRateChannelScope!
+ groupRateChannels(groupID: Int!): [KeyRateChannel!]!
  keyChannelRates(keyID: Int, groupID: Int): KeyChannelRates!
  groupCostEntries(groupID: Int!, keyID: Int!, channelID: Int!, start: String!, end: String!, before: Int): [GroupCostEntry!]!
  groupCostComparison(groupID: Int!, start: String!, end: String!): GroupCostComparison!
 }
-extend type Mutation { saveKeyChannelRates(keyID: Int, groupID: Int, revision: String!, rules: [KeyChannelRateInput!]!): Boolean! }
+extend type Mutation { saveKeyChannelRates(keyID: Int, groupID: Int, revision: String!, rules: [KeyChannelRateInput!]!, globalRate: KeyGlobalRateInput): Boolean! }

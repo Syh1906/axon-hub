@@ -70,6 +70,7 @@ var schemaGraph = func() *sqlgraph.Schema {
 			apikey.FieldCreatedAt:  {Type: field.TypeTime, Column: apikey.FieldCreatedAt},
 			apikey.FieldUpdatedAt:  {Type: field.TypeTime, Column: apikey.FieldUpdatedAt},
 			apikey.FieldDeletedAt:  {Type: field.TypeInt, Column: apikey.FieldDeletedAt},
+			apikey.FieldGlobalRate: {Type: field.TypeString, Column: apikey.FieldGlobalRate},
 			apikey.FieldGroupRef:   {Type: field.TypeInt, Column: apikey.FieldGroupRef},
 			apikey.FieldUserID:     {Type: field.TypeInt, Column: apikey.FieldUserID},
 			apikey.FieldProjectID:  {Type: field.TypeInt, Column: apikey.FieldProjectID},
@@ -114,6 +115,7 @@ var schemaGraph = func() *sqlgraph.Schema {
 			apikeygroup.FieldName:                   {Type: field.TypeString, Column: apikeygroup.FieldName},
 			apikeygroup.FieldNote:                   {Type: field.TypeString, Column: apikeygroup.FieldNote},
 			apikeygroup.FieldEnabled:                {Type: field.TypeBool, Column: apikeygroup.FieldEnabled},
+			apikeygroup.FieldGlobalRate:             {Type: field.TypeString, Column: apikeygroup.FieldGlobalRate},
 			apikeygroup.FieldShowChannelInSelfUsage: {Type: field.TypeBool, Column: apikeygroup.FieldShowChannelInSelfUsage},
 			apikeygroup.FieldRevision:               {Type: field.TypeInt, Column: apikeygroup.FieldRevision},
 			apikeygroup.FieldProjectID:              {Type: field.TypeInt, Column: apikeygroup.FieldProjectID},
@@ -2097,6 +2099,11 @@ func (f *APIKeyFilter) WhereDeletedAt(p entql.IntP) {
 	f.Where(p.Field(apikey.FieldDeletedAt))
 }
 
+// WhereGlobalRate applies the entql string predicate on the global_rate field.
+func (f *APIKeyFilter) WhereGlobalRate(p entql.StringP) {
+	f.Where(p.Field(apikey.FieldGlobalRate))
+}
+
 // WhereGroupRef applies the entql int predicate on the group_ref field.
 func (f *APIKeyFilter) WhereGroupRef(p entql.IntP) {
 	f.Where(p.Field(apikey.FieldGroupRef))
@@ -2349,6 +2356,11 @@ func (f *APIKeyGroupFilter) WhereNote(p entql.StringP) {
 // WhereEnabled applies the entql bool predicate on the enabled field.
 func (f *APIKeyGroupFilter) WhereEnabled(p entql.BoolP) {
 	f.Where(p.Field(apikeygroup.FieldEnabled))
+}
+
+// WhereGlobalRate applies the entql string predicate on the global_rate field.
+func (f *APIKeyGroupFilter) WhereGlobalRate(p entql.StringP) {
+	f.Where(p.Field(apikeygroup.FieldGlobalRate))
 }
 
 // WhereShowChannelInSelfUsage applies the entql bool predicate on the show_channel_in_self_usage field.

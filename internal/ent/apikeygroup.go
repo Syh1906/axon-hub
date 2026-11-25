@@ -11,6 +11,7 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"github.com/looplj/axonhub/internal/ent/apikeygroup"
 	"github.com/looplj/axonhub/internal/ent/project"
+	"github.com/shopspring/decimal"
 )
 
 // APIKeyGroup is the model entity for the APIKeyGroup schema.
@@ -28,6 +29,8 @@ type APIKeyGroup struct {
 	Note string `json:"note,omitempty"`
 	// Enabled holds the value of the "enabled" field.
 	Enabled bool `json:"enabled,omitempty"`
+	// GlobalRate holds the value of the "global_rate" field.
+	GlobalRate *decimal.Decimal `json:"global_rate,omitempty"`
 	// ShowChannelInSelfUsage holds the value of the "show_channel_in_self_usage" field.
 	ShowChannelInSelfUsage bool `json:"show_channel_in_self_usage,omitempty"`
 	// Revision holds the value of the "revision" field.
@@ -78,6 +81,8 @@ func (*APIKeyGroup) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
+		case apikeygroup.FieldGlobalRate:
+			values[i] = &sql.NullScanner{S: new(decimal.Decimal)}
 		case apikeygroup.FieldEnabled, apikeygroup.FieldShowChannelInSelfUsage:
 			values[i] = new(sql.NullBool)
 		case apikeygroup.FieldID, apikeygroup.FieldRevision, apikeygroup.FieldProjectID:
@@ -136,6 +141,13 @@ func (_m *APIKeyGroup) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field enabled", values[i])
 			} else if value.Valid {
 				_m.Enabled = value.Bool
+			}
+		case apikeygroup.FieldGlobalRate:
+			if value, ok := values[i].(*sql.NullScanner); !ok {
+				return fmt.Errorf("unexpected type %T for field global_rate", values[i])
+			} else if value.Valid {
+				_m.GlobalRate = new(decimal.Decimal)
+				*_m.GlobalRate = *value.S.(*decimal.Decimal)
 			}
 		case apikeygroup.FieldShowChannelInSelfUsage:
 			if value, ok := values[i].(*sql.NullBool); !ok {
@@ -215,6 +227,11 @@ func (_m *APIKeyGroup) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("enabled=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Enabled))
+	builder.WriteString(", ")
+	if v := _m.GlobalRate; v != nil {
+		builder.WriteString("global_rate=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
 	builder.WriteString(", ")
 	builder.WriteString("show_channel_in_self_usage=")
 	builder.WriteString(fmt.Sprintf("%v", _m.ShowChannelInSelfUsage))

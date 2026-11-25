@@ -39,6 +39,7 @@ const metric = (overrides = {}) => ({
     ].map((k) => [k, 0])
   ),
   cacheHitRate: null,
+  billedCost: null,
   successRate: null,
   avgFirstTokenMs: null,
   avgTokensPerSecond: null,
@@ -105,6 +106,22 @@ test('系统自然日覆盖夏令时和半小时时区', () => {
   assert.equal(reportingMidnight('2026-03-08', 'America/New_York'), '2026-03-08T05:00:00.000Z');
   assert.equal(reportingMidnight('2026-03-09', 'America/New_York'), '2026-03-09T04:00:00.000Z');
   assert.equal(reportingMidnight('2026-11-13', 'Asia/Kolkata'), '2026-11-12T18:30:00.000Z');
+});
+
+test('渠道榜按跨日计费金额排列，保留显式零和缺价', () => {
+  const build = (date, values) => {
+    const result = day(date, metric());
+    result.entries = values.map(([id, supply, billedCost]) => ({
+      id, name: id, metrics: metric({ totalCost: supply, billedCost }),
+      models: [{ model: 'demo', metrics: metric({ totalCost: supply, billedCost }) }],
+    }));
+    return result;
+  };
+  const first = build('2026-11-01', [['a', 2, 3], ['b', 4, 6], ['c', 8, 0], ['d', 9, null]]);
+  const second = build('2026-11-02', [['a', 2, 5], ['b', 1, null]]);
+  const result = combineConsumptionSlices([first, second], first, { dimension: 'CHANNEL', metric: 'COST' });
+  assert.deepEqual(result.entries.map(e => [e.id, e.metrics.billedCost, e.metrics.totalCost, e.models[0].metrics.billedCost]),
+    [['a', 8, 4, 8], ['b', 6, 5, 6], ['c', 0, 8, 0], ['d', null, 9, null]]);
 });
 
 test('月数据覆盖的历史范围直接复用，刷新失败不交付部分总额', async () => {

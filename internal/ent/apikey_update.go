@@ -17,6 +17,7 @@ import (
 	"github.com/looplj/axonhub/internal/ent/predicate"
 	"github.com/looplj/axonhub/internal/ent/request"
 	"github.com/looplj/axonhub/internal/objects"
+	"github.com/shopspring/decimal"
 )
 
 // APIKeyUpdate is the builder for updating APIKey entities.
@@ -57,6 +58,26 @@ func (_u *APIKeyUpdate) SetNillableDeletedAt(v *int) *APIKeyUpdate {
 // AddDeletedAt adds value to the "deleted_at" field.
 func (_u *APIKeyUpdate) AddDeletedAt(v int) *APIKeyUpdate {
 	_u.mutation.AddDeletedAt(v)
+	return _u
+}
+
+// SetGlobalRate sets the "global_rate" field.
+func (_u *APIKeyUpdate) SetGlobalRate(v decimal.Decimal) *APIKeyUpdate {
+	_u.mutation.SetGlobalRate(v)
+	return _u
+}
+
+// SetNillableGlobalRate sets the "global_rate" field if the given value is not nil.
+func (_u *APIKeyUpdate) SetNillableGlobalRate(v *decimal.Decimal) *APIKeyUpdate {
+	if v != nil {
+		_u.SetGlobalRate(*v)
+	}
+	return _u
+}
+
+// ClearGlobalRate clears the value of the "global_rate" field.
+func (_u *APIKeyUpdate) ClearGlobalRate() *APIKeyUpdate {
+	_u.mutation.ClearGlobalRate()
 	return _u
 }
 
@@ -355,6 +376,12 @@ func (_u *APIKeyUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if value, ok := _u.mutation.AddedDeletedAt(); ok {
 		_spec.AddField(apikey.FieldDeletedAt, field.TypeInt, value)
 	}
+	if value, ok := _u.mutation.GlobalRate(); ok {
+		_spec.SetField(apikey.FieldGlobalRate, field.TypeString, value)
+	}
+	if _u.mutation.GlobalRateCleared() {
+		_spec.ClearField(apikey.FieldGlobalRate, field.TypeString)
+	}
 	if value, ok := _u.mutation.GroupRef(); ok {
 		_spec.SetField(apikey.FieldGroupRef, field.TypeInt, value)
 	}
@@ -540,6 +567,26 @@ func (_u *APIKeyUpdateOne) SetNillableDeletedAt(v *int) *APIKeyUpdateOne {
 // AddDeletedAt adds value to the "deleted_at" field.
 func (_u *APIKeyUpdateOne) AddDeletedAt(v int) *APIKeyUpdateOne {
 	_u.mutation.AddDeletedAt(v)
+	return _u
+}
+
+// SetGlobalRate sets the "global_rate" field.
+func (_u *APIKeyUpdateOne) SetGlobalRate(v decimal.Decimal) *APIKeyUpdateOne {
+	_u.mutation.SetGlobalRate(v)
+	return _u
+}
+
+// SetNillableGlobalRate sets the "global_rate" field if the given value is not nil.
+func (_u *APIKeyUpdateOne) SetNillableGlobalRate(v *decimal.Decimal) *APIKeyUpdateOne {
+	if v != nil {
+		_u.SetGlobalRate(*v)
+	}
+	return _u
+}
+
+// ClearGlobalRate clears the value of the "global_rate" field.
+func (_u *APIKeyUpdateOne) ClearGlobalRate() *APIKeyUpdateOne {
+	_u.mutation.ClearGlobalRate()
 	return _u
 }
 
@@ -867,6 +914,12 @@ func (_u *APIKeyUpdateOne) sqlSave(ctx context.Context) (_node *APIKey, err erro
 	}
 	if value, ok := _u.mutation.AddedDeletedAt(); ok {
 		_spec.AddField(apikey.FieldDeletedAt, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.GlobalRate(); ok {
+		_spec.SetField(apikey.FieldGlobalRate, field.TypeString, value)
+	}
+	if _u.mutation.GlobalRateCleared() {
+		_spec.ClearField(apikey.FieldGlobalRate, field.TypeString)
 	}
 	if value, ok := _u.mutation.GroupRef(); ok {
 		_spec.SetField(apikey.FieldGroupRef, field.TypeInt, value)

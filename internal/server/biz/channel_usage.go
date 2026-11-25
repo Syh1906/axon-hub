@@ -73,9 +73,9 @@ func queryChannelTodayUsageSnapshot(ctx context.Context, client *ent.Client, ids
 		Modify(func(q *sql.Selector) {
 			var u *sql.Selector
 			if q.Dialect() == dialect.Postgres {
-				u = joinPostgresConsumptionUsage(q, true)
+				u = joinPostgresConsumptionUsage(q, ConsumptionFilter{Dimension: ConsumptionDimensionChannel})
 			} else {
-				u = usageForConsumption(0, q.Dialect(), &start, end, true, ids...)
+				u = usageForConsumption(0, q.Dialect(), &start, end, ConsumptionFilter{Dimension: ConsumptionDimensionChannel}, ids...)
 				q.LeftJoin(u).OnP(sql.And(sql.ColumnsEQ(q.C("id"), u.C("request_id")), sql.ColumnsEQ(q.C("channel_id"), u.C("channel_id")), sql.ColumnsEQ(q.C("project_id"), u.C("project_id"))))
 			}
 			q.Select(q.C("channel_id"), sql.As(sql.Count("*"), "request_count"),

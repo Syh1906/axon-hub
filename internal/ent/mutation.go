@@ -123,6 +123,7 @@ type APIKeyMutation struct {
 	updated_at           *time.Time
 	deleted_at           *int
 	adddeleted_at        *int
+	global_rate          *decimal.Decimal
 	group_ref            *int
 	addgroup_ref         *int
 	key                  *string
@@ -374,6 +375,55 @@ func (m *APIKeyMutation) AddedDeletedAt() (r int, exists bool) {
 func (m *APIKeyMutation) ResetDeletedAt() {
 	m.deleted_at = nil
 	m.adddeleted_at = nil
+}
+
+// SetGlobalRate sets the "global_rate" field.
+func (m *APIKeyMutation) SetGlobalRate(d decimal.Decimal) {
+	m.global_rate = &d
+}
+
+// GlobalRate returns the value of the "global_rate" field in the mutation.
+func (m *APIKeyMutation) GlobalRate() (r decimal.Decimal, exists bool) {
+	v := m.global_rate
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldGlobalRate returns the old "global_rate" field's value of the APIKey entity.
+// If the APIKey object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *APIKeyMutation) OldGlobalRate(ctx context.Context) (v *decimal.Decimal, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldGlobalRate is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldGlobalRate requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldGlobalRate: %w", err)
+	}
+	return oldValue.GlobalRate, nil
+}
+
+// ClearGlobalRate clears the value of the "global_rate" field.
+func (m *APIKeyMutation) ClearGlobalRate() {
+	m.global_rate = nil
+	m.clearedFields[apikey.FieldGlobalRate] = struct{}{}
+}
+
+// GlobalRateCleared returns if the "global_rate" field was cleared in this mutation.
+func (m *APIKeyMutation) GlobalRateCleared() bool {
+	_, ok := m.clearedFields[apikey.FieldGlobalRate]
+	return ok
+}
+
+// ResetGlobalRate resets all changes to the "global_rate" field.
+func (m *APIKeyMutation) ResetGlobalRate() {
+	m.global_rate = nil
+	delete(m.clearedFields, apikey.FieldGlobalRate)
 }
 
 // SetGroupRef sets the "group_ref" field.
@@ -1050,7 +1100,7 @@ func (m *APIKeyMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *APIKeyMutation) Fields() []string {
-	fields := make([]string, 0, 13)
+	fields := make([]string, 0, 14)
 	if m.created_at != nil {
 		fields = append(fields, apikey.FieldCreatedAt)
 	}
@@ -1059,6 +1109,9 @@ func (m *APIKeyMutation) Fields() []string {
 	}
 	if m.deleted_at != nil {
 		fields = append(fields, apikey.FieldDeletedAt)
+	}
+	if m.global_rate != nil {
+		fields = append(fields, apikey.FieldGlobalRate)
 	}
 	if m.group_ref != nil {
 		fields = append(fields, apikey.FieldGroupRef)
@@ -1104,6 +1157,8 @@ func (m *APIKeyMutation) Field(name string) (ent.Value, bool) {
 		return m.UpdatedAt()
 	case apikey.FieldDeletedAt:
 		return m.DeletedAt()
+	case apikey.FieldGlobalRate:
+		return m.GlobalRate()
 	case apikey.FieldGroupRef:
 		return m.GroupRef()
 	case apikey.FieldUserID:
@@ -1139,6 +1194,8 @@ func (m *APIKeyMutation) OldField(ctx context.Context, name string) (ent.Value, 
 		return m.OldUpdatedAt(ctx)
 	case apikey.FieldDeletedAt:
 		return m.OldDeletedAt(ctx)
+	case apikey.FieldGlobalRate:
+		return m.OldGlobalRate(ctx)
 	case apikey.FieldGroupRef:
 		return m.OldGroupRef(ctx)
 	case apikey.FieldUserID:
@@ -1188,6 +1245,13 @@ func (m *APIKeyMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetDeletedAt(v)
+		return nil
+	case apikey.FieldGlobalRate:
+		v, ok := value.(decimal.Decimal)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetGlobalRate(v)
 		return nil
 	case apikey.FieldGroupRef:
 		v, ok := value.(int)
@@ -1316,6 +1380,9 @@ func (m *APIKeyMutation) AddField(name string, value ent.Value) error {
 // mutation.
 func (m *APIKeyMutation) ClearedFields() []string {
 	var fields []string
+	if m.FieldCleared(apikey.FieldGlobalRate) {
+		fields = append(fields, apikey.FieldGlobalRate)
+	}
 	if m.FieldCleared(apikey.FieldGroupRef) {
 		fields = append(fields, apikey.FieldGroupRef)
 	}
@@ -1345,6 +1412,9 @@ func (m *APIKeyMutation) FieldCleared(name string) bool {
 // error if the field is not defined in the schema.
 func (m *APIKeyMutation) ClearField(name string) error {
 	switch name {
+	case apikey.FieldGlobalRate:
+		m.ClearGlobalRate()
+		return nil
 	case apikey.FieldGroupRef:
 		m.ClearGroupRef()
 		return nil
@@ -1376,6 +1446,9 @@ func (m *APIKeyMutation) ResetField(name string) error {
 		return nil
 	case apikey.FieldDeletedAt:
 		m.ResetDeletedAt()
+		return nil
+	case apikey.FieldGlobalRate:
+		m.ResetGlobalRate()
 		return nil
 	case apikey.FieldGroupRef:
 		m.ResetGroupRef()
@@ -2105,6 +2178,7 @@ type APIKeyGroupMutation struct {
 	name                       *string
 	note                       *string
 	enabled                    *bool
+	global_rate                *decimal.Decimal
 	show_channel_in_self_usage *bool
 	revision                   *int
 	addrevision                *int
@@ -2397,6 +2471,55 @@ func (m *APIKeyGroupMutation) ResetEnabled() {
 	m.enabled = nil
 }
 
+// SetGlobalRate sets the "global_rate" field.
+func (m *APIKeyGroupMutation) SetGlobalRate(d decimal.Decimal) {
+	m.global_rate = &d
+}
+
+// GlobalRate returns the value of the "global_rate" field in the mutation.
+func (m *APIKeyGroupMutation) GlobalRate() (r decimal.Decimal, exists bool) {
+	v := m.global_rate
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldGlobalRate returns the old "global_rate" field's value of the APIKeyGroup entity.
+// If the APIKeyGroup object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *APIKeyGroupMutation) OldGlobalRate(ctx context.Context) (v *decimal.Decimal, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldGlobalRate is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldGlobalRate requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldGlobalRate: %w", err)
+	}
+	return oldValue.GlobalRate, nil
+}
+
+// ClearGlobalRate clears the value of the "global_rate" field.
+func (m *APIKeyGroupMutation) ClearGlobalRate() {
+	m.global_rate = nil
+	m.clearedFields[apikeygroup.FieldGlobalRate] = struct{}{}
+}
+
+// GlobalRateCleared returns if the "global_rate" field was cleared in this mutation.
+func (m *APIKeyGroupMutation) GlobalRateCleared() bool {
+	_, ok := m.clearedFields[apikeygroup.FieldGlobalRate]
+	return ok
+}
+
+// ResetGlobalRate resets all changes to the "global_rate" field.
+func (m *APIKeyGroupMutation) ResetGlobalRate() {
+	m.global_rate = nil
+	delete(m.clearedFields, apikeygroup.FieldGlobalRate)
+}
+
 // SetShowChannelInSelfUsage sets the "show_channel_in_self_usage" field.
 func (m *APIKeyGroupMutation) SetShowChannelInSelfUsage(b bool) {
 	m.show_channel_in_self_usage = &b
@@ -2640,7 +2763,7 @@ func (m *APIKeyGroupMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *APIKeyGroupMutation) Fields() []string {
-	fields := make([]string, 0, 8)
+	fields := make([]string, 0, 9)
 	if m.created_at != nil {
 		fields = append(fields, apikeygroup.FieldCreatedAt)
 	}
@@ -2655,6 +2778,9 @@ func (m *APIKeyGroupMutation) Fields() []string {
 	}
 	if m.enabled != nil {
 		fields = append(fields, apikeygroup.FieldEnabled)
+	}
+	if m.global_rate != nil {
+		fields = append(fields, apikeygroup.FieldGlobalRate)
 	}
 	if m.show_channel_in_self_usage != nil {
 		fields = append(fields, apikeygroup.FieldShowChannelInSelfUsage)
@@ -2683,6 +2809,8 @@ func (m *APIKeyGroupMutation) Field(name string) (ent.Value, bool) {
 		return m.Note()
 	case apikeygroup.FieldEnabled:
 		return m.Enabled()
+	case apikeygroup.FieldGlobalRate:
+		return m.GlobalRate()
 	case apikeygroup.FieldShowChannelInSelfUsage:
 		return m.ShowChannelInSelfUsage()
 	case apikeygroup.FieldRevision:
@@ -2708,6 +2836,8 @@ func (m *APIKeyGroupMutation) OldField(ctx context.Context, name string) (ent.Va
 		return m.OldNote(ctx)
 	case apikeygroup.FieldEnabled:
 		return m.OldEnabled(ctx)
+	case apikeygroup.FieldGlobalRate:
+		return m.OldGlobalRate(ctx)
 	case apikeygroup.FieldShowChannelInSelfUsage:
 		return m.OldShowChannelInSelfUsage(ctx)
 	case apikeygroup.FieldRevision:
@@ -2757,6 +2887,13 @@ func (m *APIKeyGroupMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetEnabled(v)
+		return nil
+	case apikeygroup.FieldGlobalRate:
+		v, ok := value.(decimal.Decimal)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetGlobalRate(v)
 		return nil
 	case apikeygroup.FieldShowChannelInSelfUsage:
 		v, ok := value.(bool)
@@ -2823,7 +2960,11 @@ func (m *APIKeyGroupMutation) AddField(name string, value ent.Value) error {
 // ClearedFields returns all nullable fields that were cleared during this
 // mutation.
 func (m *APIKeyGroupMutation) ClearedFields() []string {
-	return nil
+	var fields []string
+	if m.FieldCleared(apikeygroup.FieldGlobalRate) {
+		fields = append(fields, apikeygroup.FieldGlobalRate)
+	}
+	return fields
 }
 
 // FieldCleared returns a boolean indicating if a field with the given name was
@@ -2836,6 +2977,11 @@ func (m *APIKeyGroupMutation) FieldCleared(name string) bool {
 // ClearField clears the value of the field with the given name. It returns an
 // error if the field is not defined in the schema.
 func (m *APIKeyGroupMutation) ClearField(name string) error {
+	switch name {
+	case apikeygroup.FieldGlobalRate:
+		m.ClearGlobalRate()
+		return nil
+	}
 	return fmt.Errorf("unknown APIKeyGroup nullable field %s", name)
 }
 
@@ -2857,6 +3003,9 @@ func (m *APIKeyGroupMutation) ResetField(name string) error {
 		return nil
 	case apikeygroup.FieldEnabled:
 		m.ResetEnabled()
+		return nil
+	case apikeygroup.FieldGlobalRate:
+		m.ResetGlobalRate()
 		return nil
 	case apikeygroup.FieldShowChannelInSelfUsage:
 		m.ResetShowChannelInSelfUsage()

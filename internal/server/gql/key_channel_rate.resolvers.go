@@ -12,14 +12,19 @@ import (
 )
 
 // SaveKeyChannelRates is the resolver for the saveKeyChannelRates field.
-func (r *mutationResolver) SaveKeyChannelRates(ctx context.Context, keyID *int, groupID *int, revision string, rules []*objects.KeyChannelRate) (bool, error) {
-	err := r.apiKeyService.SaveKeyChannelRates(ctx, keyID, groupID, revision, rules)
+func (r *mutationResolver) SaveKeyChannelRates(ctx context.Context, keyID *int, groupID *int, revision string, rules []*objects.KeyChannelRate, globalRate *objects.KeyGlobalRateInput) (bool, error) {
+	err := r.apiKeyService.SaveKeyChannelRates(ctx, keyID, groupID, revision, rules, globalRate)
 	return err == nil, err
 }
 
 // KeyRateChannelScope is the resolver for the keyRateChannelScope field.
 func (r *queryResolver) KeyRateChannelScope(ctx context.Context, keyID int) (*objects.KeyRateChannelScope, error) {
 	return r.apiKeyService.KeyRateChannelScope(ctx, r.modelService, keyID)
+}
+
+// GroupRateChannels is the resolver for the groupRateChannels field.
+func (r *queryResolver) GroupRateChannels(ctx context.Context, groupID int) ([]*objects.KeyRateChannel, error) {
+	return r.apiKeyService.GroupRateChannels(ctx, r.modelService, groupID)
 }
 
 // KeyChannelRates is the resolver for the keyChannelRates field.

@@ -17,6 +17,7 @@ import (
 	"github.com/looplj/axonhub/internal/ent/request"
 	"github.com/looplj/axonhub/internal/ent/user"
 	"github.com/looplj/axonhub/internal/objects"
+	"github.com/shopspring/decimal"
 )
 
 // APIKeyCreate is the builder for creating a APIKey entity.
@@ -65,6 +66,20 @@ func (_c *APIKeyCreate) SetDeletedAt(v int) *APIKeyCreate {
 func (_c *APIKeyCreate) SetNillableDeletedAt(v *int) *APIKeyCreate {
 	if v != nil {
 		_c.SetDeletedAt(*v)
+	}
+	return _c
+}
+
+// SetGlobalRate sets the "global_rate" field.
+func (_c *APIKeyCreate) SetGlobalRate(v decimal.Decimal) *APIKeyCreate {
+	_c.mutation.SetGlobalRate(v)
+	return _c
+}
+
+// SetNillableGlobalRate sets the "global_rate" field if the given value is not nil.
+func (_c *APIKeyCreate) SetNillableGlobalRate(v *decimal.Decimal) *APIKeyCreate {
+	if v != nil {
+		_c.SetGlobalRate(*v)
 	}
 	return _c
 }
@@ -363,6 +378,10 @@ func (_c *APIKeyCreate) createSpec() (*APIKey, *sqlgraph.CreateSpec) {
 		_spec.SetField(apikey.FieldDeletedAt, field.TypeInt, value)
 		_node.DeletedAt = value
 	}
+	if value, ok := _c.mutation.GlobalRate(); ok {
+		_spec.SetField(apikey.FieldGlobalRate, field.TypeString, value)
+		_node.GlobalRate = &value
+	}
 	if value, ok := _c.mutation.GroupRef(); ok {
 		_spec.SetField(apikey.FieldGroupRef, field.TypeInt, value)
 		_node.GroupRef = &value
@@ -540,6 +559,24 @@ func (u *APIKeyUpsert) UpdateDeletedAt() *APIKeyUpsert {
 // AddDeletedAt adds v to the "deleted_at" field.
 func (u *APIKeyUpsert) AddDeletedAt(v int) *APIKeyUpsert {
 	u.Add(apikey.FieldDeletedAt, v)
+	return u
+}
+
+// SetGlobalRate sets the "global_rate" field.
+func (u *APIKeyUpsert) SetGlobalRate(v decimal.Decimal) *APIKeyUpsert {
+	u.Set(apikey.FieldGlobalRate, v)
+	return u
+}
+
+// UpdateGlobalRate sets the "global_rate" field to the value that was provided on create.
+func (u *APIKeyUpsert) UpdateGlobalRate() *APIKeyUpsert {
+	u.SetExcluded(apikey.FieldGlobalRate)
+	return u
+}
+
+// ClearGlobalRate clears the value of the "global_rate" field.
+func (u *APIKeyUpsert) ClearGlobalRate() *APIKeyUpsert {
+	u.SetNull(apikey.FieldGlobalRate)
 	return u
 }
 
@@ -752,6 +789,27 @@ func (u *APIKeyUpsertOne) AddDeletedAt(v int) *APIKeyUpsertOne {
 func (u *APIKeyUpsertOne) UpdateDeletedAt() *APIKeyUpsertOne {
 	return u.Update(func(s *APIKeyUpsert) {
 		s.UpdateDeletedAt()
+	})
+}
+
+// SetGlobalRate sets the "global_rate" field.
+func (u *APIKeyUpsertOne) SetGlobalRate(v decimal.Decimal) *APIKeyUpsertOne {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.SetGlobalRate(v)
+	})
+}
+
+// UpdateGlobalRate sets the "global_rate" field to the value that was provided on create.
+func (u *APIKeyUpsertOne) UpdateGlobalRate() *APIKeyUpsertOne {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.UpdateGlobalRate()
+	})
+}
+
+// ClearGlobalRate clears the value of the "global_rate" field.
+func (u *APIKeyUpsertOne) ClearGlobalRate() *APIKeyUpsertOne {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.ClearGlobalRate()
 	})
 }
 
@@ -1151,6 +1209,27 @@ func (u *APIKeyUpsertBulk) AddDeletedAt(v int) *APIKeyUpsertBulk {
 func (u *APIKeyUpsertBulk) UpdateDeletedAt() *APIKeyUpsertBulk {
 	return u.Update(func(s *APIKeyUpsert) {
 		s.UpdateDeletedAt()
+	})
+}
+
+// SetGlobalRate sets the "global_rate" field.
+func (u *APIKeyUpsertBulk) SetGlobalRate(v decimal.Decimal) *APIKeyUpsertBulk {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.SetGlobalRate(v)
+	})
+}
+
+// UpdateGlobalRate sets the "global_rate" field to the value that was provided on create.
+func (u *APIKeyUpsertBulk) UpdateGlobalRate() *APIKeyUpsertBulk {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.UpdateGlobalRate()
+	})
+}
+
+// ClearGlobalRate clears the value of the "global_rate" field.
+func (u *APIKeyUpsertBulk) ClearGlobalRate() *APIKeyUpsertBulk {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.ClearGlobalRate()
 	})
 }
 

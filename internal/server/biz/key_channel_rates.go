@@ -74,6 +74,11 @@ func (s *APIKeyService) rateTarget(ctx context.Context, keyID, groupID *int, wri
 func readKeyChannelRates(ctx context.Context, db *ent.Client, keyID, groupID *int) (*objects.KeyChannelRates, error) {
 	result := &objects.KeyChannelRates{Rules: []*objects.KeyChannelRate{}, Inherited: []*objects.KeyChannelRate{}}
 	if groupID != nil {
+		owner, err := db.APIKeyGroup.Query().Where(apikeygroup.IDEQ(*groupID)).Select(apikeygroup.FieldGlobalRate).Only(ctx)
+		if err != nil {
+			return nil, err
+		}
+		result.InheritedGlobalRate = owner.GlobalRate
 		rows, err := db.APIKeyGroupChannelRate.Query().Where(apikeygroupchannelrate.GroupIDEQ(*groupID)).Order(ent.Asc(apikeygroupchannelrate.FieldChannelID)).All(ctx)
 		if err != nil {
 			return nil, err
@@ -84,7 +89,13 @@ func readKeyChannelRates(ctx context.Context, db *ent.Client, keyID, groupID *in
 	}
 	if keyID == nil {
 		result.Rules, result.Inherited = result.Inherited, result.Rules
+		result.GlobalRate, result.InheritedGlobalRate = result.InheritedGlobalRate, nil
 	} else {
+		owner, err := db.APIKey.Query().Where(apikey.IDEQ(*keyID)).Select(apikey.FieldGlobalRate).Only(ctx)
+		if err != nil {
+			return nil, err
+		}
+		result.GlobalRate = owner.GlobalRate
 		rows, err := db.APIKeyChannelRate.Query().Where(apikeychannelrate.KeyIDEQ(*keyID)).Order(ent.Asc(apikeychannelrate.FieldChannelID)).All(ctx)
 		if err != nil {
 			return nil, err
@@ -112,7 +123,12 @@ func (s *APIKeyService) KeyChannelRates(ctx context.Context, keyID, groupID *int
 	})
 }
 
-func (s *APIKeyService) SaveKeyChannelRates(ctx context.Context, keyID, groupID *int, revision string, rules []*objects.KeyChannelRate) error {
+func (s *APIKeyService) SaveKeyChannelRates(ctx context.Context, keyID, groupID *int, revision string, rules []*objects.KeyChannelRate, globalRate *objects.KeyGlobalRateInput) error {
+	if globalRate != nil {
+		if err := objects.ValidateGlobalRate(globalRate.Multiplier); err != nil {
+			return err
+		}
+	}
 	return s.RunInTransaction(ctx, func(ctx context.Context) error {
 		projectID, ok := contexts.GetProjectID(ctx)
 		if !ok {
@@ -160,6 +176,17 @@ func (s *APIKeyService) SaveKeyChannelRates(ctx context.Context, keyID, groupID 
 				}
 			}
 			if keyID != nil {
+				if globalRate != nil {
+					update := db.APIKey.UpdateOneID(*keyID)
+					if globalRate.Multiplier == nil {
+						update.ClearGlobalRate()
+					} else {
+						update.SetGlobalRate(*globalRate.Multiplier)
+					}
+					if err := update.Exec(ctx); err != nil {
+						return false, err
+					}
+				}
 				if _, err = db.APIKeyChannelRate.Delete().Where(apikeychannelrate.KeyIDEQ(*keyID)).Exec(ctx); err != nil {
 					return false, err
 				}
@@ -169,6 +196,17 @@ func (s *APIKeyService) SaveKeyChannelRates(ctx context.Context, keyID, groupID 
 					}
 				}
 			} else {
+				if globalRate != nil {
+					update := db.APIKeyGroup.UpdateOneID(*group)
+					if globalRate.Multiplier == nil {
+						update.ClearGlobalRate()
+					} else {
+						update.SetGlobalRate(*globalRate.Multiplier)
+					}
+					if err := update.Exec(ctx); err != nil {
+						return false, err
+					}
+				}
 				if _, err = db.APIKeyGroupChannelRate.Delete().Where(apikeygroupchannelrate.GroupIDEQ(*group)).Exec(ctx); err != nil {
 					return false, err
 				}
@@ -204,7 +242,9 @@ func executionBilling(ctx context.Context, db *ent.Client, req *ent.Request, cha
 			q.LeftJoin(group).OnP(sql.And(sql.ExprP(group.C("id")+" = "+owner), sql.ColumnsEQ(group.C("project_id"), q.C("project_id"))))
 			q.LeftJoin(keyRate).OnP(sql.And(sql.ColumnsEQ(keyRate.C("key_id"), q.C("id")), sql.EQ(keyRate.C("channel_id"), channelID)))
 			q.LeftJoin(groupRate).OnP(sql.And(sql.ColumnsEQ(groupRate.C("group_id"), group.C("id")), sql.EQ(groupRate.C("channel_id"), channelID)))
-			q.Select(sql.As(owner, "group_id"), sql.As(group.C("name"), "group_name"), sql.As(keyRate.C("multiplier"), "key_rate"), sql.As(groupRate.C("multiplier"), "group_rate"))
+			q.Select(sql.As(owner, "group_id"), sql.As(group.C("name"), "group_name"),
+				sql.As("COALESCE("+keyRate.C("multiplier")+","+q.C(apikey.FieldGlobalRate)+")", "key_rate"),
+				sql.As("COALESCE("+groupRate.C("multiplier")+","+group.C(apikeygroup.FieldGlobalRate)+")", "group_rate"))
 		}).Scan(ctx, &rows)
 		if err != nil {
 			return nil, err
@@ -225,7 +265,7 @@ func executionBilling(ctx context.Context, db *ent.Client, req *ent.Request, cha
 
 // The optional same-price routing optimization compares inherited rates only after
 // the regular channel price check. An explicit rate must match on both candidates.
-func (s *RequestService) CallerRatesForRouting(ctx context.Context, key *ent.APIKey) (map[int]string, error) {
+func (s *RequestService) CallerRatesForRouting(ctx context.Context, key *ent.APIKey, channelIDs []int) (map[int]string, error) {
 	db := s.entFromContext(ctx)
 	return authz.RunAsHost(ctx, db, "same-price-caller-rates", func(ctx context.Context) (map[int]string, error) {
 		current, err := db.APIKey.Query().Where(apikey.IDEQ(key.ID), apikey.ProjectIDEQ(key.ProjectID)).Select(apikey.FieldGroupRef).Only(ctx)
@@ -237,8 +277,19 @@ func (s *RequestService) CallerRatesForRouting(ctx context.Context, key *ent.API
 			return nil, err
 		}
 		result := map[int]string{}
-		for _, r := range rates.Inherited {
-			result[r.ChannelID] = r.Multiplier.String()
+		if rates.GlobalRate != nil {
+			for _, id := range channelIDs {
+				result[id] = rates.GlobalRate.String()
+			}
+		} else {
+			if rates.InheritedGlobalRate != nil {
+				for _, id := range channelIDs {
+					result[id] = rates.InheritedGlobalRate.String()
+				}
+			}
+			for _, r := range rates.Inherited {
+				result[r.ChannelID] = r.Multiplier.String()
+			}
 		}
 		for _, r := range rates.Rules {
 			result[r.ChannelID] = r.Multiplier.String()

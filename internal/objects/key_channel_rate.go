@@ -1,17 +1,34 @@
 package objects
 
-import "github.com/shopspring/decimal"
+import (
+	"errors"
+
+	"github.com/shopspring/decimal"
+)
 
 type KeyChannelRate struct {
 	ChannelID  int
 	Multiplier decimal.Decimal
 }
 type KeyChannelRates struct {
-	Rules, Inherited []*KeyChannelRate
-	Revision         string
+	Rules, Inherited                []*KeyChannelRate
+	GlobalRate, InheritedGlobalRate *decimal.Decimal
+	Revision                        string
 }
+type KeyGlobalRateInput struct {
+	Multiplier *decimal.Decimal
+}
+
+func ValidateGlobalRate(rate *decimal.Decimal) error {
+	if rate != nil && rate.IsNegative() {
+		return errors.New("global rate must be nonnegative")
+	}
+	return nil
+}
+
 type KeyRateChannel struct {
 	ChannelID      int
+	Disabled       bool
 	Name           string
 	Tags, Profiles []string
 }

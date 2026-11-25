@@ -72,7 +72,13 @@ func newFirstContentSort(ctx context.Context, s *PersistenceState, req *llm.Requ
 	if !ok {
 		return nil
 	}
-	rates, err := s.RequestService.CallerRatesForRouting(ctx, s.APIKey)
+	channelIDs := make([]int, 0, len(group))
+	for _, candidate := range group {
+		if candidate != nil && candidate.Channel != nil {
+			channelIDs = append(channelIDs, candidate.Channel.ID)
+		}
+	}
+	rates, err := s.RequestService.CallerRatesForRouting(ctx, s.APIKey, channelIDs)
 	if err != nil {
 		return nil
 	}

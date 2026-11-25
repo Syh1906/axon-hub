@@ -2,6 +2,7 @@ package db
 
 import (
 	"context"
+	"slices"
 	"testing"
 	"time"
 
@@ -27,6 +28,9 @@ func TestKeyGroupManagementSchemaUpgrade(t *testing.T) {
 		if table.Name == "api_key_operations" {
 			continue
 		}
+		if table.Name == "api_key_groups" || table.Name == "api_keys" {
+			table.Columns = slices.DeleteFunc(table.Columns, func(column *schema.Column) bool { return column.Name == "global_rate" })
+		}
 		if table.Name == "api_key_groups" {
 			columns := table.Columns[:0]
 			for _, column := range table.Columns {
@@ -42,9 +46,13 @@ func TestKeyGroupManagementSchemaUpgrade(t *testing.T) {
 	project := client.Project.Create().SetName("legacy-project").SaveX(ctx)
 	_, err = raw.ExecContext(ctx, "INSERT INTO api_key_groups (name,project_id,created_at,updated_at) VALUES (?,?,?,?)", "existing", project.ID, time.Now(), time.Now())
 	require.NoError(t, err)
+	_, err = raw.ExecContext(ctx, "INSERT INTO api_keys (name,`key`,project_id,user_id,created_at,updated_at) VALUES (?,?,?,?,?,?)", "existing", "fixture-key", project.ID, 1, time.Now(), time.Now())
+	require.NoError(t, err)
 	require.NoError(t, client.Schema.Create(ctx, migrate.WithForeignKeys(false)))
 	require.NoError(t, client.Schema.Create(ctx, migrate.WithForeignKeys(false)))
 	group := client.APIKeyGroup.Query().OnlyX(ctx)
+	require.Nil(t, group.GlobalRate)
+	require.Nil(t, client.APIKey.Query().OnlyX(ctx).GlobalRate)
 	require.Equal(t, "existing", group.Name)
 	require.True(t, group.Enabled)
 	require.False(t, group.ShowChannelInSelfUsage)

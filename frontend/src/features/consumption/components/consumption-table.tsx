@@ -17,12 +17,13 @@ import type { RankSort } from '../data/ranked-pages';
 type MetricKey = keyof ConsumptionMetrics;
 type Column = {
   key: MetricKey;
+  label?: string;
   format: 'number' | 'tokens' | 'currency' | 'percent' | 'ms' | 'speed' | 'coefficient';
   hideInModel?: boolean;
   tooltip?: string;
 };
 
-function columnsFor(dimension: ConsumptionDimension, metric: ConsumptionMetric, view: 'leaderboard' | 'usage'): Column[] {
+function columnsFor(dimension: ConsumptionDimension, metric: ConsumptionMetric, view: 'leaderboard' | 'usage', showChannelCost: boolean): Column[] {
   if (metric === 'CACHE') {
     return [
       { key: 'cacheRequests', format: 'number', tooltip: 'cacheRequestsHelp' },
@@ -64,7 +65,8 @@ function columnsFor(dimension: ConsumptionDimension, metric: ConsumptionMetric, 
   }
   return [
     { key: 'requestCount', format: 'number' },
-    { key: 'totalCost', format: 'currency' },
+    { key: 'billedCost', format: 'currency' },
+    ...(showChannelCost ? [{ key: 'totalCost', label: 'channelCost', format: 'currency' } satisfies Column] : []),
     { key: 'totalTokens', format: 'tokens' },
     { key: 'successRate', format: 'percent', tooltip: 'channelSuccessRateHelp' },
     { key: 'avgFirstTokenMs', format: 'ms', tooltip: 'firstTokenHelp' },
@@ -84,10 +86,13 @@ export function ConsumptionTable({
   expandable = true,
   scrollElement,
   view = 'leaderboard',
-  remoteSort, onSort, loadMore,
+  showChannelCost = false,
+  sort, serverSorted, onSort, loadMore,
 }: {
-  remoteSort?: RankSort;
-  onSort?: (sort: RankSort) => void;
+  sort: RankSort;
+  serverSorted: boolean;
+  showChannelCost?: boolean;
+  onSort: (sort: RankSort) => void;
   loadMore?: () => void;
   entries: ConsumptionEntry[];
   dimension: ConsumptionDimension;
@@ -106,12 +111,11 @@ export function ConsumptionTable({
     else next.add(id);
     return next;
   });
-  const [localSort, setLocalSort] = useState<RankSort>(null);
-  const sort = remoteSort === undefined ? localSort : remoteSort;
-  const columns = useMemo(() => columnsFor(dimension, metric, view), [dimension, metric, view]);
+  const columns = useMemo(() => columnsFor(dimension, metric, view, showChannelCost), [dimension, metric, view, showChannelCost]);
   const visibleSort = sort && columns.some((column) => column.key === sort.key) ? sort : null;
+  const headerSort = visibleSort ?? (dimension === 'CHANNEL' && metric === 'COST' ? { key: 'billedCost', direction: 'desc' } : null);
   const sorted = useMemo(() => {
-    if (remoteSort !== undefined || !visibleSort) return entries;
+    if (serverSorted || !visibleSort) return entries;
     const { key, direction } = visibleSort;
     return [...entries].sort((a, b) => {
       const left = a.metrics[key],
@@ -121,7 +125,7 @@ export function ConsumptionTable({
       if (right === null) return -1;
       return (left - right) * (direction === 'asc' ? 1 : -1);
     });
-  }, [entries, visibleSort, remoteSort]);
+  }, [entries, visibleSort, serverSorted]);
   // Flatten expanded models so a single large entity cannot mount an unbounded subtree.
   const rows = useMemo(
     () =>
@@ -212,7 +216,7 @@ export function ConsumptionTable({
             <TableHead
               key={column.key}
               className='text-center'
-              aria-sort={visibleSort?.key === column.key ? (visibleSort.direction === 'asc' ? 'ascending' : 'descending') : 'none'}
+              aria-sort={headerSort?.key === column.key ? (headerSort.direction === 'asc' ? 'ascending' : 'descending') : 'none'}
             >
               <Button
                 variant='ghost'
@@ -220,17 +224,17 @@ export function ConsumptionTable({
                 className='h-auto w-full justify-center px-4 py-2 text-xs whitespace-normal'
                 title={column.tooltip ? t(`consumption.${column.tooltip}`) : undefined}
                 onClick={() =>
-                  (onSort ?? setLocalSort)({
+                  onSort({
                     key: column.key,
-                    direction: sort?.key === column.key && sort.direction === 'desc' ? 'asc' : 'desc',
+                    direction: headerSort?.key === column.key && headerSort.direction === 'desc' ? 'asc' : 'desc',
                   })
                 }
               >
                 <span className='relative'>
-                  {t(`consumption.columns.${column.key}`)}
+                  {t(`consumption.columns.${column.label ?? column.key}`)}
                   <span className='absolute top-1/2 left-full ml-1 -translate-y-1/2' aria-hidden>
-                    {visibleSort?.key === column.key ? (
-                      visibleSort.direction === 'asc' ? (
+                    {headerSort?.key === column.key ? (
+                      headerSort.direction === 'asc' ? (
                         <ArrowUp data-icon='inline-end' />
                       ) : (
                         <ArrowDown data-icon='inline-end' />

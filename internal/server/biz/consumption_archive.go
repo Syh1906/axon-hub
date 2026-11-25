@@ -21,7 +21,7 @@ func (s *ConsumptionService) queryArchivedGroups(ctx context.Context, projectID 
 	var rows []consumptionGroup
 	err := query.Modify(func(q *sql.Selector) {
 		speedVersion := strconv.Itoa(usageanalytics.OutputSpeedVersion)
-		u := usageForConsumption(projectID, q.Dialect(), start, end, input.Dimension == ConsumptionDimensionChannel)
+		u := usageForConsumption(projectID, q.Dialect(), start, end, input)
 		match := sql.And(sql.ColumnsEQ(q.C("request_id"), u.C("request_id")), sql.ColumnsEQ(q.C("project_id"), u.C("project_id")))
 		if input.Dimension == ConsumptionDimensionChannel {
 			match = sql.And(match, sql.ColumnsEQ(q.C("channel_id"), u.C("channel_id")))
@@ -48,6 +48,10 @@ func (s *ConsumptionService) queryArchivedGroups(ctx context.Context, projectID 
 		cache := "(" + cacheRead + " > 0 OR " + cacheWrite + " > 0)"
 		selectConsumptionEntity(q, input, q.C("model_id"))
 		appendConsumptionPricing(q, complete, cost, tokens)
+		if input.channelCostRanking() {
+			// 只有请求快照时，无法把调用方的金额归到具体渠道。
+			q.AppendSelect(sql.As("COALESCE(SUM("+u.C("billed_cost")+"),0)", "billed_cost"), sql.As("COALESCE(SUM("+u.C("billed_records")+"),0)", "billed_records"))
+		}
 		if input.Metric == ConsumptionMetricCache {
 			q.Where(sql.ExprP(cache))
 		}

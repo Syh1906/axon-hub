@@ -9,6 +9,7 @@ import (
 	"entgo.io/ent/schema/field"
 	"entgo.io/ent/schema/index"
 	"github.com/looplj/axonhub/internal/scopes"
+	"github.com/shopspring/decimal"
 )
 
 // APIKeyGroup groups credentials for reporting without creating login accounts.
@@ -20,6 +21,7 @@ func (APIKeyGroup) Fields() []ent.Field {
 		field.String("name").NotEmpty().MaxLen(128),
 		field.String("note").Default("").MaxLen(1024),
 		field.Bool("enabled").Default(true),
+		field.String("global_rate").GoType(decimal.Decimal{}).Optional().Nillable().Annotations(entgql.Skip(entgql.SkipAll)),
 		field.Bool("show_channel_in_self_usage").Default(false),
 		field.Int("revision").Default(0),
 		field.Int("project_id").Immutable(),

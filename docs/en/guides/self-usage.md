@@ -12,7 +12,7 @@ Select **View usage with an API Key** on the admin sign-in page, or open `/self-
 
 The page shows the key name and the system time zone. You can switch languages and themes. The key is stored only in this browser tab's session storage: a refresh in the same tab keeps you signed in, while closing the tab or selecting **Log out** ends the page session. Logging out does not revoke the API Key; revoke it in the admin area if needed.
 
-The default range is the last 7 days. Choose today, yesterday, the last 7 days, the last 30 days, this month, or a custom range of at most 90 days (both dates included). Dates and request times follow the displayed system time zone; each daily total uses the request creation date. The summary lists successful and failed requests, tokens, and cost, with a per-model breakdown. The request log supports model and status filters. Processing requests may appear in the log but do not count as successful or failed. Tokens and costs from failed or canceled requests count if usage records were saved. A request with multiple usage records counts only once toward request totals.
+Usage overview and group cost comparison default to today. The trend shows daily usage from the first of the current month through today in the report time zone, regardless of the overview dates. Choose today, yesterday, the last 7 days, the last 30 days, this month, or a custom range of at most 90 days (both dates included). Dates and request times follow the displayed system time zone; each daily total uses the request creation date. The summary lists successful and failed requests, tokens, and cost, with a per-model breakdown. The request log supports model and status filters. Processing requests may appear in the log but do not count as successful or failed. Tokens and costs from failed or canceled requests count if usage records were saved. A request with multiple usage records counts only once toward request totals.
 
 The request log loads more rows on scroll by default. You can also switch to numbered pages. Refresh updates the log, totals, daily trend and model breakdown together. The adjacent menu offers Off or an interval of 3, 5, 10, 30 or 60 seconds. The browser remembers your selection. Automatic refresh pauses while reading history, on pages after the first, and in background tabs.
 
@@ -71,11 +71,15 @@ When enabled, current-key usage, group usage, and the administrator's group usag
 
 ## Channel rates and group cost comparison
 
-Open the group or member key's row menu and select **Channel rates**. A key override takes priority over its group's rate for that channel. With neither override, the channel rate applies. An explicit zero makes priced items free. When channel names are visible in self-service, the rate beside a channel reflects the rate used to bill the request. Signing in with an API key shows billed usage only.
+Open the group or member key's row menu and select **Channel rates**. The first configured rate applies in this order: key channel override, key-wide rate, group channel override, group-wide rate, then the channel rate. Each value is an absolute multiplier. Leave a key-wide or group-wide rate blank to inherit. An explicit zero makes priced items free. When channel names are visible in self-service, the rate beside a channel reflects the rate used to bill the request. Signing in with an API key shows billed usage only.
 
 Authorized administrators can open **Usage → Cost comparison** on a group row. Compare channel cost with billed usage over the same dates and expand by key and channel to inspect individual charges. The comparison uses historical billing membership. The usage overview uses current group members. Legacy bills without evidence of their historical group are excluded from the comparison.
 
 The key's rate dialog lists the channels allowed by its profiles. Filter by profile or search by channel name, tag, or ID. The same ID appears beside the name in channel management. Edit the rows that need an override, then save them together.
+
+The group rate dialog lists each channel available to any enabled key in the group, across all loaded profiles, including backup profiles. Both rate dialogs include matching enabled and disabled channels. You can price a disabled channel before enabling it for routing. To review or remove an override for a channel that no member currently matches, select **Overrides outside these profiles**.
+
+If the member channels fail to load, you can still edit and save existing rates. Select **Retry** to reload the channel list and keep your edits.
 
 After selecting **Restore inherited rate**, the channel stays in the dialog so you can check the inherited group or channel rate before saving. Expand the current channel rate to see enabled credentials, upstream readings and their sources, and the rate used for fixed fees and images.
 

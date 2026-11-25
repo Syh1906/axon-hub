@@ -2,21 +2,24 @@ package biz
 
 import (
 	"context"
-	"entgo.io/ent/dialect/sql"
 	"fmt"
+	"time"
+
+	"entgo.io/ent/dialect/sql"
+	"github.com/samber/lo"
+
 	"github.com/looplj/axonhub/internal/authz"
 	"github.com/looplj/axonhub/internal/contexts"
 	"github.com/looplj/axonhub/internal/ent"
 	"github.com/looplj/axonhub/internal/ent/apikey"
 	"github.com/looplj/axonhub/internal/ent/budgetcharge"
 	"github.com/looplj/axonhub/internal/ent/channel"
+	"github.com/looplj/axonhub/internal/ent/request"
 	"github.com/looplj/axonhub/internal/ent/schema/schematype"
 	"github.com/looplj/axonhub/internal/ent/usagearchive"
 	"github.com/looplj/axonhub/internal/ent/usagelog"
 	"github.com/looplj/axonhub/internal/objects"
 	"github.com/looplj/axonhub/internal/scopes"
-	"github.com/samber/lo"
-	"time"
 )
 
 func (s *APIKeyService) GroupCostComparison(ctx context.Context, system *SystemService, groupID int, start, end string) (*objects.GroupCostComparison, error) {
@@ -34,7 +37,8 @@ func (s *APIKeyService) GroupCostComparison(ctx context.Context, system *SystemS
 
 func groupCostReport(ctx context.Context, db *ent.Client, project, group int, start, end time.Time) (*objects.GroupCostComparison, error) {
 	d := sql.Dialect(db.Driver().Dialect())
-	ledger := groupCostLedger(db.Driver().Dialect(), project, group, start, end).As("ledger")
+	ledger := sql.Table("ledger")
+	ledger.SetDialect(db.Driver().Dialect())
 	// Aggregate all three levels in one statement so rows and totals share one database snapshot.
 	aggregate := func(key, channel bool) *sql.Selector {
 		q := d.Select().From(ledger)
@@ -65,7 +69,8 @@ func groupCostReport(ctx context.Context, db *ent.Client, project, group int, st
 		q.AppendSelectAs("COUNT(CASE WHEN "+ledger.C("billing_estimated")+" THEN 1 END)", "estimated")
 		return q
 	}
-	q, args := aggregate(false, false).UnionAll(aggregate(true, false)).UnionAll(aggregate(true, true)).Query()
+	q, args := aggregate(false, false).Prefix(d.With("ledger").As(groupCostLedger(db.Driver().Dialect(), project, group, start, end))).
+		UnionAll(aggregate(true, false)).UnionAll(aggregate(true, true)).Query()
 	var cursor sql.Rows
 	if err := db.Driver().Query(ctx, q, args, &cursor); err != nil {
 		return nil, err
@@ -101,6 +106,7 @@ func groupCostReport(ctx context.Context, db *ent.Client, project, group int, st
 	if len(result.Keys) == 0 && result.Total != nil {
 		result.Total.ChannelCost = lo.ToPtr(0.0)
 		result.Total.BilledCost = lo.ToPtr(0.0)
+		return result, nil
 	}
 	ctx = schematype.SkipSoftDelete(ctx)
 	keys, err := db.APIKey.Query().Where(apikey.ProjectIDEQ(project), apikey.IDIn(lo.Keys(keyIDs)...)).Select(apikey.FieldName).All(ctx)
@@ -160,10 +166,15 @@ func groupCostLedger(dialect string, project, group int, start, end time.Time) *
 		charge := sql.Table(budgetcharge.Table)
 		charge.SetDialect(dialect)
 		legacy := d.Select(charge.C("id")).From(charge).Where(sql.And(sql.EQ(charge.C("project_id"), project), sql.EQ(charge.C("group_id"), group), sql.ColumnsEQ(charge.C("request_id"), t.C("request_id")), sql.ColumnsEQ(charge.C("usage_log_id"), id), sql.EQ(charge.C("status"), "settled")))
-		// After usage-only restore the request may be absent; retain the known bill date.
-		requests := requestHistory(dialect).As("billing_request")
-		q := d.Select().From(t).LeftJoin(requests).OnP(sql.And(sql.ColumnsEQ(requests.C("id"), t.C("request_id")), sql.ColumnsEQ(requests.C("project_id"), t.C("project_id"))))
-		billTime := "COALESCE(" + requests.C("created_at") + "," + t.C(ts) + ")"
+		// 归档请求优先；只有用量恢复而没有请求时才按账单日期归属。
+		liveRequest := sql.Table(request.Table).As("live_request")
+		oldRequest := sql.Table(usagearchive.Table).As("archived_request")
+		liveRequest.SetDialect(dialect)
+		oldRequest.SetDialect(dialect)
+		q := d.Select().From(t).
+			LeftJoin(liveRequest).OnP(sql.And(sql.ColumnsEQ(liveRequest.C("id"), t.C("request_id")), sql.ColumnsEQ(liveRequest.C("project_id"), t.C("project_id")))).
+			LeftJoin(oldRequest).OnP(sql.And(sql.EQ(oldRequest.C("kind"), string(usagearchive.KindRequest)), sql.ColumnsEQ(oldRequest.C("source_id"), t.C("request_id")), sql.ColumnsEQ(oldRequest.C("project_id"), t.C("project_id"))))
+		billTime := "COALESCE(" + oldRequest.C("occurred_at") + "," + liveRequest.C("created_at") + "," + t.C(ts) + ")"
 		q.Select(t.C("api_key_id"), t.C("channel_id"), t.C("request_id"), t.C("total_cost"),
 			sql.As(billedCostExpression(t.C("billing_group_id"), t.C("total_cost"), t.C("billed_cost")), "billed_cost"), t.C("billing_estimated"), sql.As(id, "usage_id"))
 		return q.Where(sql.And(sql.EQ(t.C("project_id"), project), sql.Or(sql.EQ(t.C("billing_group_id"), group), sql.And(sql.IsNull(t.C("billing_group_id")), sql.Exists(legacy))), sql.P(func(b *sql.Builder) { b.WriteString(billTime + " >= ").Arg(start) }), sql.P(func(b *sql.Builder) { b.WriteString(billTime + " < ").Arg(end) })))

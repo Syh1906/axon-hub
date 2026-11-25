@@ -32,6 +32,8 @@ type consumptionGroup struct {
 	Requests            int                       `json:"requests"`
 	Tokens              int64                     `json:"tokens"`
 	Cost                float64                   `json:"cost"`
+	BilledCost          float64                   `json:"billed_cost"`
+	BilledRecords       int                       `json:"billed_records"`
 	UnpricedRequests    int                       `json:"unpriced_requests"`
 	PricedRequests      int                       `json:"priced_requests"`
 	PricedCost          float64                   `json:"priced_cost"`
@@ -52,10 +54,10 @@ type consumptionGroup struct {
 
 // usageForConsumption collapses usage rows before joining attempts, so neither
 // retries nor a multi-row usage join can multiply request counts or token sums.
-func usageForConsumption(projectID int, dialect string, start *time.Time, end time.Time, byChannel bool, channelIDs ...int) *sql.Selector {
+func usageForConsumption(projectID int, dialect string, start *time.Time, end time.Time, input ConsumptionFilter, channelIDs ...int) *sql.Selector {
 	table := usageHistory(dialect).As("ul")
 	keys := []string{table.C("request_id"), table.C("project_id")}
-	if byChannel {
+	if input.Dimension == ConsumptionDimensionChannel {
 		keys = append(keys, table.C("channel_id"))
 	}
 	query := sql.Dialect(dialect).Select(keys...).From(table).GroupBy(keys...)
@@ -75,8 +77,11 @@ func usageForConsumption(projectID int, dialect string, start *time.Time, end ti
 	}
 	query.Where(sql.In(table.C("request_id"), boundedRequests))
 	amount := table.C("total_cost")
-	if !byChannel {
-		amount = billedCostExpression(table.C("billing_group_id"), table.C("total_cost"), table.C("billed_cost"))
+	billed := billedCostExpression(table.C("billing_group_id"), amount, table.C("billed_cost"))
+	if input.Dimension != ConsumptionDimensionChannel {
+		amount = billed
+	} else if input.channelCostRanking() {
+		query.AppendSelect(sql.As("SUM("+billed+")", "billed_cost"), sql.As("COUNT("+billed+")", "billed_records"))
 	}
 	for _, field := range []string{"prompt_tokens", "completion_tokens", "total_tokens", "prompt_cached_tokens", "prompt_write_cached_tokens"} {
 		query.AppendSelect(sql.As("COALESCE(SUM("+table.C(field)+"), 0)", field))
@@ -88,7 +93,7 @@ func usageForConsumption(projectID int, dialect string, start *time.Time, end ti
 }
 
 func joinConsumption(s *sql.Selector, projectID int, start *time.Time, end time.Time) (*sql.Selector, *sql.SelectTable) {
-	u, execution := joinConsumptionUsage(s, projectID, start, end, false), joinLatestConsumptionExecution(s)
+	u, execution := joinConsumptionUsage(s, projectID, start, end, ConsumptionFilter{}), joinLatestConsumptionExecution(s)
 	joinExecutionUsage(s, execution)
 	return u, execution
 }
@@ -109,10 +114,10 @@ func joinExecutionUsage(s *sql.Selector, execution *sql.SelectTable) *sql.Select
 	return u
 }
 
-func joinConsumptionUsage(s *sql.Selector, projectID int, start *time.Time, end time.Time, byChannel bool) *sql.Selector {
-	u := usageForConsumption(projectID, s.Dialect(), start, end, byChannel)
+func joinConsumptionUsage(s *sql.Selector, projectID int, start *time.Time, end time.Time, input ConsumptionFilter) *sql.Selector {
+	u := usageForConsumption(projectID, s.Dialect(), start, end, input)
 	match := sql.And(sql.ColumnsEQ(s.C("id"), u.C("request_id")), sql.ColumnsEQ(s.C("project_id"), u.C("project_id")))
-	if byChannel {
+	if input.Dimension == ConsumptionDimensionChannel {
 		match = sql.And(match, sql.ColumnsEQ(s.C("channel_id"), u.C("channel_id")))
 	}
 	s.LeftJoin(u).OnP(match)
@@ -124,9 +129,9 @@ func joinConsumptionUsage(s *sql.Selector, projectID int, start *time.Time, end 
 func joinConsumptionGroups(s *sql.Selector, projectID int, input ConsumptionFilter, start *time.Time, end time.Time) (*sql.Selector, *sql.SelectTable, consumptionPerformanceSQL) {
 	var u *sql.Selector
 	if s.Dialect() == dialect.Postgres {
-		u = joinPostgresConsumptionUsage(s, input.Dimension == ConsumptionDimensionChannel)
+		u = joinPostgresConsumptionUsage(s, input)
 	} else {
-		u = joinConsumptionUsage(s, projectID, start, end, input.Dimension == ConsumptionDimensionChannel)
+		u = joinConsumptionUsage(s, projectID, start, end, input)
 	}
 	execution := joinLatestConsumptionExecution(s)
 	if input.Dimension == ConsumptionDimensionChannel || input.OmitPerformance {
@@ -230,6 +235,9 @@ func (s *ConsumptionService) queryGroupsFactsSnapshot(ctx context.Context, proje
 			cacheInput = "COALESCE(SUM(CASE WHEN " + cacheCondition + " THEN " + u.C("prompt_tokens") + " ELSE 0 END), 0)"
 		}
 		appendConsumptionPricing(q, "("+consumptionUnpriced(u)+") = 0", u.C("total_cost"), "COALESCE("+u.C("prompt_tokens")+" + "+u.C("completion_tokens")+", 0)")
+		if input.channelCostRanking() {
+			q.AppendSelect(sql.As("COALESCE(SUM("+u.C("billed_cost")+"),0)", "billed_cost"), sql.As("COALESCE(SUM("+u.C("billed_records")+"),0)", "billed_records"))
+		}
 		q.AppendSelect(
 			sql.As("SUM("+consumptionUnpriced(u)+")", "unpriced_requests"),
 			sql.As(sql.Count("*"), "requests"),

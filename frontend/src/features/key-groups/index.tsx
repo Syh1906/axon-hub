@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useState } from 'react';
 import { Link } from '@tanstack/react-router';
-import { BarChart3, ChevronDown, ChevronRight, MoreHorizontal, Plus, RefreshCw, Settings2, Trash2 } from 'lucide-react';
+import { BarChart3, ChevronDown, ChevronRight, MoreHorizontal, Percent, Plus, RefreshCw, Settings2, Trash2, Wallet } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useSelectedProjectId } from '@/stores/projectStore';
 import { currencyFractionDigits } from '@/utils/currency-display';
@@ -456,9 +456,18 @@ function GroupPage() {
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align='end'>
                                 <DropdownMenuGroup>
-                                  {apiKeyPermissions.canEditChannelRates && <DropdownMenuItem onSelect={()=>setRateGroup(g)}>{t('kg.rate.menu')}</DropdownMenuItem>}
-                                  <DropdownMenuItem onSelect={() => setBudget(g)}>{t('kg.quick.advanced')}</DropdownMenuItem>
+                                  {apiKeyPermissions.canEditChannelRates && (
+                                    <DropdownMenuItem onSelect={() => setRateGroup(g)}>
+                                      <Percent aria-hidden='true' />
+                                      {t('kg.rate.menu')}
+                                    </DropdownMenuItem>
+                                  )}
+                                  <DropdownMenuItem onSelect={() => setBudget(g)}>
+                                    <Wallet aria-hidden='true' />
+                                    {t('kg.quick.advanced')}
+                                  </DropdownMenuItem>
                                   <DropdownMenuItem disabled={!writable} onSelect={() => setEdit({ kind: 'group', items: [g] })}>
+                                    <Settings2 aria-hidden='true' />
                                     {t('kg.editSettings')}
                                   </DropdownMenuItem>
                                 </DropdownMenuGroup>

@@ -67,6 +67,8 @@ func (total *consumptionGroup) add(row consumptionGroup) {
 	total.Requests += row.Requests
 	total.Tokens += row.Tokens
 	total.Cost += row.Cost
+	total.BilledCost += row.BilledCost
+	total.BilledRecords += row.BilledRecords
 	total.UnpricedRequests += row.UnpricedRequests
 	total.PricedRequests += row.PricedRequests
 	total.PricedCost += row.PricedCost
@@ -94,7 +96,7 @@ func sortConsumptionModels(models []*ConsumptionModel, input ConsumptionFilter) 
 			if order := cmp.Compare(b.Metrics.RequestCount, a.Metrics.RequestCount); order != 0 {
 				return order
 			}
-		} else if order := cmp.Compare(b.Metrics.TotalCost, a.Metrics.TotalCost); order != 0 {
+		} else if order := compareConsumptionCost(a.Metrics, b.Metrics, input.Dimension); order != 0 {
 			return order
 		}
 		return strings.Compare(a.Model, b.Model)
@@ -103,6 +105,9 @@ func sortConsumptionModels(models []*ConsumptionModel, input ConsumptionFilter) 
 
 func (r consumptionGroup) metrics() ConsumptionMetrics {
 	metrics := ConsumptionMetrics{RequestCount: r.Requests, TotalTokens: r.Tokens, TotalCost: r.Cost, CacheRequests: r.CacheRequests, CacheReadTokens: r.CacheRead, CacheInputTokens: r.CacheInput, CacheCreationCost: r.CacheCreationCost}
+	if r.BilledRecords > 0 {
+		metrics.BilledCost = &r.BilledCost
+	}
 	metrics.PricedCost, metrics.TokenPricedCost, metrics.PricedTokens = r.PricedCost, r.TokenPricedCost, r.PricedTokens
 	metrics.SuccessCount, metrics.OutcomeCount = r.SuccessCount, r.OutcomeCount
 	metrics.FirstTokenSum, metrics.FirstTokenCount, metrics.SpeedSum = r.FirstTokenSum, r.FirstTokenCount, r.SpeedSum
@@ -147,6 +152,13 @@ func compareOptionalDescending[T cmp.Ordered](a, b *T) int {
 	return cmp.Compare(*b, *a)
 }
 
+func compareConsumptionCost(a, b ConsumptionMetrics, dimension ConsumptionDimension) int {
+	if dimension == ConsumptionDimensionChannel {
+		return compareOptionalDescending(a.BilledCost, b.BilledCost)
+	}
+	return cmp.Compare(b.TotalCost, a.TotalCost)
+}
+
 func sortConsumptionEntries(entries []*ConsumptionEntry, input ConsumptionFilter) {
 	slices.SortStableFunc(entries, func(a, b *ConsumptionEntry) int {
 		if input.Metric == ConsumptionMetricCache {
@@ -161,7 +173,7 @@ func sortConsumptionEntries(entries []*ConsumptionEntry, input ConsumptionFilter
 			if order := cmp.Compare(b.Metrics.RequestCount, a.Metrics.RequestCount); order != 0 {
 				return order
 			}
-		} else if order := cmp.Compare(b.Metrics.TotalCost, a.Metrics.TotalCost); order != 0 {
+		} else if order := compareConsumptionCost(a.Metrics, b.Metrics, input.Dimension); order != 0 {
 			return order
 		}
 		return cmp.Compare(a.ID.ID, b.ID.ID)

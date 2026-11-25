@@ -38,7 +38,7 @@
   "selfUsage.summary.cost": "成本",
   "selfUsage.cost.unpriced": "含 {{count}} 条未定价",
   "selfUsage.models.title": "按模型统计",
-  "selfUsage.trend.title": "每日趋势",
+  "selfUsage.trend.title": "本月趋势",
   "selfUsage.trend.requests": "请求数",
   "selfUsage.trend.tokens": "Token",
   "selfUsage.trend.cost": "成本",

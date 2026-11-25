@@ -187,6 +187,9 @@ func (s *ConsumptionService) queryWithFacts(ctx context.Context, input Consumpti
 			return nil, err
 		}
 		key := fmt.Sprintf("consumption:v9:%x:%s", sha256.Sum256(keyInput), keyRevision)
+		if input.channelCostRanking() {
+			key += ":billed-v1"
+		}
 		if !input.Uncached {
 			if result, err := s.cache.Get(ctx, key); err == nil && result != nil {
 				return s.withChannelIdentity(ctx, input, result)

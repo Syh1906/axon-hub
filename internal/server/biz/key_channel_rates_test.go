@@ -27,8 +27,8 @@ func TestKeyChannelRateAccounting(t *testing.T) {
 		initial, err := service.KeyChannelRates(admin, keyID, groupID)
 		require.NoError(t, err)
 		rules := []*objects.KeyChannelRate{{ChannelID: ch.ID, Multiplier: decimal.RequireFromString(value)}}
-		require.NoError(t, service.SaveKeyChannelRates(admin, keyID, groupID, initial.Revision, rules))
-		require.Error(t, service.SaveKeyChannelRates(admin, keyID, groupID, initial.Revision, rules))
+		require.NoError(t, service.SaveKeyChannelRates(admin, keyID, groupID, initial.Revision, rules, nil))
+		require.Error(t, service.SaveKeyChannelRates(admin, keyID, groupID, initial.Revision, rules, nil))
 	}
 	rates(nil, &group.ID, "0.80")
 	serviceLog := &UsageLogService{AbstractService: &AbstractService{db: db}}
@@ -112,7 +112,7 @@ func TestKeyChannelRateAccounting(t *testing.T) {
 	require.Zero(t, int64(amount))
 	current, err := service.KeyChannelRates(admin, &f.other.ID, nil)
 	require.NoError(t, err)
-	require.NoError(t, service.SaveKeyChannelRates(admin, &f.other.ID, nil, current.Revision, nil))
+	require.NoError(t, service.SaveKeyChannelRates(admin, &f.other.ID, nil, current.Revision, nil, nil))
 	inherited, err := executionBilling(ctx, db, next, ch.ID)
 	require.NoError(t, err)
 	require.Equal(t, "0.8", inherited.Rate.String())
@@ -124,6 +124,87 @@ func TestKeyChannelRateAccounting(t *testing.T) {
 	report()
 	db.UsageLog.Delete().ExecX(ctx)
 	report()
+}
+
+func TestGroupCostReportUsesHistoricalRequestDay(t *testing.T) {
+	f := newSelfUsageFixture(t, "UTC")
+	ctx := authz.WithTestBypass(f.ctx)
+	today := time.Date(2026, 11, 25, 0, 0, 0, 0, time.UTC)
+	tomorrow := today.AddDate(0, 0, 1)
+	req := f.request(tomorrow, f.key.ID, f.project.ID, request.SourceAPI, request.StatusCompleted, "demo")
+	group := f.client.APIKeyGroup.Create().SetProjectID(f.project.ID).SetName("group").SaveX(ctx)
+	ch := rateTestChannel(ctx, f.client, "test", "enabled")
+	bill := f.client.UsageLog.Create().SetRequestID(req.ID).SetProjectID(f.project.ID).SetAPIKeyID(f.key.ID).SetChannelID(ch.ID).
+		SetModelID("demo").SetCreatedAt(today).SetTotalCost(1).SetBilledCost(2).SetBillingGroupID(group.ID).SaveX(ctx)
+	report := func(requests int, billed float64) {
+		rows, err := groupCostReport(ctx, f.client, f.project.ID, group.ID, today, tomorrow)
+		require.NoError(t, err)
+		require.Equal(t, requests, rows.Total.Requests)
+		require.Equal(t, billed, *rows.Total.BilledCost)
+	}
+	report(0, 0)
+	// 归档请求的日期优先于尚未清除的原请求；只有用量时使用账单自己的日期。
+	parent := f.client.UsageArchive.Create().SetKind("request").SetSourceID(req.ID).SetRequestID(req.ID).SetProjectID(f.project.ID).
+		SetModelID("demo").SetOccurredAt(today).SaveX(ctx)
+	require.NoError(t, ArchiveUsageStatistics(ctx, f.client, []*ent.UsageLog{bill}))
+	report(1, 2)
+	f.client.UsageLog.DeleteOne(bill).ExecX(ctx)
+	report(1, 2)
+	f.client.UsageArchive.DeleteOne(parent).ExecX(ctx)
+	report(0, 0)
+	f.client.Request.DeleteOne(req).ExecX(ctx)
+	report(1, 2)
+}
+
+func TestGlobalChannelRatePriority(t *testing.T) {
+	f := newSelfUsageFixture(t, "UTC")
+	db := f.client
+	ctx := authz.WithTestBypass(ent.NewContext(f.ctx, db))
+	owner := db.User.Create().SetEmail("global-rate@example.test").SetPassword("fixture").SetIsOwner(true).SaveX(ctx)
+	admin := contexts.WithProjectID(contexts.WithUser(ctx, owner), f.project.ID)
+	group := db.APIKeyGroup.Create().SetName("partner").SetProjectID(f.project.ID).SaveX(ctx)
+	f.key.Update().SetGroupRef(group.ID).ExecX(ctx)
+	channel := rateTestChannel(ctx, db, "test", "enabled")
+	req := f.request(time.Now(), f.key.ID, f.project.ID, request.SourceAPI, request.StatusCompleted, "test")
+	svc := &APIKeyService{AbstractService: &AbstractService{db: db}}
+	routing := &RequestService{AbstractService: svc.AbstractService}
+	save := func(keyID, groupID *int, value string, global *objects.KeyGlobalRateInput) {
+		initial, err := svc.KeyChannelRates(admin, keyID, groupID)
+		require.NoError(t, err)
+		var rules []*objects.KeyChannelRate
+		if value != "" {
+			rules = []*objects.KeyChannelRate{{ChannelID: channel.ID, Multiplier: decimal.RequireFromString(value)}}
+		}
+		require.NoError(t, svc.SaveKeyChannelRates(admin, keyID, groupID, initial.Revision, rules, global))
+	}
+	check := func(want, source string) {
+		billing, err := executionBilling(ctx, db, req, channel.ID)
+		require.NoError(t, err)
+		require.Equal(t, source, billing.Source)
+		rates, err := routing.CallerRatesForRouting(ctx, f.key, []int{channel.ID})
+		require.NoError(t, err)
+		require.Equal(t, want, rates[channel.ID])
+		if want == "" {
+			require.Nil(t, billing.Rate)
+		} else {
+			require.Equal(t, want, billing.Rate.String())
+		}
+	}
+	global := func(v string) *objects.KeyGlobalRateInput {
+		return &objects.KeyGlobalRateInput{Multiplier: lo.ToPtr(decimal.RequireFromString(v))}
+	}
+	save(nil, &group.ID, "", global("0.8"))
+	check("0.8", "group")
+	save(nil, &group.ID, "0.7", nil)
+	check("0.7", "group")
+	save(&f.key.ID, nil, "", global("0"))
+	check("0", "key")
+	save(&f.key.ID, nil, "1.1", nil)
+	check("1.1", "key")
+	save(&f.key.ID, nil, "", &objects.KeyGlobalRateInput{})
+	check("0.7", "group")
+	save(nil, &group.ID, "", &objects.KeyGlobalRateInput{})
+	check("", "")
 }
 
 func TestBillingDispatchOwnsGroup(t *testing.T) {

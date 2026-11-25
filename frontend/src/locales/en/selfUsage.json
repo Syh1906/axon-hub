@@ -38,7 +38,7 @@
   "selfUsage.summary.cost": "Cost",
   "selfUsage.cost.unpriced": "Includes {{count}} unpriced records",
   "selfUsage.models.title": "By model",
-  "selfUsage.trend.title": "Daily trend",
+  "selfUsage.trend.title": "Month-to-date trend",
   "selfUsage.trend.requests": "Requests",
   "selfUsage.trend.tokens": "Tokens",
   "selfUsage.trend.cost": "Cost",

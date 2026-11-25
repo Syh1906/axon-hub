@@ -246,7 +246,7 @@ func TestChannelTodayUsageBoundsAggregation(t *testing.T) {
 	start := time.Date(2026, 10, 31, 0, 0, 0, 0, time.UTC)
 	for _, db := range []string{dialect.SQLite, dialect.Postgres, dialect.MySQL} {
 		t.Run(db, func(t *testing.T) {
-			query, args := usageForConsumption(0, db, &start, start.AddDate(0, 0, 1), true, 17, 23).Query()
+			query, args := usageForConsumption(0, db, &start, start.AddDate(0, 0, 1), ConsumptionFilter{Dimension: ConsumptionDimensionChannel}, 17, 23).Query()
 			require.GreaterOrEqual(t, strings.Count(query, "channel_id"), 4)
 			counts := map[int]int{}
 			for _, arg := range args {
