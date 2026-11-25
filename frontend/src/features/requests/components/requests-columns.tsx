@@ -324,9 +324,11 @@ export function useRequestsColumns(options?: UseRequestsColumnsOptions): ColumnD
           return (
             <CostCell
               total={log?.totalCost ?? null}
+              channelCost={log?.channelCost}
+              channelMultiplier={log?.channelCostMultiplierMixed ? 'mixed' : log?.channelCostMultiplier}
               currencyCode={settings?.currencyCode ?? 'USD'}
               breakdown={
-                log?.costItems
+                log && (log.costItems || log.totalCost != null || log.channelCost != null)
                   ? {
                       cacheWriteTokens5m: log.promptWriteCachedTokens5m,
                       cacheWriteTokens1h: log.promptWriteCachedTokens1h,
@@ -342,8 +344,9 @@ export function useRequestsColumns(options?: UseRequestsColumnsOptions): ColumnD
                         subtotal: item.subtotal,
                         tiers: item.tierBreakdown ?? [],
                       })),
-                      multiplier: log.costPriceMultiplier ?? 'mixed',
+                      multiplier: log.costMultiplierMixed ? 'mixed' : log.costPriceMultiplier ?? null,
                       unpricedRecords: log.unpricedRecords,
+                      archivedRecords: log.archivedRecords,
                     }
                   : null
               }

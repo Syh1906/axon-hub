@@ -79,7 +79,7 @@ export const requestExecutionSchema = z.object({
   responseStatusCode: z.number().nullable().optional(),
   selection: executionSelectionSchema.nullable().optional(),
   costSnapshot: z
-    .object({ applied: z.object({ value: z.number() }) })
+    .object({ billedMultiplier: z.number() })
     .nullable()
     .optional(),
   failure: executionFailureSchema.nullable().optional(),

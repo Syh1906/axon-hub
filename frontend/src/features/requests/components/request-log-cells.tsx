@@ -124,11 +124,9 @@ export function RequestChannelCell({ request, onOpen }: { request: Request; onOp
   const { execution, channel } = finalRequestChannel(request);
   const selection = execution?.selection;
   const usage = request.usageSummary;
-  const multiplier = execution?.costSnapshot
-    ? usage?.totalCost != null
-      ? (usage.costPriceMultiplier ?? 'mixed')
-      : execution.costSnapshot.applied.value
-    : undefined;
+  const multiplier = usage?.totalCost != null
+    ? (usage.costMultiplierMixed ? 'mixed' : usage.costPriceMultiplier)
+    : execution?.costSnapshot?.billedMultiplier;
   return (
     <RequestChannelDisplayCell
       channel={{

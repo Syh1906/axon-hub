@@ -1056,6 +1056,7 @@ type ComplexityRoot struct {
 		CacheInputTokens        func(childComplexity int) int
 		CacheReadTokens         func(childComplexity int) int
 		CacheRequests           func(childComplexity int) int
+		ChannelCost             func(childComplexity int) int
 		CoefficientEligible     func(childComplexity int) int
 		CoefficientObserved     func(childComplexity int) int
 		CoefficientSamples      func(childComplexity int) int
@@ -2612,6 +2613,7 @@ type ComplexityRoot struct {
 
 	RequestCostSnapshot struct {
 		Applied              func(childComplexity int) int
+		BilledMultiplier     func(childComplexity int) int
 		KeyLabel             func(childComplexity int) int
 		ManualMultiplier     func(childComplexity int) int
 		PriceReferenceID     func(childComplexity int) int
@@ -2804,12 +2806,16 @@ type ComplexityRoot struct {
 
 	RequestUsageSummary struct {
 		ArchivedRecords                    func(childComplexity int) int
+		ChannelCost                        func(childComplexity int) int
+		ChannelCostMultiplier              func(childComplexity int) int
+		ChannelCostMultiplierMixed         func(childComplexity int) int
 		CompletionAcceptedPredictionTokens func(childComplexity int) int
 		CompletionAudioTokens              func(childComplexity int) int
 		CompletionReasoningTokens          func(childComplexity int) int
 		CompletionRejectedPredictionTokens func(childComplexity int) int
 		CompletionTokens                   func(childComplexity int) int
 		CostItems                          func(childComplexity int) int
+		CostMultiplierMixed                func(childComplexity int) int
 		CostPriceMultiplier                func(childComplexity int) int
 		PromptAudioTokens                  func(childComplexity int) int
 		PromptCachedTokens                 func(childComplexity int) int
@@ -8129,6 +8135,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.ConsumptionMetrics.CacheRequests(childComplexity), true
+	case "ConsumptionMetrics.channelCost":
+		if e.complexity.ConsumptionMetrics.ChannelCost == nil {
+			break
+		}
+
+		return e.complexity.ConsumptionMetrics.ChannelCost(childComplexity), true
 	case "ConsumptionMetrics.coefficientEligible":
 		if e.complexity.ConsumptionMetrics.CoefficientEligible == nil {
 			break
@@ -16082,6 +16094,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.RequestCostSnapshot.Applied(childComplexity), true
+	case "RequestCostSnapshot.billedMultiplier":
+		if e.complexity.RequestCostSnapshot.BilledMultiplier == nil {
+			break
+		}
+
+		return e.complexity.RequestCostSnapshot.BilledMultiplier(childComplexity), true
 	case "RequestCostSnapshot.keyLabel":
 		if e.complexity.RequestCostSnapshot.KeyLabel == nil {
 			break
@@ -16860,6 +16878,24 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.RequestUsageSummary.ArchivedRecords(childComplexity), true
+	case "RequestUsageSummary.channelCost":
+		if e.complexity.RequestUsageSummary.ChannelCost == nil {
+			break
+		}
+
+		return e.complexity.RequestUsageSummary.ChannelCost(childComplexity), true
+	case "RequestUsageSummary.channelCostMultiplier":
+		if e.complexity.RequestUsageSummary.ChannelCostMultiplier == nil {
+			break
+		}
+
+		return e.complexity.RequestUsageSummary.ChannelCostMultiplier(childComplexity), true
+	case "RequestUsageSummary.channelCostMultiplierMixed":
+		if e.complexity.RequestUsageSummary.ChannelCostMultiplierMixed == nil {
+			break
+		}
+
+		return e.complexity.RequestUsageSummary.ChannelCostMultiplierMixed(childComplexity), true
 	case "RequestUsageSummary.completionAcceptedPredictionTokens":
 		if e.complexity.RequestUsageSummary.CompletionAcceptedPredictionTokens == nil {
 			break
@@ -16896,6 +16932,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.RequestUsageSummary.CostItems(childComplexity), true
+	case "RequestUsageSummary.costMultiplierMixed":
+		if e.complexity.RequestUsageSummary.CostMultiplierMixed == nil {
+			break
+		}
+
+		return e.complexity.RequestUsageSummary.CostMultiplierMixed(childComplexity), true
 	case "RequestUsageSummary.costPriceMultiplier":
 		if e.complexity.RequestUsageSummary.CostPriceMultiplier == nil {
 			break
@@ -45706,6 +45748,8 @@ func (ec *executionContext) fieldContext_ConsumptionEntry_metrics(_ context.Cont
 				return ec.fieldContext_ConsumptionMetrics_totalTokens(ctx, field)
 			case "totalCost":
 				return ec.fieldContext_ConsumptionMetrics_totalCost(ctx, field)
+			case "channelCost":
+				return ec.fieldContext_ConsumptionMetrics_channelCost(ctx, field)
 			case "billedCost":
 				return ec.fieldContext_ConsumptionMetrics_billedCost(ctx, field)
 			case "unpricedRequestCount":
@@ -46320,6 +46364,35 @@ func (ec *executionContext) fieldContext_ConsumptionMetrics_totalCost(_ context.
 	return fc, nil
 }
 
+func (ec *executionContext) _ConsumptionMetrics_channelCost(ctx context.Context, field graphql.CollectedField, obj *biz.ConsumptionMetrics) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ConsumptionMetrics_channelCost,
+		func(ctx context.Context) (any, error) {
+			return obj.ChannelCost, nil
+		},
+		nil,
+		ec.marshalOFloat2ᚖfloat64,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_ConsumptionMetrics_channelCost(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ConsumptionMetrics",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _ConsumptionMetrics_billedCost(ctx context.Context, field graphql.CollectedField, obj *biz.ConsumptionMetrics) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -46867,6 +46940,8 @@ func (ec *executionContext) fieldContext_ConsumptionModel_metrics(_ context.Cont
 				return ec.fieldContext_ConsumptionMetrics_totalTokens(ctx, field)
 			case "totalCost":
 				return ec.fieldContext_ConsumptionMetrics_totalCost(ctx, field)
+			case "channelCost":
+				return ec.fieldContext_ConsumptionMetrics_channelCost(ctx, field)
 			case "billedCost":
 				return ec.fieldContext_ConsumptionMetrics_billedCost(ctx, field)
 			case "unpricedRequestCount":
@@ -47047,6 +47122,8 @@ func (ec *executionContext) fieldContext_ConsumptionPerformanceSample_metrics(_ 
 				return ec.fieldContext_ConsumptionMetrics_totalTokens(ctx, field)
 			case "totalCost":
 				return ec.fieldContext_ConsumptionMetrics_totalCost(ctx, field)
+			case "channelCost":
+				return ec.fieldContext_ConsumptionMetrics_channelCost(ctx, field)
 			case "billedCost":
 				return ec.fieldContext_ConsumptionMetrics_billedCost(ctx, field)
 			case "unpricedRequestCount":
@@ -86858,6 +86935,14 @@ func (ec *executionContext) fieldContext_Request_usageSummary(_ context.Context,
 				return ec.fieldContext_RequestUsageSummary_costItems(ctx, field)
 			case "costPriceMultiplier":
 				return ec.fieldContext_RequestUsageSummary_costPriceMultiplier(ctx, field)
+			case "costMultiplierMixed":
+				return ec.fieldContext_RequestUsageSummary_costMultiplierMixed(ctx, field)
+			case "channelCost":
+				return ec.fieldContext_RequestUsageSummary_channelCost(ctx, field)
+			case "channelCostMultiplier":
+				return ec.fieldContext_RequestUsageSummary_channelCostMultiplier(ctx, field)
+			case "channelCostMultiplierMixed":
+				return ec.fieldContext_RequestUsageSummary_channelCostMultiplierMixed(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type RequestUsageSummary", field.Name)
 		},
@@ -87079,6 +87164,35 @@ func (ec *executionContext) fieldContext_RequestCostSnapshot_keyLabel(_ context.
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _RequestCostSnapshot_billedMultiplier(ctx context.Context, field graphql.CollectedField, obj *objects.RequestCostSnapshot) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_RequestCostSnapshot_billedMultiplier,
+		func(ctx context.Context) (any, error) {
+			return obj.BilledMultiplier(), nil
+		},
+		nil,
+		ec.marshalNDecimal2githubᚗcomᚋshopspringᚋdecimalᚐDecimal,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_RequestCostSnapshot_billedMultiplier(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "RequestCostSnapshot",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Decimal does not have child fields")
 		},
 	}
 	return fc, nil
@@ -87661,6 +87775,8 @@ func (ec *executionContext) fieldContext_RequestExecution_costSnapshot(_ context
 				return ec.fieldContext_RequestCostSnapshot_pricedAt(ctx, field)
 			case "keyLabel":
 				return ec.fieldContext_RequestCostSnapshot_keyLabel(ctx, field)
+			case "billedMultiplier":
+				return ec.fieldContext_RequestCostSnapshot_billedMultiplier(ctx, field)
 			case "applied":
 				return ec.fieldContext_RequestCostSnapshot_applied(ctx, field)
 			case "manualMultiplier":
@@ -90587,6 +90703,8 @@ func (ec *executionContext) fieldContext_RequestSessionExecution_costSnapshot(_ 
 				return ec.fieldContext_RequestCostSnapshot_pricedAt(ctx, field)
 			case "keyLabel":
 				return ec.fieldContext_RequestCostSnapshot_keyLabel(ctx, field)
+			case "billedMultiplier":
+				return ec.fieldContext_RequestCostSnapshot_billedMultiplier(ctx, field)
 			case "applied":
 				return ec.fieldContext_RequestCostSnapshot_applied(ctx, field)
 			case "manualMultiplier":
@@ -91775,6 +91893,122 @@ func (ec *executionContext) fieldContext_RequestUsageSummary_costPriceMultiplier
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type Decimal does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _RequestUsageSummary_costMultiplierMixed(ctx context.Context, field graphql.CollectedField, obj *biz.RequestUsageSummary) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_RequestUsageSummary_costMultiplierMixed,
+		func(ctx context.Context) (any, error) {
+			return obj.CostMultiplierMixed, nil
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_RequestUsageSummary_costMultiplierMixed(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "RequestUsageSummary",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _RequestUsageSummary_channelCost(ctx context.Context, field graphql.CollectedField, obj *biz.RequestUsageSummary) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_RequestUsageSummary_channelCost,
+		func(ctx context.Context) (any, error) {
+			return obj.ChannelCost, nil
+		},
+		nil,
+		ec.marshalOFloat2ᚖfloat64,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_RequestUsageSummary_channelCost(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "RequestUsageSummary",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _RequestUsageSummary_channelCostMultiplier(ctx context.Context, field graphql.CollectedField, obj *biz.RequestUsageSummary) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_RequestUsageSummary_channelCostMultiplier,
+		func(ctx context.Context) (any, error) {
+			return obj.ChannelCostMultiplier, nil
+		},
+		nil,
+		ec.marshalODecimal2ᚖgithubᚗcomᚋshopspringᚋdecimalᚐDecimal,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_RequestUsageSummary_channelCostMultiplier(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "RequestUsageSummary",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Decimal does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _RequestUsageSummary_channelCostMultiplierMixed(ctx context.Context, field graphql.CollectedField, obj *biz.RequestUsageSummary) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_RequestUsageSummary_channelCostMultiplierMixed,
+		func(ctx context.Context) (any, error) {
+			return obj.ChannelCostMultiplierMixed, nil
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_RequestUsageSummary_channelCostMultiplierMixed(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "RequestUsageSummary",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
 		},
 	}
 	return fc, nil
@@ -106930,6 +107164,8 @@ func (ec *executionContext) fieldContext_UsageLog_costSnapshot(_ context.Context
 				return ec.fieldContext_RequestCostSnapshot_pricedAt(ctx, field)
 			case "keyLabel":
 				return ec.fieldContext_RequestCostSnapshot_keyLabel(ctx, field)
+			case "billedMultiplier":
+				return ec.fieldContext_RequestCostSnapshot_billedMultiplier(ctx, field)
 			case "applied":
 				return ec.fieldContext_RequestCostSnapshot_applied(ctx, field)
 			case "manualMultiplier":
@@ -150800,6 +151036,8 @@ func (ec *executionContext) _ConsumptionMetrics(ctx context.Context, sel ast.Sel
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "channelCost":
+			out.Values[i] = ec._ConsumptionMetrics_channelCost(ctx, field, obj)
 		case "billedCost":
 			out.Values[i] = ec._ConsumptionMetrics_billedCost(ctx, field, obj)
 		case "unpricedRequestCount":
@@ -165295,6 +165533,11 @@ func (ec *executionContext) _RequestCostSnapshot(ctx context.Context, sel ast.Se
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "billedMultiplier":
+			out.Values[i] = ec._RequestCostSnapshot_billedMultiplier(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "applied":
 			out.Values[i] = ec._RequestCostSnapshot_applied(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -166972,6 +167215,20 @@ func (ec *executionContext) _RequestUsageSummary(ctx context.Context, sel ast.Se
 			out.Values[i] = ec._RequestUsageSummary_costItems(ctx, field, obj)
 		case "costPriceMultiplier":
 			out.Values[i] = ec._RequestUsageSummary_costPriceMultiplier(ctx, field, obj)
+		case "costMultiplierMixed":
+			out.Values[i] = ec._RequestUsageSummary_costMultiplierMixed(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "channelCost":
+			out.Values[i] = ec._RequestUsageSummary_channelCost(ctx, field, obj)
+		case "channelCostMultiplier":
+			out.Values[i] = ec._RequestUsageSummary_channelCostMultiplier(ctx, field, obj)
+		case "channelCostMultiplierMixed":
+			out.Values[i] = ec._RequestUsageSummary_channelCostMultiplierMixed(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}

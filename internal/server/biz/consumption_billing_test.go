@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/samber/lo"
+	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/require"
 
 	"github.com/looplj/axonhub/internal/ent"
@@ -88,6 +89,40 @@ func TestConsumptionBillingKeepsUnknownAttemptCost(t *testing.T) {
 	require.Nil(t, rows[0].metrics().AvgCostPerRequest)
 }
 
+func TestConsumptionKnownZeroWithMissingBill(t *testing.T) {
+	f := newConsumptionFixture(t)
+	req, _ := addCrossChannelBilling(t, f, nil)
+	f.client.UsageLog.Update().Where(usagelog.RequestIDEQ(req.ID)).ClearTotalCost().ClearBilledCost().ExecX(f.ctx)
+	// 同一请求在最终渠道和重试渠道分别有一笔零价和一笔缺价。
+	logs := f.client.UsageLog.Query().Where(usagelog.RequestIDEQ(req.ID)).AllX(f.ctx)
+	for _, log := range logs {
+		f.client.UsageLog.Create().SetProjectID(f.project.ID).SetRequestID(req.ID).SetChannelID(log.ChannelID).
+			SetModelID(log.ModelID).SetAPIKeyID(f.key.ID).SetBillingGroupID(0).SetTotalCost(0).SetBilledCost(0).SaveX(f.ctx)
+	}
+	check := func() {
+		for _, dim := range []ConsumptionDimension{ConsumptionDimensionAPIKey, ConsumptionDimensionChannel} {
+			input := ConsumptionFilter{Dimension: dim, Metric: ConsumptionMetricCost}
+			rows, err := f.service.queryGroups(f.ctx, f.project.ID, input, nil, time.Now())
+			require.NoError(t, err)
+			entries := consumptionEntries(rows, input)
+			require.NotEmpty(t, entries)
+			for _, entry := range entries {
+				require.Equal(t, lo.ToPtr(0.0), entry.Metrics.BilledCost)
+				require.Equal(t, lo.ToPtr(0.0), entry.Metrics.ChannelCost)
+				require.Nil(t, entry.Metrics.AvgCostPerRequest)
+				require.Positive(t, entry.Metrics.UnpricedRequestCount)
+			}
+		}
+	}
+	check()
+	require.NoError(t, ArchiveRequestStatistics(f.ctx, f.client, []int{req.ID}))
+	logs = f.client.UsageLog.Query().Where(usagelog.RequestIDEQ(req.ID)).Select(ArchivedUsageFields...).AllX(f.ctx)
+	require.NoError(t, ArchiveUsageStatistics(f.ctx, f.client, logs))
+	f.client.UsageLog.Delete().Where(usagelog.RequestIDEQ(req.ID)).ExecX(f.ctx)
+	f.client.Request.DeleteOneID(req.ID).ExecX(f.ctx)
+	check()
+}
+
 func TestChannelRankingBilledAndSupplyAmounts(t *testing.T) {
 	f := newConsumptionFixture(t)
 	req, retry := addCrossChannelBilling(t, f, lo.ToPtr(4.0))
@@ -141,11 +176,23 @@ func TestConsumptionBillingLegacySnapshotIsNotInventedComplete(t *testing.T) {
 	f.client.UsageArchive.Create().SetKind(usagearchive.KindRequest).SetSourceID(999).SetRequestID(999).
 		SetProjectID(f.project.ID).SetAPIKeyID(f.key.ID).SetChannelID(f.channel.ID).SetModelID("model-a").
 		SetOccurredAt(time.Now().Add(-time.Hour)).SetTotalCost(0.03).SetPricingComplete(true).SaveX(f.ctx)
-	rows, err := f.service.queryGroups(f.ctx, f.project.ID, ConsumptionFilter{Dimension: ConsumptionDimensionAPIKey}, nil, time.Now())
-	require.NoError(t, err)
-	require.Len(t, rows, 1)
-	require.InDelta(t, 0.03, rows[0].Cost, 1e-12, "keep the known historical amount when individual usage is gone")
-	require.Equal(t, 1, rows[0].UnpricedRequests, "legacy final-channel totals cannot prove all-attempt pricing completeness")
+	input := ConsumptionFilter{Dimension: ConsumptionDimensionAPIKey, Metric: ConsumptionMetricCost}
+	for _, tc := range []struct {
+		amount   float64
+		complete bool
+		want     *float64
+	}{
+		{0.03, false, lo.ToPtr(0.03)}, {0, true, lo.ToPtr(0.0)}, {0, false, nil},
+	} {
+		f.client.UsageArchive.Update().Where(usagearchive.SourceIDEQ(999)).SetTotalCost(tc.amount).SetPricingComplete(tc.complete).ExecX(f.ctx)
+		rows, err := f.service.queryGroups(f.ctx, f.project.ID, input, nil, time.Now())
+		require.NoError(t, err)
+		require.Len(t, rows, 1)
+		m := rows[0].metrics()
+		require.Equal(t, tc.want, m.BilledCost)
+		require.Equal(t, tc.want, m.ChannelCost)
+		require.Equal(t, 1, m.UnpricedRequestCount, "legacy final-channel totals cannot prove all-attempt pricing completeness")
+	}
 }
 
 func TestChannelBillingCountsRequestOnceAcrossModels(t *testing.T) {
@@ -228,6 +275,64 @@ func TestRequestUsageSummariesBillingAndPermissions(t *testing.T) {
 	require.NoError(t, ArchiveUsageStatistics(f.ctx, f.client, logs))
 	f.client.UsageLog.Delete().Where(usagelog.RequestIDEQ(req.ID)).ExecX(f.ctx)
 	check(f.viewer(t, f.project.ID, string(scopes.ScopeReadRequests)), 2)
+}
+
+func TestRequestAndProjectCostsUseFrozenCallerRate(t *testing.T) {
+	for _, tc := range []struct {
+		rate   decimal.Decimal
+		amount int64
+	}{
+		{decimal.RequireFromString("0.2"), 8}, {decimal.Zero, 0},
+	} {
+		t.Run(tc.rate.String(), func(t *testing.T) {
+			f := newConsumptionFixture(t)
+			req, _ := f.addRequest(t, time.Now().Add(-time.Minute), "rate-demo", request.StatusCompleted, 10, 0, 0, 0, 4, nil)
+			group := f.client.APIKeyGroup.Create().SetName("rates").SetProjectID(f.project.ID).SaveX(f.ctx)
+			f.key.Update().SetGroupRef(group.ID).ExecX(f.ctx)
+			supply := decimal.RequireFromString("0.1")
+			charged := tc.rate
+			line := func(rate decimal.Decimal, amount int64) []objects.CostItem {
+				return []objects.CostItem{{ItemCode: "prompt_tokens", Quantity: 10, Multiplier: &rate, Subtotal: decimal.NewFromInt(amount)}}
+			}
+			f.client.UsageLog.Update().Where(usagelog.RequestIDEQ(req.ID)).SetBillingGroupID(group.ID).
+				SetBilledCost(float64(tc.amount)).SetCostItems(line(supply, 4)).SetBilledItems(line(charged, tc.amount)).
+				SetCostSnapshot(&objects.RequestCostSnapshot{Applied: objects.AppliedCostMultiplier{Value: supply},
+					Billing: &objects.ExecutionBilling{Rate: &charged, Source: "group"}}).ExecX(f.ctx)
+			check := func() {
+				viewer := f.viewer(t, f.project.ID, string(scopes.ScopeReadRequests))
+				basic, err := RequestUsageSummaries(viewer, f.client, []int{req.ID})
+				require.NoError(t, err)
+				require.Nil(t, basic[req.ID].ChannelCost)
+				require.Equal(t, float64(tc.amount), *basic[req.ID].TotalCost)
+				require.True(t, charged.Equal(*basic[req.ID].CostPriceMultiplier))
+				admin := f.viewer(t, f.project.ID, string(scopes.ScopeReadRequests), string(scopes.ScopeReadChannels))
+				both, err := RequestUsageSummaries(admin, f.client, []int{req.ID})
+				require.NoError(t, err)
+				require.Equal(t, 4.0, *both[req.ID].ChannelCost)
+				require.True(t, supply.Equal(*both[req.ID].ChannelCostMultiplier))
+				for _, dim := range []ConsumptionDimension{ConsumptionDimensionAPIKeyGroup, ConsumptionDimensionModel, ConsumptionDimensionAPIKey, ConsumptionDimensionUser} {
+					report, err := f.service.UsageStatistics(viewer, ConsumptionFilter{Dimension: dim, Metric: ConsumptionMetricCost, Period: ConsumptionPeriodAll, Uncached: true})
+					require.NoError(t, err)
+					var metrics ConsumptionMetrics
+					if dim == ConsumptionDimensionModel {
+						require.Len(t, report.ModelEntries, 1)
+						metrics = report.ModelEntries[0].Metrics
+					} else {
+						require.Len(t, report.Entries, 1)
+						metrics = report.Entries[0].Metrics
+						require.Equal(t, metrics.ChannelCost, report.Entries[0].Models[0].Metrics.ChannelCost)
+					}
+					require.Equal(t, float64(tc.amount), metrics.TotalCost)
+					require.Equal(t, lo.ToPtr(4.0), metrics.ChannelCost)
+				}
+			}
+			check()
+			logs := f.client.UsageLog.Query().Where(usagelog.RequestIDEQ(req.ID)).Select(ArchivedUsageFields...).AllX(f.ctx)
+			require.NoError(t, ArchiveUsageStatistics(f.ctx, f.client, logs))
+			f.client.UsageLog.Delete().Where(usagelog.RequestIDEQ(req.ID)).ExecX(f.ctx)
+			check()
+		})
+	}
 }
 
 func TestRequestUsageSummariesUnknownAndZero(t *testing.T) {

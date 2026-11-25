@@ -33,6 +33,8 @@ type consumptionGroup struct {
 	Tokens              int64                     `json:"tokens"`
 	Cost                float64                   `json:"cost"`
 	BilledCost          float64                   `json:"billed_cost"`
+	ChannelCost         float64                   `json:"channel_cost"`
+	ChannelRecords      int                       `json:"channel_records"`
 	BilledRecords       int                       `json:"billed_records"`
 	UnpricedRequests    int                       `json:"unpriced_requests"`
 	PricedRequests      int                       `json:"priced_requests"`
@@ -79,9 +81,12 @@ func usageForConsumption(projectID int, dialect string, start *time.Time, end ti
 	amount := table.C("total_cost")
 	billed := billedCostExpression(table.C("billing_group_id"), amount, table.C("billed_cost"))
 	if input.Dimension != ConsumptionDimensionChannel {
+		if input.Metric == ConsumptionMetricCost {
+			query.AppendSelect(sql.As("SUM("+amount+")", "channel_cost"))
+		}
 		amount = billed
 	} else if input.channelCostRanking() {
-		query.AppendSelect(sql.As("SUM("+billed+")", "billed_cost"), sql.As("COUNT("+billed+")", "billed_records"))
+		query.AppendSelect(sql.As("SUM("+billed+")", "billed_cost"))
 	}
 	for _, field := range []string{"prompt_tokens", "completion_tokens", "total_tokens", "prompt_cached_tokens", "prompt_write_cached_tokens"} {
 		query.AppendSelect(sql.As("COALESCE(SUM("+table.C(field)+"), 0)", field))
@@ -235,8 +240,9 @@ func (s *ConsumptionService) queryGroupsFactsSnapshot(ctx context.Context, proje
 			cacheInput = "COALESCE(SUM(CASE WHEN " + cacheCondition + " THEN " + u.C("prompt_tokens") + " ELSE 0 END), 0)"
 		}
 		appendConsumptionPricing(q, "("+consumptionUnpriced(u)+") = 0", u.C("total_cost"), "COALESCE("+u.C("prompt_tokens")+" + "+u.C("completion_tokens")+", 0)")
-		if input.channelCostRanking() {
-			q.AppendSelect(sql.As("COALESCE(SUM("+u.C("billed_cost")+"),0)", "billed_cost"), sql.As("COALESCE(SUM("+u.C("billed_records")+"),0)", "billed_records"))
+		if input.Metric == ConsumptionMetricCost {
+			billed, channel := consumptionCostAmounts(u, input.Dimension)
+			appendConsumptionAmounts(q, billed, channel)
 		}
 		q.AppendSelect(
 			sql.As("SUM("+consumptionUnpriced(u)+")", "unpriced_requests"),
@@ -316,6 +322,21 @@ func (s *ConsumptionService) queryGroupsFactsSnapshot(ctx context.Context, proje
 	}
 	facts.rows = rows
 	return facts, nil
+}
+
+// The primary sum is zero-filled for legacy metrics. Its count distinguishes a
+// recorded zero from a request without a priced bill.
+func consumptionCostAmounts(u *sql.Selector, dimension ConsumptionDimension) (billed, channel string) {
+	primary := "CASE WHEN " + u.C("priced_count") + " > 0 THEN " + u.C("total_cost") + " END"
+	if dimension == ConsumptionDimensionChannel {
+		return u.C("billed_cost"), primary
+	}
+	return primary, u.C("channel_cost")
+}
+
+func appendConsumptionAmounts(q *sql.Selector, billed, channel string) {
+	q.AppendSelect(sql.As("COALESCE(SUM("+billed+"),0)", "billed_cost"), sql.As("COUNT("+billed+")", "billed_records"),
+		sql.As("COALESCE(SUM("+channel+"),0)", "channel_cost"), sql.As("COUNT("+channel+")", "channel_records"))
 }
 
 // Each average uses matching cost and quantity samples. Unknown costs never

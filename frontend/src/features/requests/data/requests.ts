@@ -20,7 +20,7 @@ const REQUEST_USAGE_SUMMARY_SELECTION = `
     promptTokens completionTokens completionReasoningTokens totalTokens
     promptAudioTokens completionAudioTokens completionAcceptedPredictionTokens completionRejectedPredictionTokens
     promptCachedTokens promptWriteCachedTokens promptWriteCachedTokens5m promptWriteCachedTokens1h
-    totalCost costPriceMultiplier
+    totalCost costPriceMultiplier costMultiplierMixed channelCost channelCostMultiplier channelCostMultiplierMixed
     costItems { ${COST_PRICING_EVIDENCE_FIELDS} image { width height tier source tierSource requestedWidth requestedHeight inspectionError } imageRule unpriced unpricedReason itemCode promptWriteCacheVariantCode quantity subtotal tierBreakdown { upTo units subtotal } }
   }
 `;
@@ -126,7 +126,7 @@ function buildRequestsQuery(
               id
               channel { id name type tags }
               selection { channelName provider keyHint keyRemark sessionState clientTransport upstreamTransport transportFallbackReason strategy priority }
-              costSnapshot { applied { value } }
+              costSnapshot { billedMultiplier }
             }` : ''}
             executions(first: 10, orderBy: { field: CREATED_AT, direction: DESC }) {
               totalCount
@@ -142,7 +142,7 @@ function buildRequestsQuery(
                   responseStatusCode
                   errorMessage
                   retryDecision
-                  costSnapshot { applied { value } }
+                  costSnapshot { billedMultiplier }
                   failure { source code type }
                   ${permissions.canViewChannels ? 'selection { channelName provider keyHint keyRemark sessionState clientTransport upstreamTransport transportFallbackReason strategy priority }' : ''}
                   passThroughApplied${executionChannelFields}

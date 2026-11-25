@@ -125,7 +125,8 @@ func queryAdditionalChannelBilling(ctx context.Context, client *ent.Client, proj
 		tokens := "(" + q.C("prompt_tokens") + " + " + q.C("completion_tokens") + ")"
 		appendConsumptionPricing(q, "("+unpriced+") = 0", q.C("total_cost"), tokens)
 		if includeBilled {
-			q.AppendSelect(sql.As("COALESCE(SUM("+q.C("billed_cost")+"),0)", "billed_cost"), sql.As(sql.Sum(q.C("billed_records")), "billed_records"))
+			q.AppendSelect(sql.As("COALESCE(SUM("+q.C("billed_cost")+"),0)", "billed_cost"), sql.As(sql.Sum(q.C("billed_records")), "billed_records"),
+				sql.As(sql.Sum(q.C("total_cost")), "channel_cost"), sql.As(sql.Sum(q.C("priced_count")), "channel_records"))
 		}
 		q.AppendSelect("0 AS requests", sql.As("SUM("+unpriced+")", "unpriced_requests"),
 			sql.As("SUM("+tokens+")", "tokens"), sql.As(sql.Sum(q.C("total_cost")), "cost"),

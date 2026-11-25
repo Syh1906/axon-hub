@@ -60,6 +60,14 @@ type ExecutionBilling struct {
 	Source    string           `json:"source,omitempty"`
 }
 
+// BilledMultiplier returns the caller rate frozen for this execution.
+func (s *RequestCostSnapshot) BilledMultiplier() decimal.Decimal {
+	if s.Billing != nil && s.Billing.Rate != nil {
+		return *s.Billing.Rate
+	}
+	return s.Applied.Value
+}
+
 // BilledPrice yields a private copy for caller-facing pricing. The channel price stays immutable.
 func (s *RequestCostSnapshot) BilledPrice() *RequestCostSnapshot {
 	if s == nil || s.Billing == nil || s.Billing.Rate == nil {

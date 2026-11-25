@@ -14,6 +14,7 @@ import (
 	"github.com/looplj/axonhub/internal/ent/usagearchive"
 	"github.com/looplj/axonhub/internal/ent/usagelog"
 	"github.com/looplj/axonhub/internal/objects"
+	"github.com/looplj/axonhub/internal/scopes"
 )
 
 // RequestUsageSummary is a read model, not a synthetic UsageLog. Individual
@@ -37,6 +38,45 @@ type RequestUsageSummary struct {
 	TotalCost                          *float64
 	CostItems                          []objects.CostItem
 	CostPriceMultiplier                *decimal.Decimal
+	CostMultiplierMixed                bool
+	ChannelCost                        *float64
+	ChannelCostMultiplier              *decimal.Decimal
+	ChannelCostMultiplierMixed         bool
+}
+
+// An absent archive rate is unknown, while differing recorded rates are mixed.
+type requestCostRate struct {
+	value          *decimal.Decimal
+	mixed, unknown bool
+}
+
+func (r *requestCostRate) add(rate *decimal.Decimal, mixed bool) {
+	switch {
+	case mixed:
+		r.mixed = true
+	case rate == nil:
+		r.unknown = true
+	case r.value == nil:
+		r.value = rate
+	case !r.value.Equal(*rate):
+		r.mixed = true
+	}
+}
+
+func (r requestCostRate) result() (*decimal.Decimal, bool) {
+	if r.mixed || r.unknown {
+		return nil, r.mixed
+	}
+	return r.value, false
+}
+
+func addRequestCost(total **float64, amount *float64) {
+	if amount != nil {
+		if *total == nil {
+			*total = new(float64)
+		}
+		**total += *amount
+	}
 }
 
 // RequestUsageSummaries authorizes the requested page first, then reads its
@@ -80,6 +120,7 @@ func requestUsageSummariesSnapshot(ctx context.Context, client *ent.Client, ids 
 		usagelog.FieldPromptCachedTokens, usagelog.FieldPromptWriteCachedTokens, usagelog.FieldCompletionReasoningTokens,
 		usagelog.FieldPromptAudioTokens, usagelog.FieldPromptWriteCachedTokens5m, usagelog.FieldPromptWriteCachedTokens1h,
 		usagelog.FieldCompletionAudioTokens, usagelog.FieldCompletionAcceptedPredictionTokens, usagelog.FieldCompletionRejectedPredictionTokens,
+		usagelog.FieldBilledCost, usagelog.FieldBillingGroupID, usagelog.FieldBilledItems,
 		usagelog.FieldTotalCost, usagelog.FieldCostItems, usagelog.FieldCostSnapshot, usagelog.FieldCostPriceReferenceID,
 	).Modify(matchProject).All(ctx)
 	if err != nil {
@@ -87,7 +128,8 @@ func requestUsageSummariesSnapshot(ctx context.Context, client *ent.Client, ids 
 	}
 	archives, err := client.UsageArchive.Query().Where(usagearchive.KindEQ(usagearchive.KindUsage), usagearchive.RequestIDIn(visible...)).
 		Select(usagearchive.FieldRequestID, usagearchive.FieldPromptTokens, usagearchive.FieldCompletionTokens, usagearchive.FieldTotalTokens,
-			usagearchive.FieldPromptCachedTokens, usagearchive.FieldPromptWriteCachedTokens, usagearchive.FieldCompletionReasoningTokens, usagearchive.FieldTotalCost).
+			usagearchive.FieldPromptCachedTokens, usagearchive.FieldPromptWriteCachedTokens, usagearchive.FieldCompletionReasoningTokens, usagearchive.FieldTotalCost,
+			usagearchive.FieldBillingGroupID, usagearchive.FieldBilledCost, usagearchive.FieldBillingEvidence).
 		Modify(matchProject).All(ctx)
 	if err != nil {
 		return nil, err
@@ -99,21 +141,31 @@ func requestUsageSummariesSnapshot(ctx context.Context, client *ent.Client, ids 
 	if err != nil {
 		return nil, err
 	}
-	mixed := make(map[int]bool)
+	type rates struct{ billed, channel requestCostRate }
+	byRequest := make(map[int]*rates, len(visible))
+	for _, id := range visible {
+		byRequest[id] = &rates{}
+	}
+	showChannel := requireRateAdmin(ctx, scopes.ScopeReadChannels) == nil
 	addCost := func(summary *RequestUsageSummary, amount *float64) {
 		summary.UsageRecords++
 		if amount == nil {
 			summary.UnpricedRecords++
 			return
 		}
-		if summary.TotalCost == nil {
-			summary.TotalCost = new(float64)
-		}
-		*summary.TotalCost += *amount
+		addRequestCost(&summary.TotalCost, amount)
 	}
 	for _, row := range logs {
 		summary := result[row.RequestID]
-		addCost(summary, row.TotalCost)
+		amount, items := row.TotalCost, row.CostItems
+		price := row.CostSnapshot
+		if row.BillingGroupID != nil {
+			amount = row.BilledCost
+			if price != nil && price.Billing != nil && price.Billing.Rate != nil {
+				items, price = row.BilledItems, price.BilledPrice()
+			}
+		}
+		addCost(summary, amount)
 		summary.PromptTokens += row.PromptTokens
 		summary.CompletionTokens += row.CompletionTokens
 		summary.TotalTokens += row.TotalTokens
@@ -133,31 +185,59 @@ func requestUsageSummariesSnapshot(ctx context.Context, client *ent.Client, ids 
 			}
 			**value.sum += value.value
 		}
-		summary.CostItems = append(summary.CostItems, row.CostItems...)
-		if row.TotalCost == nil {
-			continue
+		summary.CostItems = append(summary.CostItems, items...)
+		fallback, ok := multipliers[row.CostPriceReferenceID]
+		if !ok {
+			fallback = decimal.NewFromInt(1)
 		}
-		multiplier := decimal.NewFromInt(1)
-		if saved, ok := multipliers[row.CostPriceReferenceID]; ok {
-			multiplier = saved
-		}
-		if row.CostSnapshot != nil {
-			saved := row.CostSnapshot.DisplayMultiplier(row.CostItems)
-			if saved == nil {
-				mixed[row.RequestID] = true
-				continue
+		if amount != nil {
+			rate := &fallback
+			if price != nil {
+				rate = price.DisplayMultiplier(items)
 			}
-			multiplier = *saved
+			byRequest[row.RequestID].billed.add(rate, rate == nil)
 		}
-		if summary.CostPriceMultiplier == nil {
-			summary.CostPriceMultiplier = &multiplier
-		} else if !summary.CostPriceMultiplier.Equal(multiplier) {
-			mixed[row.RequestID] = true
+		if showChannel && row.TotalCost != nil {
+			addRequestCost(&summary.ChannelCost, row.TotalCost)
+			rate := &fallback
+			if row.CostSnapshot != nil {
+				rate = row.CostSnapshot.DisplayMultiplier(row.CostItems)
+			}
+			byRequest[row.RequestID].channel.add(rate, rate == nil)
 		}
 	}
 	for _, row := range archives {
 		summary := result[row.RequestID]
-		addCost(summary, row.TotalCost)
+		amount := row.TotalCost
+		if row.BillingGroupID != nil {
+			amount = row.BilledCost
+		}
+		addCost(summary, amount)
+		r := byRequest[row.RequestID]
+		e := row.BillingEvidence
+		if amount != nil {
+			if e == nil {
+				r.billed.add(nil, false)
+			} else {
+				r.billed.add(e.Multiplier, e.Mixed)
+			}
+		}
+		if showChannel && row.TotalCost != nil {
+			addRequestCost(&summary.ChannelCost, row.TotalCost)
+			if e == nil {
+				r.channel.add(nil, false)
+			} else if e.Source == "channel" {
+				r.channel.add(e.Multiplier, e.Mixed)
+			} else if len(e.Items) == 0 {
+				r.channel.add(nil, false)
+			} else {
+				for _, item := range e.Items {
+					if item.ChannelAmount != nil {
+						r.channel.add(item.ChannelRate, false)
+					}
+				}
+			}
+		}
 		summary.ArchivedRecords++
 		summary.PromptTokens += row.PromptTokens
 		summary.CompletionTokens += row.CompletionTokens
@@ -170,10 +250,10 @@ func requestUsageSummariesSnapshot(ctx context.Context, client *ent.Client, ids 
 		summary.PromptWriteCachedTokens5m, summary.PromptWriteCachedTokens1h = nil, nil
 		summary.CompletionAcceptedPredictionTokens, summary.CompletionRejectedPredictionTokens = nil, nil
 		summary.CostItems = nil
-		mixed[row.RequestID] = true
 	}
-	for id := range mixed {
-		result[id].CostPriceMultiplier = nil
+	for id, r := range byRequest {
+		result[id].CostPriceMultiplier, result[id].CostMultiplierMixed = r.billed.result()
+		result[id].ChannelCostMultiplier, result[id].ChannelCostMultiplierMixed = r.channel.result()
 	}
 	return result, nil
 }

@@ -40,6 +40,7 @@ const metric = (overrides = {}) => ({
   ),
   cacheHitRate: null,
   billedCost: null,
+  channelCost: null,
   successRate: null,
   avgFirstTokenMs: null,
   avgTokensPerSecond: null,
@@ -66,6 +67,7 @@ test('合并使用真实样本分子分母并保留未计价和模型', () => {
     metric({
       requestCount: 10,
       totalCost: 20,
+      channelCost: 8,
       pricedCost: 20,
       pricedRequestCount: 10,
       speedSum: 1000,
@@ -80,6 +82,7 @@ test('合并使用真实样本分子分母并保留未计价和模型', () => {
     metric({
       requestCount: 2,
       totalCost: 1,
+      channelCost: 0.5,
       pricedCost: 1,
       pricedRequestCount: 1,
       unpricedRequestCount: 1,
@@ -94,6 +97,8 @@ test('合并使用真实样本分子分母并保留未计价和模型', () => {
   const result = combineConsumptionSlices([a, b], { ...a, rangeEnd: b.rangeEnd }, { metric: 'COST', dimension: 'API_KEY_GROUP' });
   const m = result.entries[0].metrics;
   assert.equal(m.requestCount, 12);
+  assert.equal(m.channelCost, 8.5);
+  assert.equal(result.entries[0].models[0].metrics.channelCost, 8.5);
   assert.equal(m.avgCostPerRequest, 21 / 11);
   assert.equal(m.avgTokensPerSecond, 1010 / 11);
   assert.equal(m.cacheHitRate, 0.35);

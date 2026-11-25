@@ -188,7 +188,9 @@ func (s *ConsumptionService) queryWithFacts(ctx context.Context, input Consumpti
 		}
 		key := fmt.Sprintf("consumption:v9:%x:%s", sha256.Sum256(keyInput), keyRevision)
 		if input.channelCostRanking() {
-			key += ":billed-v1"
+			key += ":dual-cost-v2"
+		} else if input.Metric == ConsumptionMetricCost {
+			key += ":channel-cost-v1"
 		}
 		if !input.Uncached {
 			if result, err := s.cache.Get(ctx, key); err == nil && result != nil {

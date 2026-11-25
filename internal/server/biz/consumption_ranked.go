@@ -270,6 +270,8 @@ func rankMetric(m ConsumptionMetrics, key string) (*float64, bool) {
 		return new(float64(m.TotalTokens)), true
 	case "totalCost":
 		return &m.TotalCost, true
+	case "channelCost":
+		return m.ChannelCost, true
 	case "billedCost":
 		return m.BilledCost, true
 	case "cacheRequests":

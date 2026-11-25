@@ -36,6 +36,9 @@ func consumptionMetricGroup(m ConsumptionMetrics) consumptionGroup {
 		SuccessCount: m.SuccessCount, OutcomeCount: m.OutcomeCount, FirstTokenSum: m.FirstTokenSum, FirstTokenCount: m.FirstTokenCount,
 		SpeedSum: m.SpeedSum, SpeedCount: m.SpeedSampleCount,
 	}
+	if m.ChannelCost != nil {
+		group.ChannelCost, group.ChannelRecords = *m.ChannelCost, 1
+	}
 	if m.BilledCost != nil {
 		group.BilledCost, group.BilledRecords = *m.BilledCost, 1
 	}

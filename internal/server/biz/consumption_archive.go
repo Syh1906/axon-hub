@@ -48,9 +48,17 @@ func (s *ConsumptionService) queryArchivedGroups(ctx context.Context, projectID 
 		cache := "(" + cacheRead + " > 0 OR " + cacheWrite + " > 0)"
 		selectConsumptionEntity(q, input, q.C("model_id"))
 		appendConsumptionPricing(q, complete, cost, tokens)
-		if input.channelCostRanking() {
-			// 只有请求快照时，无法把调用方的金额归到具体渠道。
-			q.AppendSelect(sql.As("COALESCE(SUM("+u.C("billed_cost")+"),0)", "billed_cost"), sql.As("COALESCE(SUM("+u.C("billed_records")+"),0)", "billed_records"))
+		if input.Metric == ConsumptionMetricCost {
+			billed, channel := consumptionCostAmounts(u, input.Dimension)
+			// 旧快照只存最终渠道金额。新快照存请求计费总额，无法单凭它拆分到渠道。
+			saved := q.C("total_cost")
+			known := "(" + saved + " <> 0 OR " + q.C("pricing_complete") + ")"
+			missingBills := u.C("usage_count") + " IS NULL"
+			channel = "CASE WHEN " + missingBills + " AND " + q.C("billing_version") + " = 0 AND " + known + " THEN " + saved + " ELSE " + channel + " END"
+			if input.Dimension != ConsumptionDimensionChannel {
+				billed = "CASE WHEN " + missingBills + " AND " + known + " THEN " + saved + " ELSE " + billed + " END"
+			}
+			appendConsumptionAmounts(q, billed, channel)
 		}
 		if input.Metric == ConsumptionMetricCache {
 			q.Where(sql.ExprP(cache))

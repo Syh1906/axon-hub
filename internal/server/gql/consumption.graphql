@@ -58,6 +58,7 @@ type ConsumptionMetrics {
   requestCount: Int!
   totalTokens: Int!
   totalCost: Float!
+  channelCost: Float
   billedCost: Float
   unpricedRequestCount: Int!
   pricedRequestCount: Int!

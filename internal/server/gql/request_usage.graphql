@@ -18,6 +18,10 @@ type RequestUsageSummary {
   totalCost: Float
   costItems: [CostItem!]
   costPriceMultiplier: Decimal
+  costMultiplierMixed: Boolean!
+  channelCost: Float
+  channelCostMultiplier: Decimal
+  channelCostMultiplierMixed: Boolean!
 }
 
 extend type Request {

@@ -44,6 +44,18 @@ func TestHistoricalCostPreviewDoesNotRewriteBilling(t *testing.T) {
 	// A request reader from another project cannot inspect historical prices.
 	_, err = PreviewRequestCost(f.viewer(t, f.project.ID+1, "read_requests"), f.client, req.ID)
 	require.Error(t, err)
+
+	// The retained channel charge does not settle the caller's bill.
+	rate := decimal.RequireFromString("0.2")
+	snapshot.ManualMultiplier = decimal.RequireFromString("0.1")
+	snapshot.Billing = &objects.ExecutionBilling{Rate: &rate, Source: "group"}
+	f.client.UsageLog.UpdateOne(log).SetBillingGroupID(3).SetCostSnapshot(snapshot).SetTotalCost(0.004).ExecX(f.ctx)
+	viewer := f.viewer(t, f.project.ID, "read_requests")
+	preview, err = PreviewRequestCost(viewer, f.client, req.ID)
+	require.NoError(t, err)
+	require.Nil(t, preview.RecordedCost)
+	require.Equal(t, 0.008, *preview.ProposedCost)
+	require.Nil(t, f.client.UsageLog.GetX(f.ctx, log.ID).BilledCost)
 }
 
 func TestHistoricalPreviewPreservesMissingTokenUsage(t *testing.T) {

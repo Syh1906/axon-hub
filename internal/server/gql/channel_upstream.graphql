@@ -142,6 +142,7 @@ type RequestCostSnapshot {
   priceReferenceId: String!
   pricedAt: Time!
   keyLabel: String!
+  billedMultiplier: Decimal!
   applied: AppliedCostMultiplier!
   manualMultiplier: Decimal!
 }

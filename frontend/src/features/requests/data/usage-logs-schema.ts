@@ -63,6 +63,10 @@ export const requestUsageSummarySchema = usageLogSchema.pick({
   completionAcceptedPredictionTokens: true, completionRejectedPredictionTokens: true,
   totalCost: true, costItems: true, costPriceMultiplier: true,
 }).extend({
+  channelCost: z.number().nullable(),
+  channelCostMultiplier: z.number().nullable(),
+  channelCostMultiplierMixed: z.boolean(),
+  costMultiplierMixed: z.boolean(),
   usageRecords: z.number().int().nonnegative(),
   archivedRecords: z.number().int().nonnegative(),
   unpricedRecords: z.number().int().nonnegative(),

@@ -38,7 +38,7 @@ export function useRankedPages(
     queryFn: async ({ pageParam, signal }) => {
       const perf = input.dimension === 'MODEL' || (input.dimension === 'CHANNEL' && input.metric === 'COST');
       const metrics = `requestCount totalTokens totalCost pricedRequestCount unpricedRequestCount cacheRequests cacheReadTokens cacheInputTokens cacheHitRate
-        ${input.dimension === 'CHANNEL' && input.metric === 'COST' ? 'billedCost' : ''}
+        ${(input.dimension === 'CHANNEL' || view === 'usage') && input.metric === 'COST' ? 'billedCost channelCost' : ''}
         ${input.metric === 'COST' ? 'avgCostPerMillionTokens avgCostPerRequest' : ''}
         ${input.dimension === 'CHANNEL' ? 'cacheCoefficient' : ''}
         ${perf ? 'successRate avgFirstTokenMs avgTokensPerSecond speedSampleCount' : ''}`;

@@ -62,6 +62,7 @@ func (input ConsumptionFilter) channelCostRanking() bool {
 }
 
 type ConsumptionMetrics struct {
+	ChannelCost             *float64 `json:"channelCost,omitempty"`
 	BilledCost              *float64 `json:"billedCost"`
 	PricedCost              float64  `json:"pricedCost"`
 	TokenPricedCost         float64  `json:"tokenPricedCost"`

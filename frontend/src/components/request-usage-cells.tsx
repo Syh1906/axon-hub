@@ -141,12 +141,16 @@ export function DurationCell({ status, stream, latencyMs, firstTokenLatencyMs }:
 }
 
 export function CostCell({
+  channelCost,
+  channelMultiplier,
   total,
   currencyCode,
   breakdown,
   emptyLabel = '—',
   currencyDisplayDecimals,
 }: {
+  channelCost?: number | null;
+  channelMultiplier?: number | 'mixed' | null;
   total: number | null;
   currencyCode: string;
   breakdown: CostBreakdown | null;
@@ -157,13 +161,15 @@ export function CostCell({
   const [costOpen, setCostOpen] = useState(false);
   const rows = breakdown ? buildCostBreakdown(total ?? 0, breakdown) : null;
   const missingCost = total == null && !breakdown?.items.some((item) => item.unpriced);
-  if (missingCost && !rows?.cacheWriteLabel) return <span className='font-mono text-xs'>{emptyLabel}</span>;
+  if (missingCost && channelCost == null && !rows?.cacheWriteLabel) return <span className='font-mono text-xs'>{emptyLabel}</span>;
   const locale = i18n.language.startsWith('zh') ? 'zh-CN' : 'en-US';
   const money = (val: number, minimumFractionDigits: number, maximumFractionDigits = minimumFractionDigits) =>
     t('currencies.format', { val, currency: currencyCode, locale, ...currencyFractionDigits(currencyDisplayDecimals, minimumFractionDigits, maximumFractionDigits) });
   // Without an explicit display preference, preserve the existing precision for unit prices.
   const amount = missingCost ? emptyLabel : total == null ? t('serviceTier.cost.unpriced') : money(total, 6);
   if (!breakdown || !rows) return <span className='font-mono text-xs font-medium'>{amount}</span>;
+  const rateLabel = (value: number | 'mixed' | null | undefined) =>
+    value === 'mixed' ? t('requests.costBreakdown.mixed') : value == null ? '—' : `×${value}`;
   const evidence = rows.evidence;
   const mode = evidence && evidence !== 'mixed' ? evidence.serviceTier.mode : null;
   const itemLabel = (code: string) => {
@@ -302,19 +308,23 @@ export function CostCell({
               <span>{t(rows.hasModeSubtotals ? 'serviceTier.items.modeTotal' : 'requests.costBreakdown.baseTotal')}</span>
               <span className='font-mono'>{total == null || rows.baseTotal === null ? '-' : money(rows.hasModeSubtotals ? rows.modeTotal ?? 0 : rows.baseTotal, 6)}</span>
             </div>
-            <div className='flex justify-between gap-4'>
+            {channelCost == null && <div className='flex justify-between gap-4'>
               <span>{t('requests.costBreakdown.multiplier')}</span>
-              <span>{rows.costMultiplier === 'mixed' ? t('requests.costBreakdown.mixed') : `×${rows.costMultiplier}`}</span>
-            </div>
+              <span>{rateLabel(rows.costMultiplier)}</span>
+            </div>}
           </div>
           {rows.hasModeSubtotals && <p className='text-background/75'>{t('serviceTier.items.frozen')}</p>}
           {(breakdown.unpricedRecords ?? 0) > 0 && (
             <div className='text-background/75'>{t('selfUsage.cost.unpriced', { count: breakdown.unpricedRecords })}</div>
           )}
           <div className='flex justify-between gap-4 border-t pt-2 font-semibold'>
-            <span>{t('requests.costBreakdown.total')}</span>
-            <span className='font-mono'>{amount}</span>
+            <span>{t(channelCost == null ? 'requests.costBreakdown.total' : 'consumption.columns.billedCost')}</span>
+            <span className='font-mono'>{amount}{channelCost != null && ` · ${rateLabel(breakdown.multiplier)}`}</span>
           </div>
+          {channelCost != null && <div className='text-background/75 flex justify-between gap-4'>
+            <span>{t('consumption.columns.channelCost')}</span>
+            <span className='font-mono'>{money(channelCost, 6)} · {rateLabel(channelMultiplier)}</span>
+          </div>}
         </div>
       </TooltipContent>
     </Tooltip>

@@ -109,6 +109,9 @@ test('base total derives from every known nonzero multiplier, including 1', () =
     assert.equal(rows.baseTotal, baseTotal);
     assert.equal(rows.total, 2);
   }
+  const archived = buildCostBreakdown(0.004, { ...breakdown([], 0.2), archivedRecords: 1 });
+  assert.equal(archived.baseTotal, null);
+  assert.equal(archived.costMultiplier, 0.2);
   for (const [total, multiplier] of [[0, 0], [2, 'mixed']]) {
     const rows = buildCostBreakdown(total, breakdown([], multiplier));
     assert.equal(rows.multiplier, multiplier);

@@ -47,10 +47,13 @@ test('请求汇总保留多笔费用、缺价与归档的未知细分', () => {
     const summary = usageSchemas.requestUsageSummarySchema.parse({
       usageRecords: 2, archivedRecords: 1, unpricedRecords: amount === null ? 2 : 0,
       promptTokens: 1500, completionTokens: 150, totalTokens: 1650,
-      totalCost: amount, costPriceMultiplier: null, costItems: null,
+      totalCost: amount, costPriceMultiplier: null, costMultiplierMixed: false, costItems: null,
+      channelCost: null, channelCostMultiplier: null, channelCostMultiplierMixed: false,
       promptWriteCachedTokens5m: null, promptWriteCachedTokens1h: null,
     });
     assert.equal(summary.totalCost, amount);
+    assert.equal(summary.channelCost, null);
+    assert.equal(summary.costMultiplierMixed, false);
     assert.equal(summary.promptWriteCachedTokens5m, null);
     assert.equal(summary.usageRecords, 2);
   }

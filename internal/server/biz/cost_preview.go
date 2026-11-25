@@ -77,6 +77,9 @@ func PreviewRequestCost(ctx context.Context, client *ent.Client, requestID int) 
 	if len(logs) == 1 {
 		row := logs[0]
 		result.RecordedCost = row.TotalCost
+		if row.BillingGroupID != nil {
+			result.RecordedCost = row.BilledCost
+		}
 		if row.CostSnapshot != nil {
 			snapshot = row.CostSnapshot
 		}
@@ -97,7 +100,7 @@ func PreviewRequestCost(ctx context.Context, client *ent.Client, requestID int) 
 		result.Reason = "historical_price_missing"
 		return result, nil
 	}
-	copy := *snapshot
+	copy := *snapshot.BilledPrice()
 	price := copy.CurrentPrice()
 	if price == nil && copy.PriceReferenceID != "" {
 		// Request and usage authorization above bounds this read to the price

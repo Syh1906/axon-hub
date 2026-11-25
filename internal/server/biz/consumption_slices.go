@@ -119,8 +119,8 @@ func (s *ConsumptionService) verifyConsumptionDays(ctx context.Context, projectI
 const consumptionSnapshotVersion = 3
 
 func consumptionVersion(input ConsumptionFilter) int {
-	if input.channelCostRanking() {
-		return 4
+	if input.Metric == ConsumptionMetricCost {
+		return 5
 	}
 	return consumptionSnapshotVersion
 }

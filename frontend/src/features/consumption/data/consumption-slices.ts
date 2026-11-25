@@ -51,6 +51,7 @@ const performanceKeys = ['successCount', 'outcomeCount', 'firstTokenSum', 'first
 
 function addMetrics(a: ConsumptionMetrics, b: ConsumptionMetrics) {
   for (const key of SUM_FIELDS) a[key] += b[key];
+  if (b.channelCost != null) a.channelCost = (a.channelCost ?? 0) + b.channelCost;
   if (b.billedCost != null) a.billedCost = (a.billedCost ?? 0) + b.billedCost;
 }
 

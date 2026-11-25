@@ -33,7 +33,14 @@ export default function ConsumptionPage({ view = 'leaderboard' }: { view?: 'lead
   const isLeaderboard = view === 'leaderboard';
   const [dimension, setDimension] = useState<ConsumptionDimension>(isLeaderboard ? 'CHANNEL' : 'API_KEY_GROUP');
   const [metric, setMetric] = useState<ConsumptionMetric>('COST');
-  const [showChannelCost, setShowChannelCost] = useState(false);
+  const costPreference = isLeaderboard ? 'consumption-leaderboard-show-channel-cost' : 'usage-statistics-show-channel-cost';
+  const [showChannelCost, setShowChannelCost] = useState(() => {
+    try {
+      return localStorage.getItem(costPreference) === 'true';
+    } catch {
+      return false;
+    }
+  });
   const channelCostRank = isLeaderboard && dimension === 'CHANNEL' && metric === 'COST';
   const [range, setRange] = useState<ConsumptionDateRange>({ period: 'TODAY' });
   const [projectID, setProjectID] = useState('all');
@@ -179,11 +186,18 @@ export default function ConsumptionPage({ view = 'leaderboard' }: { view?: 'lead
                 </SelectContent>
               </Select>
             )}
-            {channelCostRank && (
+            {(!isLeaderboard || channelCostRank) && (
               <label className='ml-auto flex cursor-pointer items-center gap-2 text-sm'>
                 <Checkbox checked={showChannelCost} onCheckedChange={(checked) => {
-                  setShowChannelCost(checked === true);
-                  if (rankSort?.key === 'totalCost') setSortSelection(null);
+                  const visible = checked === true;
+                  setShowChannelCost(visible);
+                  try {
+                    localStorage.setItem(costPreference, JSON.stringify(visible));
+                  } catch {
+                    // 浏览器禁用存储时，本页仍允许切换显示。
+                  }
+                  const sortingByChannelCost = sortSelection?.sort?.key === 'channelCost';
+                  if (!visible && sortingByChannelCost) setSortSelection(null);
                 }} />
                 {t('consumption.showChannelCost')}
               </label>
@@ -219,7 +233,7 @@ export default function ConsumptionPage({ view = 'leaderboard' }: { view?: 'lead
                   key={tableScope}
                   sort={rankSort}
                   serverSorted={paged}
-                  showChannelCost={channelCostRank && showChannelCost}
+                  showChannelCost={(!isLeaderboard || channelCostRank) && showChannelCost}
                   onSort={(sort) => setSortSelection({ scope: sortScope, sort })}
                   loadMore={paged && ranked.hasNextPage && !ranked.isFetching && !ranked.isError ? ranked.fetchNextPage : undefined}
                   scrollElement={tableScrollElement}

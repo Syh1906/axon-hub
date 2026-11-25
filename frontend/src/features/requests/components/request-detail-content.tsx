@@ -537,7 +537,6 @@ export function RequestDetailContent({ requestId, projectId, previewRequest, isP
           const hasWriteCache = writeCachedTokens > 0;
           const cacheHitRate = hasReadCache ? ((cachedTokens / promptTokens) * 100).toFixed(1) : '0.0';
           const writeCacheRate = hasWriteCache ? ((writeCachedTokens / promptTokens) * 100).toFixed(1) : '0.0';
-          const cost = usage.totalCost ?? 0;
           const promptCost = inputCostSubtotal(usage.costItems);
           const completionItems = usage.costItems?.filter((item) => !item.image && item.itemCode === 'completion_tokens');
           const completionCost = completionItems?.length && !completionItems.some((item) => item.unpriced)
@@ -558,8 +557,7 @@ export function RequestDetailContent({ requestId, projectId, previewRequest, isP
             });
 
           const renderCost = (val: number | null | undefined) => {
-            if (cost <= 0) return '-';
-            if (val == null || val <= 0) return '-';
+            if (usage.totalCost == null || val == null) return '-';
             return formatCurrency(val);
           };
 
@@ -665,7 +663,7 @@ export function RequestDetailContent({ requestId, projectId, previewRequest, isP
                         </p>
                       )}
                       <p className='text-muted-foreground text-xs'>
-                        {renderCost(cost > 0 ? (cacheReadCost || 0) + (cacheWriteCost || 0) : null)}
+                        {renderCost(cacheReadCost == null && cacheWriteCost == null ? null : (cacheReadCost ?? 0) + (cacheWriteCost ?? 0))}
                       </p>
                     </div>
                   </div>
@@ -675,8 +673,10 @@ export function RequestDetailContent({ requestId, projectId, previewRequest, isP
                       <p className='text-sm font-semibold'>{usage.totalTokens.toLocaleString()}</p>
                       <CostCell
                         total={usage.totalCost ?? null}
+                        channelCost={usage.channelCost}
+                        channelMultiplier={usage.channelCostMultiplierMixed ? 'mixed' : usage.channelCostMultiplier}
                         currencyCode={settings?.currencyCode ?? 'USD'}
-                        breakdown={usage.costItems ? {
+                        breakdown={usage.costItems || usage.totalCost != null || usage.channelCost != null ? {
                           cacheWriteTokens5m: usage.promptWriteCachedTokens5m,
                           cacheWriteTokens1h: usage.promptWriteCachedTokens1h,
                           items: (usage.costItems ?? []).map((item) => ({
@@ -684,8 +684,9 @@ export function RequestDetailContent({ requestId, projectId, previewRequest, isP
                             variant: item.promptWriteCacheVariantCode ?? null,
                             tiers: item.tierBreakdown ?? [],
                           })),
-                          multiplier: usage.costPriceMultiplier ?? 'mixed',
+                          multiplier: usage.costMultiplierMixed ? 'mixed' : usage.costPriceMultiplier ?? null,
                           unpricedRecords: usage.unpricedRecords,
+                          archivedRecords: usage.archivedRecords,
                         } : null}
                       />
                     </div>

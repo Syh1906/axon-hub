@@ -67,6 +67,8 @@ func (total *consumptionGroup) add(row consumptionGroup) {
 	total.Requests += row.Requests
 	total.Tokens += row.Tokens
 	total.Cost += row.Cost
+	total.ChannelCost += row.ChannelCost
+	total.ChannelRecords += row.ChannelRecords
 	total.BilledCost += row.BilledCost
 	total.BilledRecords += row.BilledRecords
 	total.UnpricedRequests += row.UnpricedRequests
@@ -105,6 +107,9 @@ func sortConsumptionModels(models []*ConsumptionModel, input ConsumptionFilter) 
 
 func (r consumptionGroup) metrics() ConsumptionMetrics {
 	metrics := ConsumptionMetrics{RequestCount: r.Requests, TotalTokens: r.Tokens, TotalCost: r.Cost, CacheRequests: r.CacheRequests, CacheReadTokens: r.CacheRead, CacheInputTokens: r.CacheInput, CacheCreationCost: r.CacheCreationCost}
+	if r.ChannelRecords > 0 {
+		metrics.ChannelCost = &r.ChannelCost
+	}
 	if r.BilledRecords > 0 {
 		metrics.BilledCost = &r.BilledCost
 	}

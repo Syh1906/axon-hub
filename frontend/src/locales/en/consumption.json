@@ -43,7 +43,7 @@
   "consumption.columns.requestCount": "Requests",
   "consumption.columns.totalTokens": "Tokens",
   "consumption.columns.totalCost": "Cost",
-  "consumption.columns.billedCost": "Billed usage",
+  "consumption.columns.billedCost": "Billed cost",
   "consumption.columns.channelCost": "Channel cost",
   "consumption.showChannelCost": "Show channel cost",
   "consumption.columns.cacheRequests": "Cache-triggering requests",

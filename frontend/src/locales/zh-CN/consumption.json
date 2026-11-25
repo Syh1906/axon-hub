@@ -43,7 +43,7 @@
   "consumption.columns.requestCount": "请求数",
   "consumption.columns.totalTokens": "Token 数",
   "consumption.columns.totalCost": "成本",
-  "consumption.columns.billedCost": "计费消耗",
+  "consumption.columns.billedCost": "计费成本",
   "consumption.columns.channelCost": "渠道成本",
   "consumption.showChannelCost": "显示渠道成本",
   "consumption.columns.cacheRequests": "缓存触发请求数",

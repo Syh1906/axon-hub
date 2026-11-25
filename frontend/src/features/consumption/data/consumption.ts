@@ -36,6 +36,7 @@ const metricsSchema = z.object({
   totalTokens: z.number(),
   totalCost: z.number(),
   billedCost: z.number().nullable().default(null),
+  channelCost: z.number().nullable().default(null),
   unpricedRequestCount: z.number(),
   pricedRequestCount: z.number(),
   tokenPricedRequestCount: z.number().default(0),
@@ -100,12 +101,12 @@ export type ConsumptionMetrics = z.infer<typeof metricsSchema>;
 export type ConsumptionEntry = z.infer<typeof entrySchema>;
 export type ConsumptionResult = z.infer<typeof resultSchema> & { useRankedPage?: boolean };
 
-export function consumptionFields(input: ConsumptionFilter) {
+export function consumptionFields(input: ConsumptionFilter, view: 'usage' | 'leaderboard' = 'leaderboard') {
   const performance = input.dimension === 'MODEL' || (input.dimension === 'CHANNEL' && input.metric === 'COST');
   const channel = input.dimension === 'CHANNEL';
   // 跨天比率由浏览器用累计量计算，避免重复传输每日平均值。
   const metrics = `requestCount totalTokens totalCost unpricedRequestCount pricedRequestCount
-    ${channel && input.metric === 'COST' ? 'billedCost' : ''}
+    ${(channel || view === 'usage') && input.metric === 'COST' ? 'billedCost channelCost' : ''}
     cacheRequests cacheReadTokens cacheInputTokens
     ${input.metric === 'COST' && input.dimension !== 'MODEL' ? 'tokenPricedCost pricedTokens' : ''}
     ${channel && input.metric === 'COST' ? 'pricedCost' : ''}
@@ -178,7 +179,7 @@ export function useConsumption(input: ConsumptionFilter, view: 'leaderboard' | '
     queryFn: async ({ signal }) => {
       const field = view === 'usage' ? 'usageSlices' : 'consumptionSlices';
       const query = `query Consumption($input: ConsumptionFilter!, $after: Time, $known:[ConsumptionSliceRevisionInput!], $asOf:Time, $verify:Boolean!, $pendingDates:[Time!]) { ${field}(input: $input, after: $after, known:$known, asOf:$asOf, verify:$verify, pendingDates:$pendingDates) {
-        slices { ${consumptionFields(input)} } days { start revision } pending useRankedPage resolvedAt next rangeStart rangeEnd timezone currencyCode
+        slices { ${consumptionFields(input, view)} } days { start revision } pending useRankedPage resolvedAt next rangeStart rangeEnd timezone currencyCode
       } }`;
       const headers = projectID ? { 'X-Project-ID': projectID } : undefined;
       return loadConsumptionSlices(

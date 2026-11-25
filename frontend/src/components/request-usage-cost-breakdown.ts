@@ -16,8 +16,9 @@ export type CostBreakdown = {
   items: CostBreakdownItem[];
   cacheWriteTokens5m?: number | null;
   cacheWriteTokens1h?: number | null;
-  multiplier: number | 'mixed';
+  multiplier: number | 'mixed' | null;
   unpricedRecords?: number;
+  archivedRecords?: number;
 };
 
 type TierRow = CostBreakdownItem['tiers'][number] & { unitPrice: number | null };
@@ -89,7 +90,7 @@ export function buildCostBreakdown(total: number, breakdown: CostBreakdown) {
     costMultiplier: hasEvidence ? (costs.size === 1 ? items[0].pricingEvidence!.costMultiplier : 'mixed') : multiplier,
     items,
     multiplier,
-    baseTotal: hasEvidence ? items.reduce((sum, item) => sum + item.pricingEvidence!.baseSubtotal, 0) : typeof multiplier === 'number' && multiplier !== 0 ? total / multiplier : null,
+    baseTotal: hasEvidence ? items.reduce((sum, item) => sum + item.pricingEvidence!.baseSubtotal, 0) : !breakdown.archivedRecords && typeof multiplier === 'number' && multiplier !== 0 ? total / multiplier : null,
     total,
   };
 }

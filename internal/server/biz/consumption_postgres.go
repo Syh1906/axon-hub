@@ -23,9 +23,12 @@ func joinPostgresConsumptionUsage(s *sql.Selector, input ConsumptionFilter) *sql
 	amount := rows.C("total_cost")
 	billed := billedCostExpression(rows.C("billing_group_id"), amount, rows.C("billed_cost"))
 	if input.Dimension != ConsumptionDimensionChannel {
+		if input.Metric == ConsumptionMetricCost {
+			q.AppendSelect(sql.As("SUM("+amount+")", "channel_cost"))
+		}
 		amount = billed
 	} else if input.channelCostRanking() {
-		q.AppendSelect(sql.As("SUM("+billed+")", "billed_cost"), sql.As("COUNT("+billed+")", "billed_records"))
+		q.AppendSelect(sql.As("SUM("+billed+")", "billed_cost"))
 	}
 	for _, field := range []string{"prompt_tokens", "completion_tokens", "total_tokens", "prompt_cached_tokens", "prompt_write_cached_tokens"} {
 		q.AppendSelect(sql.As("COALESCE(SUM("+rows.C(field)+"),0)", field))

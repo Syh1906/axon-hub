@@ -40,10 +40,14 @@ function columnsFor(dimension: ConsumptionDimension, metric: ConsumptionMetric, 
       { key: 'totalCost', format: 'currency', hideInModel: dimension !== 'CHANNEL', tooltip: 'totalCostHelp' },
     ];
   }
+  const costColumns: Column[] = [
+    { key: view === 'usage' ? 'billedCost' : 'totalCost', format: 'currency', tooltip: 'totalCostHelp' },
+    ...(view === 'usage' && showChannelCost ? [{ key: 'channelCost', format: 'currency' } satisfies Column] : []),
+  ];
   if (dimension === 'MODEL')
     return [
       { key: 'requestCount', format: 'number' },
-      { key: 'totalCost', format: 'currency', tooltip: 'totalCostHelp' },
+      ...costColumns,
       { key: 'totalTokens', format: 'tokens' },
       { key: 'successRate', format: 'percent', tooltip: 'successRateHelp' },
       { key: 'avgFirstTokenMs', format: 'ms', tooltip: 'firstTokenHelp' },
@@ -51,22 +55,18 @@ function columnsFor(dimension: ConsumptionDimension, metric: ConsumptionMetric, 
       { key: 'cacheHitRate', format: 'percent', tooltip: 'overallCacheHitRateHelp' },
     ];
   if (dimension !== 'CHANNEL') {
-    const costColumns: Column[] = [
-      { key: 'totalCost', format: 'currency' },
-      { key: 'avgCostPerMillionTokens', format: 'currency', tooltip: 'avgCostPerMillionTokensHelp' },
-    ];
-    if (view === 'usage') costColumns.reverse();
+    const average: Column = { key: 'avgCostPerMillionTokens', format: 'currency', tooltip: 'avgCostPerMillionTokensHelp' };
     return [
       { key: 'requestCount', format: 'number' },
       { key: 'totalTokens', format: 'tokens' },
       { key: 'cacheHitRate', format: 'percent', tooltip: 'overallCacheHitRateHelp' },
-      ...costColumns,
+      ...(view === 'usage' ? [average, ...costColumns] : [...costColumns, average]),
     ];
   }
   return [
     { key: 'requestCount', format: 'number' },
     { key: 'billedCost', format: 'currency' },
-    ...(showChannelCost ? [{ key: 'totalCost', label: 'channelCost', format: 'currency' } satisfies Column] : []),
+    ...(showChannelCost ? [{ key: 'channelCost', format: 'currency' } satisfies Column] : []),
     { key: 'totalTokens', format: 'tokens' },
     { key: 'successRate', format: 'percent', tooltip: 'channelSuccessRateHelp' },
     { key: 'avgFirstTokenMs', format: 'ms', tooltip: 'firstTokenHelp' },
