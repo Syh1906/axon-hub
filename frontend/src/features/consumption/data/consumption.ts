@@ -176,6 +176,7 @@ export function useConsumption(input: ConsumptionFilter, view: 'leaderboard' | '
   const preferRanked = wide && !(input.period === 'CUSTOM' && hasCachedConsumptionRange(client, dayKey, input));
   const query = useQuery({
     queryKey: [...scopeKey, queryInput],
+    meta: { channelLeaderboard: view === 'leaderboard' && input.dimension === 'CHANNEL' },
     queryFn: async ({ signal }) => {
       const field = view === 'usage' ? 'usageSlices' : 'consumptionSlices';
       const query = `query Consumption($input: ConsumptionFilter!, $after: Time, $known:[ConsumptionSliceRevisionInput!], $asOf:Time, $verify:Boolean!, $pendingDates:[Time!]) { ${field}(input: $input, after: $after, known:$known, asOf:$asOf, verify:$verify, pendingDates:$pendingDates) {

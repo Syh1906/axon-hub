@@ -4,7 +4,6 @@ import type { QueryClient } from '@tanstack/react-query';
 // aggregate cache; unrelated leaderboard dimensions stay untouched.
 export function invalidateChannelIdentityQueries(queryClient: QueryClient) {
   return queryClient.invalidateQueries({
-    queryKey: ['consumption', 'leaderboard'],
-    predicate: (query) => (query.queryKey[4] as { dimension?: string } | undefined)?.dimension === 'CHANNEL',
+    predicate: (query) => query.meta?.channelLeaderboard === true,
   });
 }

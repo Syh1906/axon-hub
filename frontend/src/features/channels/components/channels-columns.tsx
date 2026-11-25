@@ -644,8 +644,8 @@ const TagsCell = memo(({ row }: { row: Row<Channel> }) => {
   }
   return (
     <div className='flex max-h-14 max-w-36 flex-wrap justify-center gap-1 overflow-hidden' title={tags.join(', ')}>
-      {tags.slice(0, 2).map((tag) => (
-        <Badge key={tag} variant='outline' className='block max-w-32 truncate text-xs'>
+      {tags.slice(0, 2).map((tag, index) => (
+        <Badge key={index} variant='outline' className='block max-w-32 truncate text-xs'>
           {tag}
         </Badge>
       ))}

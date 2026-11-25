@@ -468,7 +468,7 @@
   "channels.dialogs.fields.defaultTestModel.description": "Default model for testing connections",
   "channels.dialogs.fields.tags.label": "Tags",
   "channels.dialogs.fields.tags.placeholder": "Add tags...",
-  "channels.dialogs.fields.tags.description": "Add tags to categorize and filter channels. Press Enter, comma, or space to add a tag.",
+  "channels.dialogs.fields.tags.description": "Drag tags to change their display order. Press Enter or comma to add a tag.",
   "channels.dialogs.fields.remark.label": "Remark",
   "channels.dialogs.fields.remark.placeholder": "Enter a note or remark for this channel...",
   "channels.dialogs.fields.remark.description": "Add notes or remarks about this channel for reference",

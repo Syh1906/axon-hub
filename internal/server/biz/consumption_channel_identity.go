@@ -5,7 +5,6 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
-	"sort"
 
 	"github.com/looplj/axonhub/internal/ent"
 	"github.com/looplj/axonhub/internal/ent/channel"
@@ -26,10 +25,9 @@ func (s *ConsumptionService) withChannelIdentity(ctx context.Context, input Cons
 }
 
 type consumptionChannelIdentity struct {
-	channels    []*ent.Channel
-	counts      map[string]int
-	frequencies map[string]map[string]int
-	version     string
+	channels []*ent.Channel
+	counts   map[string]int
+	version  string
 }
 
 // A page reads this small projection once. Its version changes downloaded
@@ -43,29 +41,15 @@ func loadConsumptionChannelIdentity(ctx context.Context, client *ent.Client, dim
 		return nil, err
 	}
 	counts := make(map[string]int, len(channels))
-	frequencies := make(map[string]map[string]int)
 	hash := sha256.New()
 	encoder := json.NewEncoder(hash)
+	// 让已缓存旧版标签顺序的客户端重新读取渠道展示信息。
+	_ = encoder.Encode("configured-tag-order")
 	for _, ch := range channels {
 		counts[ch.Name]++
 		_ = encoder.Encode([]any{ch.ID, ch.Name, ch.Type, ch.Tags, ch.Remark})
 	}
-	for _, ch := range channels {
-		if counts[ch.Name] < 2 {
-			continue
-		}
-		if frequencies[ch.Name] == nil {
-			frequencies[ch.Name] = make(map[string]int)
-		}
-		seen := make(map[string]bool, len(ch.Tags))
-		for _, tag := range ch.Tags {
-			if !seen[tag] {
-				frequencies[ch.Name][tag]++
-				seen[tag] = true
-			}
-		}
-	}
-	return &consumptionChannelIdentity{channels: channels, counts: counts, frequencies: frequencies, version: hex.EncodeToString(hash.Sum(nil)[:16])}, nil
+	return &consumptionChannelIdentity{channels: channels, counts: counts, version: hex.EncodeToString(hash.Sum(nil)[:16])}, nil
 }
 
 func (identity *consumptionChannelIdentity) revision(numeric string) string {
@@ -102,11 +86,6 @@ func (identity *consumptionChannelIdentity) apply(result *ConsumptionResult) *Co
 		entry.ChannelProvider = objects.ChannelProvider(string(ch.Type))
 		entry.DuplicateName = identity.counts[ch.Name] > 1
 		entry.ChannelTags = append([]string{}, ch.Tags...)
-		if entry.DuplicateName {
-			sort.SliceStable(entry.ChannelTags, func(i, j int) bool {
-				return identity.frequencies[ch.Name][entry.ChannelTags[i]] < identity.frequencies[ch.Name][entry.ChannelTags[j]]
-			})
-		}
 	}
 	return &copyResult
 }

@@ -520,7 +520,7 @@ export function useChannelActionDialog({ currentRow, duplicateFromRow, open, onO
   const vertexApiKeyFields = useFieldArray({ control: form.control, name: 'credentials.vertexApiKeys' });
   const apiKeys = form.watch('credentials.apiKeys');
   const apiKeysCount = useMemo(() => (apiKeys || []).filter((k) => k.trim().length > 0).length, [apiKeys]);
-  const isSubmitting = createChannel.isPending || duplicateChannel.isPending || updateChannelSettings.isPending;
+  const isSubmitting = form.formState.isSubmitting || createChannel.isPending || duplicateChannel.isPending || updateChannelSettings.isPending;
 
   const { data: disabledKeys = [], isFetching: isFetchingDisabledKeys } = useChannelDisabledAPIKeys(currentRow?.id || '', {
     enabled: isEdit && !!currentRow?.id && showApiKeysPanel,

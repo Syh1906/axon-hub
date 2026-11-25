@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { useChannels } from '../context/channels-context';
 import { useChannelDetails } from '../data/channels';
 import { ChannelsActionDialog } from './channels-action-dialog';
+import { ChannelEditorSession } from './channel-editor-session';
 import { ChannelsAPIKeyManagementDialog } from './channels-api-key-management-dialog';
 import { ChannelsArchiveDialog } from './channels-archive-dialog';
 import { ChannelsAvailabilityDialog } from './channels-availability-dialog';
@@ -39,8 +40,9 @@ import { ChannelsUpstreamDialog } from './channels-upstream-dialog';
 
 export function ChannelsDialogs() {
   const { open, setOpen, currentRow: partialCurrentRow, setCurrentRow, selectedChannels } = useChannels();
+  const editorMode = open === 'edit' || open === 'duplicate' || open === 'viewModels' ? open : null;
   const detailsQuery = useChannelDetails(partialCurrentRow?.id, {
-    enabled: Boolean(partialCurrentRow && open),
+    enabled: Boolean(partialCurrentRow && open && !editorMode),
   });
 
   useEffect(() => {
@@ -64,6 +66,17 @@ export function ChannelsDialogs() {
       <ChannelsTemplateManagerDialog open={open === 'templates'} onOpenChange={(isOpen) => setOpen(isOpen ? 'templates' : null)} />
 
       <ChannelsActionDialog key='channel-add' open={open === 'add'} onOpenChange={(isOpen) => setOpen(isOpen ? 'add' : null)} />
+      {partialCurrentRow && editorMode && (
+        <ChannelEditorSession
+          key={`${editorMode}-${partialCurrentRow.id}`}
+          channelId={partialCurrentRow.id}
+          mode={editorMode}
+          onClose={() => {
+            setOpen(null);
+            setCurrentRow(null);
+          }}
+        />
+      )}
 
       <ChannelsBulkArchiveDialog />
 
@@ -95,58 +108,9 @@ export function ChannelsDialogs() {
 
       <ChannelsBulkOrderingDialog open={open === 'bulkOrdering'} onOpenChange={(isOpen) => setOpen(isOpen ? 'bulkOrdering' : null)} />
 
-      {currentRow && (
+      {currentRow && !editorMode && (
         <>
           {open === 'upstream' && <ChannelsUpstreamDialog channel={currentRow} onClose={() => setOpen(null)} />}
-          <ChannelsActionDialog
-            key={`channel-edit-${currentRow.id}`}
-            open={open === 'edit'}
-            onOpenChange={(isOpen) => {
-              if (isOpen) {
-                setOpen('edit');
-              } else {
-                setOpen(null);
-                setTimeout(() => {
-                  setCurrentRow(null);
-                }, 500);
-              }
-            }}
-            currentRow={currentRow}
-          />
-
-          <ChannelsActionDialog
-            key={`channel-duplicate-${currentRow.id}`}
-            open={open === 'duplicate'}
-            onOpenChange={(isOpen) => {
-              if (isOpen) {
-                setOpen('duplicate');
-              } else {
-                setOpen(null);
-                setTimeout(() => {
-                  setCurrentRow(null);
-                }, 500);
-              }
-            }}
-            duplicateFromRow={currentRow}
-          />
-
-          <ChannelsActionDialog
-            key={`channel-view-models-${currentRow.id}`}
-            open={open === 'viewModels'}
-            onOpenChange={(isOpen) => {
-              if (isOpen) {
-                setOpen('viewModels');
-              } else {
-                setOpen(null);
-                setTimeout(() => {
-                  setCurrentRow(null);
-                }, 500);
-              }
-            }}
-            currentRow={currentRow}
-            showModelsPanel={true}
-          />
-
           <ChannelsDeleteDialog
             key={`channel-delete-${currentRow.id}`}
             open={open === 'delete'}

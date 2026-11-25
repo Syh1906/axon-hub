@@ -6,7 +6,7 @@ import type { ChannelQuotaRoutingMode } from '../data/schema';
 import { formatMaxSingleChannelRetries, recallQuotaRoutingMode } from '../utils/channel-dialog';
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { FetchedModelItem, SupportedModelItem } from './channel-model-items';
 import { ChannelRequestPolicyFields } from './channel-request-policy-fields';
 import { X, RefreshCw, Search, ChevronLeft, ChevronRight, PanelLeft, Plus, Trash2, Eye, EyeOff, Copy, Play, Info, Ban } from 'lucide-react';
@@ -24,7 +24,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { TagsAutocompleteInput } from '@/components/ui/tags-autocomplete-input';
+import { ChannelTagsField } from './channel-tags-field';
 import { Textarea } from '@/components/ui/textarea';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
@@ -63,7 +63,6 @@ export function ChannelsActionDialog({ currentRow, duplicateFromRow, open, onOpe
     addModel,
     addSelectedDefaultModels,
     addSelectedFetchedModels,
-    allTags,
     antigravityOAuth,
     apiKeys,
     apiKeysCount,
@@ -122,7 +121,6 @@ export function ChannelsActionDialog({ currentRow, duplicateFromRow, open, onOpe
     isEdit,
     isFetchingDisabledKeys,
     isImportingXAISSO,
-    isLoadingTags,
     isModelManual,
     isOAuthChannel,
     isSubmitting,
@@ -226,6 +224,7 @@ export function ChannelsActionDialog({ currentRow, duplicateFromRow, open, onOpe
     xaiSSOToken,
   } = dialog;
   const [showAddressesPanel, setShowAddressesPanel] = useState(false);
+  const tagsFieldRef = useRef<HTMLDivElement>(null);
   const addresses = form.watch('settings.upstreamAddresses') ?? [];
   const addressFailover = form.watch('settings.addressFailover') ?? true;
   const probeCredentials = {
@@ -265,6 +264,7 @@ export function ChannelsActionDialog({ currentRow, duplicateFromRow, open, onOpe
       <Dialog
         open={open}
         onOpenChange={(state) => {
+          if (!state && isSubmitting) return;
           if (!state) {
             form.reset();
             setSupportedModels(initialRow?.supportedModels || []);
@@ -327,6 +327,10 @@ export function ChannelsActionDialog({ currentRow, duplicateFromRow, open, onOpe
         }}
       >
         <DialogContent
+          showCloseButton={!isSubmitting}
+          onEscapeKeyDown={(event) => {
+            if (tagsFieldRef.current?.querySelector('[aria-pressed="true"]')) event.preventDefault();
+          }}
           className={`flex max-h-[90vh] flex-col overflow-hidden transition-all duration-300 ${showAddressesPanel || showFetchedModelsPanel || showSupportedModelsPanel || showApiKeysPanel || showConfiguredModelsPanel ? 'sm:max-w-6xl' : 'sm:max-w-4xl'}`}
         >
           <DialogHeader className='flex-shrink-0 text-left'>
@@ -1606,28 +1610,7 @@ export function ChannelsActionDialog({ currentRow, duplicateFromRow, open, onOpe
 
                       <ChannelRequestPolicyFields dialog={dialog} />
 
-                      <FormField
-                        control={form.control}
-                        name='tags'
-                        render={({ field }) => (
-                          <FormItem className='grid grid-cols-1 items-start gap-x-6 gap-y-2 md:grid-cols-8'>
-                            <FormLabel className='pt-2 font-medium md:col-span-2 md:text-right'>
-                              {t('channels.dialogs.fields.tags.label')}
-                            </FormLabel>
-                            <div className='space-y-1 md:col-span-6'>
-                              <TagsAutocompleteInput
-                                value={field.value || []}
-                                onChange={field.onChange}
-                                placeholder={t('channels.dialogs.fields.tags.placeholder')}
-                                suggestions={allTags}
-                                isLoading={isLoadingTags}
-                              />
-                              <p className='text-muted-foreground text-xs'>{t('channels.dialogs.fields.tags.description')}</p>
-                              <FormMessage />
-                            </div>
-                          </FormItem>
-                        )}
-                      />
+                      <ChannelTagsField dialog={dialog} ref={tagsFieldRef} />
 
                       <FormField
                         control={form.control}
@@ -2174,7 +2157,7 @@ export function ChannelsActionDialog({ currentRow, duplicateFromRow, open, onOpe
             </div>
           </div>
           <DialogFooter className='flex-shrink-0'>
-            <Button type='button' variant='outline' onClick={() => onOpenChange(false)}>
+            <Button type='button' variant='outline' disabled={isSubmitting} onClick={() => onOpenChange(false)}>
               {t('common.buttons.cancel')}
             </Button>
             <Button

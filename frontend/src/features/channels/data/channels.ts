@@ -1257,6 +1257,9 @@ export function useUpdateChannelSettings() {
       queryClient.invalidateQueries({ queryKey: ['channels'] });
       queryClient.invalidateQueries({ queryKey: ['channel', data.id] });
       queryClient.invalidateQueries({ queryKey: ['provider-quotas'] });
+      if (input?.tags !== undefined || input?.name !== undefined || input?.type !== undefined || input?.remark !== undefined) {
+        void invalidateChannelIdentityQueries(queryClient);
+      }
       if (input?.credentials !== undefined || input?.type !== undefined || input?.baseURL !== undefined) {
         void invalidateChannelUpstreamStates(queryClient, [data.id]);
       }

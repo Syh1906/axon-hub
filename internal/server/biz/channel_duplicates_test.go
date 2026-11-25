@@ -115,16 +115,16 @@ func TestConsumptionDuplicateChannelsKeepIdentityAndCache(t *testing.T) {
 	}
 	require.Equal(t, 2.0, byID[a.ID].Metrics.TotalCost)
 	require.Equal(t, 7.0, byID[b.ID].Metrics.TotalCost)
-	require.Equal(t, "小为", byID[a.ID].ChannelTags[0])
-	require.Equal(t, "裂魂", byID[b.ID].ChannelTags[0])
-	f.client.Channel.UpdateOneID(a.ID).SetTags([]string{"shared", "备用"}).SaveX(f.ctx)
+	require.Equal(t, []string{"shared", "小为"}, byID[a.ID].ChannelTags)
+	require.Equal(t, []string{"shared", "裂魂"}, byID[b.ID].ChannelTags)
+	f.client.Channel.UpdateOneID(a.ID).SetTags([]string{"小为", "shared"}).SaveX(f.ctx)
 	second, err := f.service.Leaderboard(ctx, input)
 	require.NoError(t, err)
 	require.Equal(t, first.GeneratedAt, second.GeneratedAt, "tag changes must reuse the expensive aggregate")
-	require.Equal(t, "小为", byID[a.ID].ChannelTags[0], "earlier returned snapshots must not be mutated")
+	require.Equal(t, []string{"shared", "小为"}, byID[a.ID].ChannelTags, "earlier returned snapshots must not be mutated")
 	for _, entry := range second.Entries {
 		if entry.ID.ID == a.ID {
-			require.Equal(t, "备用", entry.ChannelTags[0])
+			require.Equal(t, []string{"小为", "shared"}, entry.ChannelTags)
 		}
 	}
 	f.client.Channel.UpdateOneID(b.ID).SetName("unique").SaveX(f.ctx)

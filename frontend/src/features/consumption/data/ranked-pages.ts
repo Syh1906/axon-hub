@@ -31,6 +31,7 @@ export function useRankedPages(
   const scope = ['rankedConsumption', view, project, user?.id, user?.isOwner, user?.scopes, user?.projects, input, providers];
   const query = useInfiniteQuery<RankPage, Error, InfiniteData<RankPage>, readonly unknown[], Cursor>({
     queryKey: [...scope, sort],
+    meta: { channelLeaderboard: view === 'leaderboard' && input.dimension === 'CHANNEL' },
     // 同一份榜单换排序时保留表格和展开状态。项目、权限或筛选变化须等待对应结果。
     placeholderData: (previous, query) => query && hashKey(query.queryKey.slice(0, -1)) === hashKey(scope) ? previous : undefined,
     enabled: enabled && !!user && (view === 'leaderboard' || !!project),

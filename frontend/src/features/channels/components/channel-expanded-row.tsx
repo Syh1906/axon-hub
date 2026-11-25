@@ -72,8 +72,8 @@ export const ChannelExpandedRow = memo(({ channel: listChannel, getApiFormatLabe
                   <span className='text-muted-foreground shrink-0'>{t('channels.expandedRow.tags')}:</span>
                   <div className='flex max-w-[200px] flex-wrap justify-end gap-1'>
                     {channel.tags && channel.tags.length > 0 ? (
-                      channel.tags.map((tag) => (
-                        <Badge key={tag} variant='outline' className='text-xs'>
+                      channel.tags.map((tag, index) => (
+                        <Badge key={index} variant='outline' className='text-xs'>
                           {tag}
                         </Badge>
                       ))

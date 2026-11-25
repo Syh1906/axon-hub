@@ -1,13 +1,123 @@
 'use client';
 
-import { forwardRef, useCallback, useEffect, useRef, useState, useMemo } from 'react';
-import { Check } from 'lucide-react';
-import { X } from 'lucide-react';
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState, useMemo } from 'react';
+import { DndContext, KeyboardSensor, PointerSensor, closestCenter, pointerWithin, useSensor, useSensors, type CollisionDetection, type DragEndEvent } from '@dnd-kit/core';
+import { SortableContext, arrayMove, rectSortingStrategy, sortableKeyboardCoordinates, useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import { Check, GripVertical, X } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
 import { TruncatedText } from '@/components/truncated-text';
 import { Popover, PopoverContent, PopoverTrigger } from './popover';
 
 const MAX_DISPLAY = 100;
+const tagClassName = 'bg-secondary text-secondary-foreground flex items-center gap-1 rounded-sm px-2 py-0.5';
+
+type TagProps = { tag: string; onRemove: () => void };
+type TagItem = { id: string; tag: string };
+
+function identifyTags(value: string[]) {
+  const occurrences = new Map<string, number>();
+  return value.map((tag) => {
+    const occurrence = (occurrences.get(tag) ?? 0) + 1;
+    occurrences.set(tag, occurrence);
+    return { id: JSON.stringify([tag, occurrence]), tag };
+  });
+}
+
+const tagCollision: CollisionDetection = (args) => {
+  const pointer = args.pointerCoordinates;
+  if (!pointer) return closestCenter(args);
+  const hits = pointerWithin(args);
+  if (hits.length) return hits;
+  const { x, y } = pointer;
+  return closestCenter({ ...args, collisionRect: { left: x, right: x, top: y, bottom: y, width: 0, height: 0 } });
+};
+
+function RemoveTagButton({ tag, onRemove }: TagProps) {
+  const { t } = useTranslation();
+  return (
+    <button
+      type='button'
+      onClick={onRemove}
+      className='text-secondary-foreground/80 hover:text-secondary-foreground focus-visible:outline-foreground rounded-sm focus-visible:outline-2 focus-visible:outline-offset-1'
+      aria-label={t('common.removeTag', { tag })}
+    >
+      <X className='size-3' />
+    </button>
+  );
+}
+
+function SortableTag({ id, tag, onRemove }: TagProps & { id: string }) {
+  const { t } = useTranslation();
+  const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({ id, data: { tag } });
+  return (
+    <div
+      ref={setNodeRef}
+      className={cn(tagClassName, 'max-w-full motion-reduce:transition-none!', isDragging && 'relative z-10 shadow-sm')}
+      style={{ transform: CSS.Transform.toString(transform), transition }}
+    >
+      <button
+        ref={setActivatorNodeRef}
+        type='button'
+        {...attributes}
+        {...listeners}
+        aria-label={t('common.dragToReorder', { label: tag })}
+        className='focus-visible:outline-foreground flex min-w-0 cursor-grab touch-none items-center gap-1 rounded-sm text-xs select-none focus-visible:outline-2 active:cursor-grabbing'
+        onClick={(event) => event.stopPropagation()}
+      >
+        <GripVertical aria-hidden className='text-muted-foreground size-3 shrink-0' />
+        <span className='truncate' title={tag}>{tag}</span>
+      </button>
+      <RemoveTagButton tag={tag} onRemove={onRemove} />
+    </div>
+  );
+}
+
+function SortableTags({ items, onChange, onRemove }: {
+  items: TagItem[];
+  onChange: (items: TagItem[]) => void;
+  onRemove: (index: number) => void;
+}) {
+  const { t } = useTranslation();
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+  function handleDragEnd({ active, over }: DragEndEvent) {
+    if (!over || active.id === over.id) return;
+    const from = items.findIndex((item) => item.id === active.id);
+    const to = items.findIndex((item) => item.id === over.id);
+    if (from >= 0 && to >= 0) onChange(arrayMove(items, from, to));
+  }
+
+  return (
+    <DndContext
+      sensors={sensors}
+      collisionDetection={tagCollision}
+      onDragEnd={handleDragEnd}
+      accessibility={{
+        screenReaderInstructions: { draggable: t('common.tagReorder.instructions') },
+        announcements: {
+          onDragStart: ({ active }) => t('common.tagReorder.pickedUp', { tag: active.data.current?.tag }),
+          onDragOver: ({ active, over }) => {
+            if (over) {
+              return t('common.tagReorder.position', { tag: active.data.current?.tag, position: over.data.current?.sortable.index + 1, total: items.length });
+            }
+          },
+          onDragEnd: ({ active, over }) => t(over ? 'common.tagReorder.dropped' : 'common.tagReorder.cancelled', { tag: active.data.current?.tag }),
+          onDragCancel: ({ active }) => t('common.tagReorder.cancelled', { tag: active.data.current?.tag }),
+        },
+      }}
+    >
+      <SortableContext items={items} strategy={rectSortingStrategy}>
+        {items.map(({ id, tag }, index) => (
+          <SortableTag key={id} id={id} tag={tag} onRemove={() => onRemove(index)} />
+        ))}
+      </SortableContext>
+    </DndContext>
+  );
+}
 
 interface TagsAutocompleteInputProps {
   value: string[];
@@ -17,16 +127,28 @@ interface TagsAutocompleteInputProps {
   suggestions?: string[];
   isLoading?: boolean;
   inputLabel?: string;
+  reorderable?: boolean;
 }
 
 export const TagsAutocompleteInput = forwardRef<HTMLDivElement, TagsAutocompleteInputProps>(
-  ({ value = [], onChange, placeholder, className, suggestions = [], isLoading, inputLabel }, ref) => {
+  ({ value = [], onChange, placeholder, className, suggestions = [], isLoading, inputLabel, reorderable }, ref) => {
     const [inputValue, setInputValue] = useState('');
     const [open, setOpen] = useState(false);
     const [isComposing, setIsComposing] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
+    useImperativeHandle(ref, () => containerRef.current!, []);
+    const [editedItems, setEditedItems] = useState<TagItem[]>([]);
+    const items = useMemo(() => {
+      // 拖动后沿用每一枚标签的标识，让键盘焦点跟随被移动的那一枚。
+      if (editedItems.length === value.length && editedItems.every((item, index) => item.tag === value[index])) return editedItems;
+      return identifyTags(value);
+    }, [value, editedItems]);
 
+    const updateItems = (next: TagItem[]) => {
+      setEditedItems(next);
+      onChange(next.map((item) => item.tag));
+    };
 
     // Filter suggestions based on input and not already selected (capped for performance)
     const filteredSuggestions = useMemo(() => {
@@ -68,8 +190,8 @@ export const TagsAutocompleteInput = forwardRef<HTMLDivElement, TagsAutocomplete
       }
     };
 
-    const removeTag = (tagToRemove: string) => {
-      onChange(value.filter((tag) => tag !== tagToRemove));
+    const removeTag = (index: number) => {
+      updateItems(items.filter((_, position) => position !== index));
     };
 
     const handleSelectSuggestion = (suggestion: string) => {
@@ -122,19 +244,16 @@ export const TagsAutocompleteInput = forwardRef<HTMLDivElement, TagsAutocomplete
         )}
         onClick={handleContainerClick}
       >
-        {value.map((tag) => (
-          <div key={tag} className='bg-secondary text-secondary-foreground flex items-center gap-1 rounded-sm px-2 py-0.5'>
-            <span className='text-xs'>{tag}</span>
-            <button
-              type='button'
-              onClick={() => removeTag(tag)}
-              className='text-secondary-foreground/80 hover:text-secondary-foreground focus-visible:outline-foreground rounded-sm focus-visible:outline-2 focus-visible:outline-offset-1'
-              aria-label={`Remove ${tag} tag`}
-            >
-              <X className='h-3 w-3' />
-            </button>
-          </div>
-        ))}
+        {reorderable ? (
+          <SortableTags items={items} onChange={updateItems} onRemove={removeTag} />
+        ) : (
+          items.map(({ id, tag }, index) => (
+            <div key={id} className={tagClassName}>
+              <span className='text-xs'>{tag}</span>
+              <RemoveTagButton tag={tag} onRemove={() => removeTag(index)} />
+            </div>
+          ))
+        )}
         <Popover open={open} onOpenChange={setOpen} modal={false}>
           <PopoverTrigger asChild>
             <input

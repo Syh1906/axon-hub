@@ -465,7 +465,7 @@
   "channels.dialogs.fields.defaultTestModel.description": "用于测试连接的默认模型",
   "channels.dialogs.fields.tags.label": "标签",
   "channels.dialogs.fields.tags.placeholder": "添加标签...",
-  "channels.dialogs.fields.tags.description": "添加标签来分类和过滤渠道。按回车键、逗号或空格来添加标签。",
+  "channels.dialogs.fields.tags.description": "拖动标签调整展示顺序，按回车或逗号添加标签。",
   "channels.dialogs.fields.remark.label": "备注",
   "channels.dialogs.fields.remark.placeholder": "为此渠道输入备注或说明...",
   "channels.dialogs.fields.remark.description": "添加关于此渠道的备注或说明以供参考",

@@ -8,7 +8,9 @@ Channel names may repeat. The existing channel ID remains the stable identity; n
 
 API-key profiles, profile templates, project profiles and model exclusions select and save channels by ID. Same-named options include tags, provider and `#ID`, with search by name, tag or ID. Adding another channel or removing one selection does not replace a selected same-named channel. Model associations and API-key channel priorities also distinguish these options.
 
-The consumption leaderboard keeps its column width, row height and model expansion. Only duplicate names receive a second line with tags and provider. It shows at most two tags, prioritizing tags shared by fewer same-named channels, and a `+N` count for the rest. Click this line for all tags, the remark and ID. Unique names stay on one line. Search covers names, tags and providers; filtering down to one result does not remove its duplicate-name context. Historical periods also display current tags.
+In channel settings, drag a tag by its grip or text to change its display order. After saving, the channel list and consumption leaderboard use that order.
+
+For channels with the same name, the consumption leaderboard shows the first two tags and the provider under the name, with a `+N` count for any remaining tags. Click this line to see all tags, the remark and the channel ID. You can search by name, tag or provider. The details stay visible even when a search leaves only one of the same-named channels. Historical periods also use the current tag order.
 
 Display fields are fetched in one batch, never per row. Channel edits refresh only the channel leaderboard. Current channel labels are attached separately from cached usage aggregates, so retagging does not recompute historical costs. Dashboard costs are matched by channel ID, keeping same-named channels separate.
 
