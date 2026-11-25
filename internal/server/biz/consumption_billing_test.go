@@ -306,11 +306,13 @@ func TestRequestAndProjectCostsUseFrozenCallerRate(t *testing.T) {
 				require.NoError(t, err)
 				require.Nil(t, basic[req.ID].ChannelCost)
 				require.Equal(t, float64(tc.amount), *basic[req.ID].TotalCost)
+				require.NotNil(t, basic[req.ID].CostPriceMultiplier)
 				require.True(t, charged.Equal(*basic[req.ID].CostPriceMultiplier))
 				admin := f.viewer(t, f.project.ID, string(scopes.ScopeReadRequests), string(scopes.ScopeReadChannels))
 				both, err := RequestUsageSummaries(admin, f.client, []int{req.ID})
 				require.NoError(t, err)
 				require.Equal(t, 4.0, *both[req.ID].ChannelCost)
+				require.NotNil(t, both[req.ID].ChannelCostMultiplier)
 				require.True(t, supply.Equal(*both[req.ID].ChannelCostMultiplier))
 				for _, dim := range []ConsumptionDimension{ConsumptionDimensionAPIKeyGroup, ConsumptionDimensionModel, ConsumptionDimensionAPIKey, ConsumptionDimensionUser} {
 					report, err := f.service.UsageStatistics(viewer, ConsumptionFilter{Dimension: dim, Metric: ConsumptionMetricCost, Period: ConsumptionPeriodAll, Uncached: true})
