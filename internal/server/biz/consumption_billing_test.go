@@ -296,8 +296,10 @@ func TestRequestAndProjectCostsUseFrozenCallerRate(t *testing.T) {
 			}
 			f.client.UsageLog.Update().Where(usagelog.RequestIDEQ(req.ID)).SetBillingGroupID(group.ID).
 				SetBilledCost(float64(tc.amount)).SetCostItems(line(supply, 4)).SetBilledItems(line(charged, tc.amount)).
-				SetCostSnapshot(&objects.RequestCostSnapshot{Applied: objects.AppliedCostMultiplier{Value: supply},
-					Billing: &objects.ExecutionBilling{Rate: &charged, Source: "group"}}).ExecX(f.ctx)
+				SetCostSnapshot(&objects.RequestCostSnapshot{
+					Applied: objects.AppliedCostMultiplier{Value: supply},
+					Billing: &objects.ExecutionBilling{Rate: &charged, Source: "group"},
+				}).ExecX(f.ctx)
 			check := func() {
 				viewer := f.viewer(t, f.project.ID, string(scopes.ScopeReadRequests))
 				basic, err := RequestUsageSummaries(viewer, f.client, []int{req.ID})
