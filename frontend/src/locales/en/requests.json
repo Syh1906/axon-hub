@@ -1,4 +1,5 @@
 {
+  "requests.pagination.countFailed": "Could not load the page count",
   "requests.session.id": "Session ID",
   "requests.session.short": "Session",
   "requests.session.placeholder": "Paste full session ID",

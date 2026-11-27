@@ -7,8 +7,10 @@ import (
 	"github.com/looplj/axonhub/internal/ent/trace"
 )
 
-// PostgreSQL 对有界会话历史的索引查找更快；保留 OFFSET 0 约束，
-// 避免规划器把执行子查询提前到全项目历史上。SQLite 使用批量窗口查询。
+// 优先在相邻的一小段主键中查上一条已采用的执行。空闲会话可能跨过这个范围，
+// 此时继续查边界之前的全部历史。这个宽度只影响查询成本。
+const recentSessionRequestIDs = 128
+
 func requestSessionHistoryPostgresQuery(q *sql.Selector) {
 	q.Where(sql.GT(q.C(requestexecution.FieldChannelID), 0))
 	dialect := sql.Dialect(q.Dialect())
@@ -34,21 +36,30 @@ func requestSessionHistoryPostgresQuery(q *sql.Selector) {
 		sql.ColumnsLT(prior.C(request.FieldID), current.C(request.FieldID)),
 		sameSession, RequestSessionFinished(prior),
 	))
-	history := boundedHistory
-	if q.Dialect() == "postgres" {
-		// 先筛出同一会话的历史，阻止 PostgreSQL 将昂贵的最终执行
-		// 子查询提前到全项目历史上执行；OFFSET 0 不截断任何记录。
-		history = dialect.Select().From(boundedHistory.Offset(0).As("prior_request"))
-	} else {
-		history.Select()
+	previousChannel := func(bound sql.Op) *sql.Selector {
+		candidates := boundedHistory.Clone().Where(sql.P(func(b *sql.Builder) {
+			b.Ident(prior.C(request.FieldID)).WriteOp(bound).Ident(current.C(request.FieldID)).
+				WriteString(" - ").Arg(recentSessionRequestIDs)
+		})).OrderBy(sql.Desc(prior.C(request.FieldID))).Offset(0).As("prior_request")
+		// OFFSET 0 保留先选请求、再读采用渠道的执行顺序，避免给整段历史逐条查执行。
+		adopted := dialect.Select(candidates.C(request.FieldID)).From(candidates).
+			AppendSelectExprAs(sql.ExprFunc(func(b *sql.Builder) {
+				b.Wrap(func(b *sql.Builder) { b.Join(finalPriorChannel) })
+			}), "channel").Offset(0).As("adopted")
+		return dialect.Select(adopted.C("channel")).From(adopted).Where(sql.NotNull(adopted.C("channel"))).
+			OrderBy(sql.Desc(adopted.C(request.FieldID))).Limit(1)
 	}
-	previous := history.Clone().AppendSelectExpr(sql.ExprFunc(func(b *sql.Builder) {
-		b.Wrap(func(b *sql.Builder) { b.Join(finalPriorChannel) })
-	})).Where(sql.P(func(b *sql.Builder) {
-		b.Wrap(func(b *sql.Builder) { b.Join(finalPriorChannel) }).WriteOp(sql.OpNotNull)
-	})).OrderBy(sql.Desc(prior.C(request.FieldID))).Limit(1)
-	usedBefore := history.Select(prior.C(request.FieldID)).Where(RequestSessionAttemptMatches(channel, finalPriorChannel))
-	q.Select(q.C(requestexecution.FieldID), sql.As(channel, "channel")).
-		AppendSelectExprAs(sql.ExprFunc(func(b *sql.Builder) { b.Wrap(func(b *sql.Builder) { b.Join(previous) }) }), "previous_channel").
-		AppendSelectExprAs(sql.Exists(usedBefore), "used_before")
+	recent, older := previousChannel(sql.OpGTE), previousChannel(sql.OpLT)
+	previous := dialect.Select().AppendSelectExprAs(sql.ExprFunc(func(b *sql.Builder) {
+		b.WriteString("COALESCE(").Wrap(func(b *sql.Builder) { b.Join(recent) }).Comma().
+			Wrap(func(b *sql.Builder) { b.Join(older) }).WriteByte(')')
+	}), "previous_channel").Offset(0).As("predecessor")
+	history := boundedHistory.Offset(0).As("prior_request")
+	usedBefore := dialect.Select(history.C(request.FieldID)).From(history).Where(RequestSessionAttemptMatches(channel, finalPriorChannel))
+	previousChannelID := previous.C("previous_channel")
+	state := dialect.SelectExpr(requestChannelSessionState(previousChannelID, channel,
+		sql.And(sql.NotNull(previousChannelID), sql.Exists(usedBefore)))).From(previous)
+	q.Select(q.C(requestexecution.FieldID)).AppendSelectExprAs(sql.ExprFunc(func(b *sql.Builder) {
+		b.Wrap(func(b *sql.Builder) { b.Join(state) })
+	}), "session_state")
 }

@@ -1,4 +1,5 @@
 {
+  "requests.pagination.countFailed": "总页数加载失败",
   "requests.session.id": "会话 ID",
   "requests.session.short": "会话",
   "requests.session.placeholder": "粘贴完整会话 ID",

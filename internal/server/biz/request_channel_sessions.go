@@ -17,10 +17,8 @@ func RequestChannelSessions(ctx context.Context, client *ent.Client, ids []int) 
 		return states
 	}
 	var rows []struct {
-		ID              int  `json:"id"`
-		Channel         int  `json:"channel"`
-		PreviousChannel *int `json:"previous_channel"`
-		UsedBefore      bool `json:"used_before"`
+		ID    int    `json:"id"`
+		State string `json:"session_state"`
 	}
 	err := client.RequestExecution.Query().Where(requestexecution.IDIn(ids...)).Modify(func(q *sql.Selector) {
 		requestSessionHistoryQuery(q, ids)
@@ -33,14 +31,15 @@ func RequestChannelSessions(ctx context.Context, client *ent.Client, ids []int) 
 		return states
 	}
 	for _, row := range rows {
-		switch {
-		case row.PreviousChannel != nil && *row.PreviousChannel == row.Channel:
-			states[row.ID] = "reused"
-		case row.UsedBefore:
-			states[row.ID] = "returned"
-		default:
-			states[row.ID] = "new"
-		}
+		states[row.ID] = row.State
 	}
 	return states
+}
+
+// 上一次采用的渠道相同就足以判定复用。只有切换渠道时才需要查更早的使用记录。
+func requestChannelSessionState(previous, channel string, usedBefore sql.Querier) sql.Querier {
+	return sql.ExprFunc(func(b *sql.Builder) {
+		b.WriteString("CASE WHEN ").Ident(previous).WriteOp(sql.OpEQ).Ident(channel).WriteString(" THEN 'reused' WHEN ").
+			Join(usedBefore).WriteString(" THEN 'returned' ELSE 'new' END")
+	})
 }

@@ -1,4 +1,4 @@
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient, type UseQueryResult } from '@tanstack/react-query';
 import { graphqlRequest } from '@/gql/graphql';
 import { useTranslation } from 'react-i18next';
 import { useSelectedProjectId } from '@/stores/projectStore';
@@ -436,6 +436,41 @@ export function useInfiniteRequests(where: Record<string, any> | undefined, page
         { signal }
       );
       return requestConnectionSchema.parse(data.requests);
+    },
+  });
+}
+
+const REQUEST_LOG_TOTAL_FRESH_MS = 60_000;
+
+export function refreshRequestLogTotal(total: Pick<UseQueryResult<number>, 'dataUpdatedAt' | 'errorUpdatedAt' | 'refetch'>, force = false) {
+  const lastAttempt = Math.max(total.dataUpdatedAt, total.errorUpdatedAt);
+  if (force || Date.now() - lastAttempt >= REQUEST_LOG_TOTAL_FRESH_MS) {
+    void total.refetch({ cancelRefetch: false });
+  }
+}
+
+export function useRequestLogTotal(where: Record<string, any> | undefined, enabled: boolean) {
+  const projectId = useSelectedProjectId();
+  const userId = useAuthStore((state) => state.auth.user?.id);
+  const permissions = useRequestPermissions();
+  const variables = requestLogVariables({ ...where, ...(projectId && { projectID: projectId }) });
+
+  return useQuery({
+    queryKey: ['request-log-total', variables, projectId, userId, permissions],
+    enabled,
+    staleTime: REQUEST_LOG_TOTAL_FRESH_MS,
+    refetchOnWindowFocus: false,
+    retry: false,
+    queryFn: async ({ signal }) => {
+      const data = await graphqlRequest<{ requestLogs: { totalCount: number } }>(
+        `query GetRequestLogTotal($where: RequestWhereInput, $filter: RequestLogFilterInput) {
+          requestLogs(first: 1, where: $where, filter: $filter) { totalCount }
+        }`,
+        variables,
+        projectId ? { 'X-Project-ID': projectId } : undefined,
+        { signal }
+      );
+      return data.requestLogs.totalCount;
     },
   });
 }

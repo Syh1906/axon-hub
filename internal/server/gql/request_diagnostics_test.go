@@ -352,23 +352,38 @@ func TestRequestListCalculatedFieldsDoNotSelectPayloadColumns(t *testing.T) {
 	t.Cleanup(func() { require.NoError(t, client.Close()) })
 	ctx := authz.WithTestBypass(context.Background())
 	body := objects.JSONRawMessage(`{"input":"` + strings.Repeat("x", 1024) + `"}`)
-	req := client.Request.Create().SetModelID("columns").SetRequestBody(body).SetStatus("completed").SaveX(ctx)
+	req := client.Request.Create().SetModelID("columns").SetRequestBody(body).
+		SetRequestHeaders(objects.JSONRawMessage(`{"X-Test":"requested"}`)).SetStatus("completed").SaveX(ctx)
 	client.RequestExecution.Create().SetRequestID(req.ID).SetModelID("columns").SetRequestBody(body).SetStatus("completed").SaveX(ctx)
 	var statements []string
 	debug := ent.NewClient(ent.Driver(client.Driver()), ent.Debug(), ent.Log(func(args ...any) { statements = append(statements, fmt.Sprint(args...)) }))
 	server := handler.NewDefaultServer(NewExecutableSchema(Config{Resolvers: &Resolver{client: debug}}))
-	httpRequest := httptest.NewRequest(http.MethodPost, "/graphql", strings.NewReader(`{"query":"{requestLogs(first:1){edges{node{id status outputTokensPerSecond executions(first:1){edges{node{id costSnapshot{applied{value}}}}}}}}}"}`)).WithContext(ent.NewContext(ctx, debug))
-	httpRequest.Header.Set("Content-Type", "application/json")
-	response := httptest.NewRecorder()
-	server.ServeHTTP(response, httpRequest)
-	require.Equal(t, http.StatusOK, response.Code)
-	var payload map[string]any
-	require.NoError(t, json.Unmarshal(response.Body.Bytes(), &payload))
-	require.NotContains(t, payload, "errors", response.Body.String())
+	run := func(query string) string {
+		t.Helper()
+		body, err := json.Marshal(map[string]string{"query": query})
+		require.NoError(t, err)
+		ctx := withRequestUsageCache(withRequestSpeedCache(withRequestContinuationCache(withRequestChannelSessionCache(ctx))))
+		req := httptest.NewRequest(http.MethodPost, "/graphql", strings.NewReader(string(body))).WithContext(ent.NewContext(ctx, debug))
+		req.Header.Set("Content-Type", "application/json")
+		response := httptest.NewRecorder()
+		server.ServeHTTP(response, req)
+		require.Equal(t, http.StatusOK, response.Code)
+		var payload map[string]any
+		require.NoError(t, json.Unmarshal(response.Body.Bytes(), &payload))
+		require.NotContains(t, payload, "errors", response.Body.String())
+		return response.Body.String()
+	}
+	run(`{ requestLogs(first:1) { edges { node {
+		id status continuationCount sessionExecution { id } resultExecution { id }
+		usageSummary { totalTokens } outputRate { durationMs } outputBatches { count } outputTokensPerSecond
+		executions(first:1) { edges { node { id costSnapshot { applied { value } } } } }
+	} } } }`)
 	require.NotEmpty(t, statements)
 	for _, statement := range statements {
-		for _, column := range []string{"request_body", "response_body", "response_chunks", "request_headers"} {
+		for _, column := range []string{"request_body", "response_body", "response_chunks", "request_headers", "response_headers", "routing_decision"} {
 			require.NotContains(t, statement, column, "list queries must stay small even when older rows retain large bodies")
 		}
 	}
+	require.Contains(t, run(`{ requestLogs(first:1) { edges { node { continuationCount ...Headers } } } }
+		fragment Headers on Request { stored: requestHeaders }`), `"X-Test":"requested"`)
 }

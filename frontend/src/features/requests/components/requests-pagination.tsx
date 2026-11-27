@@ -9,19 +9,18 @@ export interface RequestsPaginationProps {
   page: number;
   pageSize: number;
   totalCount?: number;
+  hasNextPage: boolean;
+  countFailed: boolean;
   loading: boolean;
   onPageChange: (page: number) => void;
   onPageSizeChange: (pageSize: number) => void;
 }
 
-export function RequestsPagination({ page, pageSize, totalCount, loading, onPageChange, onPageSizeChange }: RequestsPaginationProps) {
+export function RequestsPagination({ page, pageSize, totalCount, hasNextPage, countFailed, loading, onPageChange, onPageSizeChange }: RequestsPaginationProps) {
   const { t } = useTranslation();
   const [target, setTarget] = useState(String(page));
   useEffect(() => setTarget(String(page)), [page]);
-  const pages = Math.max(1, Math.ceil((totalCount ?? 0) / pageSize));
-  const go = (value: number) => {
-    if (Number.isSafeInteger(value) && value >= 1 && value <= pages) onPageChange(value);
-  };
+  const pages = totalCount === undefined ? undefined : Math.max(1, Math.ceil(totalCount / pageSize));
   return (
     <div className='flex shrink-0 flex-wrap items-center justify-between gap-3 pt-3 text-sm' data-testid='requests-pagination'>
       <div className='flex items-center gap-2'>
@@ -42,12 +41,12 @@ export function RequestsPagination({ page, pageSize, totalCount, loading, onPage
         </Select>
       </div>
       <div className='flex flex-wrap items-center gap-2'>
-        <span>{totalCount === undefined ? t('common.loading') : t('pagination.currentPage', { current: page, total: pages })}</span>
+        <span>{t('pagination.currentPage', { current: page, total: pages ?? (countFailed ? '—' : '…') })}</span>
         <Button
           size='icon-sm'
           variant='outline'
           disabled={loading || page <= 1}
-          onClick={() => go(1)}
+          onClick={() => onPageChange(1)}
           aria-label={t('pagination.firstPage')}
         >
           <ChevronsLeft />
@@ -56,7 +55,7 @@ export function RequestsPagination({ page, pageSize, totalCount, loading, onPage
           size='icon-sm'
           variant='outline'
           disabled={loading || page <= 1}
-          onClick={() => go(page - 1)}
+          onClick={() => onPageChange(page - 1)}
           aria-label={t('pagination.previousPage')}
         >
           <ChevronLeft />
@@ -64,8 +63,8 @@ export function RequestsPagination({ page, pageSize, totalCount, loading, onPage
         <Button
           size='icon-sm'
           variant='outline'
-          disabled={loading || page >= pages}
-          onClick={() => go(page + 1)}
+          disabled={loading || !hasNextPage}
+          onClick={() => onPageChange(page + 1)}
           aria-label={t('pagination.nextPage')}
         >
           <ChevronRight />
@@ -73,8 +72,8 @@ export function RequestsPagination({ page, pageSize, totalCount, loading, onPage
         <Button
           size='icon-sm'
           variant='outline'
-          disabled={loading || page >= pages}
-          onClick={() => go(pages)}
+          disabled={loading || pages === undefined || page >= pages}
+          onClick={() => pages !== undefined && onPageChange(pages)}
           aria-label={t('pagination.lastPage')}
         >
           <ChevronsRight />
@@ -83,7 +82,8 @@ export function RequestsPagination({ page, pageSize, totalCount, loading, onPage
           className='flex items-center gap-2'
           onSubmit={(event) => {
             event.preventDefault();
-            go(Number(target));
+            const value = Number(target);
+            if (pages !== undefined && Number.isSafeInteger(value) && value >= 1 && value <= pages) onPageChange(value);
           }}
         >
           <Input
@@ -96,7 +96,7 @@ export function RequestsPagination({ page, pageSize, totalCount, loading, onPage
             className='h-8 w-20'
             aria-label={t('requests.pagination.target')}
           />
-          <Button type='submit' size='sm' variant='outline' disabled={loading}>
+          <Button type='submit' size='sm' variant='outline' disabled={loading || pages === undefined}>
             {t('requests.pagination.go')}
           </Button>
         </form>

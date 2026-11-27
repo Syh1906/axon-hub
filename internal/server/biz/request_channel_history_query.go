@@ -57,6 +57,7 @@ func requestSessionHistoryQuery(q *sql.Selector, ids []int) {
 		LeftJoin(window).On(q.C(requestexecution.FieldID), window.C("execution_id")).
 		Where(sql.And(RequestSessionFinished(current),
 			RequestSessionAttemptMatches(q.C(requestexecution.FieldID), FinalRequestChannelAttempt(q.Dialect(), current, requestexecution.FieldID)))).
-		Select(q.C(requestexecution.FieldID), sql.As(q.C(requestexecution.FieldChannelID), "channel"), window.C("previous_channel")).
-		AppendSelectAs("CASE WHEN "+window.C("first_use_id")+" < "+current.C(request.FieldID)+" THEN TRUE ELSE FALSE END", "used_before")
+		Select(q.C(requestexecution.FieldID)).
+		AppendSelectExprAs(requestChannelSessionState(window.C("previous_channel"), q.C(requestexecution.FieldChannelID),
+			sql.ColumnsLT(window.C("first_use_id"), current.C(request.FieldID))), "session_state")
 }

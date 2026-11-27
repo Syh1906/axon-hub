@@ -660,6 +660,11 @@ func ({{ $r }} *{{ $name }}) ToEdge(order *{{ $order }}) *{{ $edge }} {
 		if err := {{ $r }}.collectField(ctx, limit == 1, graphql.GetOperationContext(ctx), *field, []string{edgesField, nodeField}); err != nil {
 			return nil, err
 		}
+		{{- if eq $name "Request" }}
+		if len({{ $r }}.ctx.Fields) == 0 {
+			{{ $r }}.selectRequestListFields(graphql.GetOperationContext(ctx), *field)
+		}
+		{{- end }}
 	}
 	{{ $r }} = pager.applyOrder({{ $r }})
 	nodes, err := {{ $r }}.All(ctx)

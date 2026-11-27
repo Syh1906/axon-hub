@@ -124,6 +124,53 @@ function requestQueries(canViewChannels, onRequest, onError) {
   return requests;
 }
 
+test('页码总数按当前筛选独立读取，滚动模式关闭统计', async () => {
+  let calls = 0;
+  const { useRequestLogTotal } = requestQueries(true, async (query, variables, headers) => {
+    calls++;
+    assert.match(query, /requestLogs\(first: 1, where: \$where, filter: \$filter\)\s*\{\s*totalCount\s*\}/);
+    assert.doesNotMatch(query, /\bedges\b/);
+    assert.deepEqual(variables.where, { projectID: 'selected-project', statusIn: ['failed'], clientSessionID: 'session' });
+    assert.deepEqual(variables.filter.channelTagsIn, ['target']);
+    assert.equal(variables.filter.collapseContinuations, false);
+    assert.equal(variables.filter.offset, undefined);
+    assert.equal(headers['X-Project-ID'], 'selected-project');
+    return { requestLogs: { totalCount: 41 } };
+  });
+  const where = { statusIn: ['failed'], clientSessionID: 'session', channelTagsIn: ['target'] };
+  assert.equal(useRequestLogTotal(where, false).enabled, false);
+  const query = useRequestLogTotal(where, true);
+  assert.equal(await query.queryFn({ signal: new AbortController().signal }), 41);
+  assert.equal(calls, 1);
+  assert.notDeepEqual(query.queryKey, useRequestLogTotal({ ...where, statusIn: ['completed'] }, true).queryKey);
+});
+
+test('总数统计成功或失败后按一分钟节流，手动重试立即生效', (t) => {
+  const now = 1_000_000;
+  t.mock.timers.enable({ apis: ['Date'], now });
+  const { refreshRequestLogTotal } = requestQueries(true);
+  let calls = 0;
+  const total = { dataUpdatedAt: 0, errorUpdatedAt: now, refetch: (options) => {
+    assert.equal(options.cancelRefetch, false);
+    calls++;
+  } };
+  t.mock.timers.tick(3_000);
+  refreshRequestLogTotal(total);
+  assert.equal(calls, 0);
+  refreshRequestLogTotal(total, true);
+  assert.equal(calls, 1);
+  t.mock.timers.tick(57_000);
+  refreshRequestLogTotal(total);
+  assert.equal(calls, 2);
+  total.dataUpdatedAt = Date.now();
+  t.mock.timers.tick(59_999);
+  refreshRequestLogTotal(total);
+  assert.equal(calls, 2);
+  t.mock.timers.tick(1);
+  refreshRequestLogTotal(total);
+  assert.equal(calls, 3);
+});
+
 test('抽屉跨页保留会话、项目与时间方向', async () => {
   const { fetchAdjacentRequestPage } = requestQueries(false, async (_query, variables, headers) => {
     assert.equal(variables.orderBy.direction, 'ASC');

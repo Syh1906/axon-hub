@@ -4794,6 +4794,9 @@ func (_m *RequestQuery) Paginate(
 		if err := _m.collectField(ctx, limit == 1, graphql.GetOperationContext(ctx), *field, []string{edgesField, nodeField}); err != nil {
 			return nil, err
 		}
+		if len(_m.ctx.Fields) == 0 {
+			_m.selectRequestListFields(graphql.GetOperationContext(ctx), *field)
+		}
 	}
 	_m = pager.applyOrder(_m)
 	nodes, err := _m.All(ctx)

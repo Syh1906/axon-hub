@@ -14,7 +14,7 @@ import { RequestsTable, type RequestTableFilters } from './components';
 import { RequestDateFilter } from './components/request-date-filter';
 import { RequestsProvider } from './context';
 import { requestLogOrder } from './data/request-log-variables';
-import { useInfiniteRequests, useRequests, useRequestLogTimezone } from './data';
+import { refreshRequestLogTotal, useInfiniteRequests, useRequests, useRequestLogTimezone, useRequestLogTotal } from './data';
 import { QueryLoadAlert } from '@/components/query-load-alert';
 
 const REQUEST_FILTER_SEARCH_KEYS = {
@@ -177,6 +177,7 @@ function clearRequestFilterSearch(draft: Record<string, unknown>) {
 }
 
 function RequestsContent() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { canViewChannels } = useRequestPermissions();
   const currentSearch = useSearch({ strict: false }) as Record<string, unknown>;
@@ -257,7 +258,12 @@ function RequestsContent() {
     { enabled: listMode === 'pages', keepPreviousPage: true, notifyOnError: false }
   );
   const query = listMode === 'infinite' ? infinite : paged;
-  const { data, isLoading, refetch } = query;
+  const { data, isLoading } = query;
+  const total = useRequestLogTotal(whereClause, listMode === 'pages');
+  function refreshPage(forceTotal = false) {
+    refreshRequestLogTotal(total, forceTotal);
+    return paged.refetch({ cancelRefetch: false });
+  }
   const requests = useMemo(() => data?.edges.map((edge) => edge.node) ?? [], [data?.edges]);
   const pageInfo = data?.pageInfo;
   const refreshActive = atTop && (listMode === 'infinite' || page === 1);
@@ -265,7 +271,7 @@ function RequestsContent() {
     () => {
       if (query.isFetching) return;
       if (listMode === 'infinite') void infinite.resetToTop();
-      else void refetch();
+      else void refreshPage();
     },
     refreshActive ? autoRefreshInterval : null,
     { refreshOnResume: true }
@@ -280,7 +286,7 @@ function RequestsContent() {
     error: query.isError,
     onLoadMore: infinite.loadMore,
     onLoadPrevious: infinite.loadPrevious,
-    onReset: () => (listMode === 'infinite' ? infinite.resetToTop() : paged.refetch()),
+    onReset: () => (listMode === 'infinite' ? infinite.resetToTop() : refreshPage(true)),
     onAtTopChange: (value: boolean, reason?: 'scroll' | 'reset') => {
       const wasAtTop = topRef.current;
       topRef.current = value;
@@ -418,6 +424,10 @@ function RequestsContent() {
       />
       <QueryLoadAlert error={query.error} hasData={data !== undefined && !query.isPlaceholderData} retrying={query.isFetching}
         onRetry={() => { if (listMode === 'infinite' && infinite.isFetchNextPageError) infinite.loadMore(); else if (listMode === 'infinite' && infinite.isFetchPreviousPageError) infinite.loadPrevious(); else void scroll.onReset(); }} />
+      {listMode === 'pages' && (
+        <QueryLoadAlert error={total.error} label={t('requests.pagination.countFailed')} hasData={data !== undefined}
+          retrying={total.isFetching} onRetry={() => refreshRequestLogTotal(total, true)} />
+      )}
       <RequestsTable
         data={requests}
         loading={isLoading}
@@ -441,7 +451,9 @@ function RequestsContent() {
         pagination={{
           page,
           pageSize,
-          totalCount: data?.totalCount,
+          totalCount: total.data,
+          hasNextPage: !!pageInfo?.hasNextPage,
+          countFailed: total.isError,
           loading: query.isFetching,
           onPageSizeChange: handlePageSizeChange,
           onPageChange: (next) =>
@@ -458,7 +470,7 @@ function RequestsContent() {
           setAutoRefreshInterval(interval);
           if (interval !== null && refreshActive && !query.isFetching) {
             if (listMode === 'infinite') void infinite.resetToTop();
-            else void refetch();
+            else void refreshPage();
           }
         }}
       />
