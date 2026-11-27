@@ -6,9 +6,22 @@ PostgreSQL looks for the previous adopted execution in the same project and sess
 
 When a paginated request query includes computed fields such as usage, speed or continuation count, it retains the metadata needed by resolvers. It reads headers, bodies, response chunks and routing decisions when the GraphQL selection requests them. When merging upstream, check the [Ent pagination template](../../../internal/ent/template/pagination.tmpl), the [field selection](../../../internal/ent/gql_request_list_fields.go) and the regression for explicitly requested headers.
 
-A read-only comparison used a fixed sample of the latest 50 requests at each deployment. Both original channel-history queries exceeded the four-second measurement limit. Across three runs of the replacement query, execution took 128–212 ms at the Quange deployment and 134–169 ms at Yunyou. These timings cover database execution. End-to-end measurements on those deployments are pending release.
+A read-only comparison used a fixed sample of the latest 50 requests at each deployment. Both original channel-history queries exceeded the four-second measurement limit. Across three runs of the replacement query, execution took 128–212 ms at the Quange deployment and 134–169 ms at Yunyou. These timings cover database execution. The following section records the production page measurements.
 
 Numbered pagination fetches the total for the same project and filters separately. The current list response controls navigation to adjacent pages. Once the total arrives, the user can jump to a page or the last page. Manual refresh updates the total. Automatic refresh updates it at most once a minute. Scrolling mode needs no total.
+
+## Production deployment and request-page measurements
+
+The [image-only release](https://github.com/Syh1906/axon-hub/releases/tag/v1.0.0-rc1-fork.29) was published at 04:02 Singapore time on November 28, 2026. The [release workflow](https://github.com/Syh1906/axon-hub/actions/runs/46060132571) built Linux amd64 and arm64 images and published `release.json` for commit `e993cecf40b3a756d81f3c0a4359c6547f8d3023`. Both deployments use the pinned digest `sha256:b969ec8422c7c5beecf4fef53394effbc1c9bdbf58d3f4f0ab80a4173f754e02`.
+
+Each measurement used numbered pagination and an existing signed-in session in the same browser, with one sample per site before and after the upgrade. Reload time ends when the first request row becomes visible. Manual refresh time ends when the refresh control clears its busy state. Both sites displayed the page total and returned different rows on page two.
+
+| Deployment | Healthy (Singapore time) | App recreation to healthy | Reload to first row, before → after | Manual refresh, before → after |
+| --- | --- | ---: | ---: | ---: |
+| Yunyou | 04:03:53 | 7.397 s | 4.802 → 1.211 s | 4.306 → 1.063 s |
+| Quange | 04:05:24 | 7.256 s | 10.175 → 1.191 s | 8.887 → 1.083 s |
+
+Both sites had zero in-flight requests in the sample immediately before the switch. At 04:07, requests created after recovery included 15 completed and one processing at Yunyou, and 29 completed and two processing at Quange. Local and public health, version, frontend assets, anonymous authorization and initialization checks passed. The PostgreSQL containers retained their IDs and start times. Temporary configuration copies were removed after verification, no database backups were taken, and the fork.28 images were retained for rollback.
 
 ## Request filters and per-attempt diagnostics
 

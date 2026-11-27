@@ -1,5 +1,7 @@
 # 独立维护、同步上游与发版
 
+2026-11-28，云悠、泉哥均从 fork.28 更新至 [fork.29 正式版](https://github.com/Syh1906/axon-hub/releases/tag/v1.0.0-rc1-fork.29)。两站使用同一固定镜像摘要，请求日志页的加载、手动刷新和翻页通过生产验收。[部署与计时记录](request-log-diagnostics.md#双站上线与请求页实测)
+
 2026-11-26，云悠和泉哥均从 fork.27 更新至 [fork.28 正式版](https://github.com/Syh1906/axon-hub/releases/tag/v1.0.0-rc1-fork.28)。本版统一请求计费显示，支持用量统计双成本对账，无需数据库迁移。两站的运行版本、镜像摘要、在途请求结果和旧账抽查见[维护台账](../../fork-maintenance.md)。
 
 2026-11-25，云悠和泉哥均从 fork.26 升级至 [fork.27 正式版](https://github.com/Syh1906/axon-hub/releases/tag/v1.0.0-rc1-fork.27)。两站已核对新增的密钥和分组全局倍率字段，并各抽查一笔升级前的用量与金额。切换时的在途请求结果、验收范围和回退条件见[维护台账](../../fork-maintenance.md)。

@@ -1,5 +1,7 @@
 # Independent releases and upstream maintenance
 
+On November 28, 2026 (Singapore time), Yunyou and Quange upgraded from fork.28 to the [fork.29 release](https://github.com/Syh1906/axon-hub/releases/tag/v1.0.0-rc1-fork.29) using the same pinned image digest. Signed-in request-page reload, manual refresh and pagination passed on both sites. [Deployment and timings](request-log-diagnostics.md#production-deployment-and-request-page-measurements)
+
 On November 26, 2026 (Singapore time), both production sites upgraded from fork.27 to [fork.28](https://github.com/Syh1906/axon-hub/releases/tag/v1.0.0-rc1-fork.28). Request logs show the final billed cost, and project usage statistics can also show channel cost. No database migration was required. The [maintenance ledger](../../fork-maintenance.md) records the image digest, deployment checks, in-flight request outcomes and historical billing checks.
 
 On November 25, 2026, both production sites upgraded from fork.26 to [fork.27](https://github.com/Syh1906/axon-hub/releases/tag/v1.0.0-rc1-fork.27). Each site verified the new global rate columns for keys and groups and compared the tokens and cost of one pre-upgrade usage record. The [maintenance ledger](../../fork-maintenance.md) records the deployment checks, in-flight request outcomes and rollback conditions.

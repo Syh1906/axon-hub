@@ -4,7 +4,7 @@
 
 请求列表减少重复的会话历史查询。页码模式独立读取总数，统计失败时仍可翻相邻页。PostgreSQL 16 已覆盖请求 ID 相差 127、128、129 的边界，本机浏览器验证了翻页、筛选及新增请求后的刷新。[请求日志维护记录](zh/development/request-log-diagnostics.md)
 
-本版同时纳入渠道标签拖动排序、Astra 指令模板和两个 GPT-5.6 型号的退役提示。相对 fork.28 无数据库迁移、历史回填或新增配置。
+本版同时纳入渠道标签拖动排序、Astra 指令模板和两个 GPT-5.6 型号的退役提示。相对 fork.28 无数据库迁移、历史回填或新增配置。[正式版](https://github.com/Syh1906/axon-hub/releases/tag/v1.0.0-rc1-fork.29)已部署到云悠和泉哥，均通过登录态请求页刷新与翻页验收。[切换与计时记录](zh/development/request-log-diagnostics.md#双站上线与请求页实测)
 
 ## rc1-fork.28 请求计费显示和用量对账（2026-11-26）
 
